@@ -1,0 +1,520 @@
+"use client";
+
+import { useActionState, useEffect, useState } from "react";
+import {
+  KeyRoundIcon,
+  Loader2,
+  PencilIcon,
+  PlusIcon,
+  UserRoundPlusIcon,
+} from "lucide-react";
+
+import {
+  createInstructor,
+  resetInstructorPassword,
+  toggleInstructorStatus,
+  updateInstructor,
+  type GuidanceActionState,
+} from "@/app/actions/guidance";
+import { useActionToast } from "@/hooks/use-action-toast";
+import type { Department } from "@/lib/auth/roles";
+import type { InstructorListItem } from "@/lib/guidance/queries";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
+const initialState: GuidanceActionState = {};
+const selectClassName =
+  "h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+
+export function InstructorsManager({
+  instructors,
+  departments,
+}: {
+  instructors: InstructorListItem[];
+  departments: Department[];
+}) {
+  const [addOpen, setAddOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [resetId, setResetId] = useState<string | null>(null);
+
+  const [createState, createAction, createPending] = useActionState(
+    createInstructor,
+    initialState
+  );
+  const [updateState, updateAction, updatePending] = useActionState(
+    updateInstructor,
+    initialState
+  );
+  const [toggleState, toggleAction, togglePending] = useActionState(
+    toggleInstructorStatus,
+    initialState
+  );
+  const [resetState, resetAction, resetPending] = useActionState(
+    resetInstructorPassword,
+    initialState
+  );
+
+  useActionToast(createState);
+  useActionToast(updateState);
+  useActionToast(toggleState);
+  useActionToast(resetState);
+
+  useEffect(() => {
+    if (createState.success) setAddOpen(false);
+  }, [createState]);
+
+  useEffect(() => {
+    if (updateState.success) setEditingId(null);
+  }, [updateState]);
+
+  useEffect(() => {
+    if (resetState.success) setResetId(null);
+  }, [resetState]);
+
+  const editing = instructors.find((i) => i.id === editingId) ?? null;
+  const resetting = instructors.find((i) => i.id === resetId) ?? null;
+  const editDialogOpen = editingId !== null;
+  const resetDialogOpen = resetId !== null;
+  const activeDepartments = departments.filter((d) => d.is_active);
+
+  function closeAdd(open: boolean) {
+    setAddOpen(open);
+  }
+
+  function closeEdit(open: boolean) {
+    if (!open) setEditingId(null);
+  }
+
+  function closeReset(open: boolean) {
+    if (!open) setResetId(null);
+  }
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1.5">
+            <CardTitle>Instructor list</CardTitle>
+            <CardDescription>
+              Activate/deactivate, edit details, or reset passwords.
+            </CardDescription>
+          </div>
+          <Button type="button" onClick={() => setAddOpen(true)}>
+            <PlusIcon className="size-4" />
+            Add instructor
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {instructors.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No instructors yet.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Employee no.</TableHead>
+                  <TableHead>Designation</TableHead>
+                  <TableHead>Department</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {instructors.map((instructor) => (
+                  <TableRow key={instructor.id}>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium">{instructor.full_name}</p>
+                        {instructor.contact_number ? (
+                          <p className="text-xs text-muted-foreground">
+                            {instructor.contact_number}
+                          </p>
+                        ) : null}
+                      </div>
+                    </TableCell>
+                    <TableCell>{instructor.employee_no || "—"}</TableCell>
+                    <TableCell>{instructor.designation || "—"}</TableCell>
+                    <TableCell>
+                      {instructor.department_code
+                        ? `${instructor.department_code} · ${instructor.department_name}`
+                        : "—"}
+                    </TableCell>
+                    <TableCell>
+                      <span
+                        className={
+                          instructor.is_active
+                            ? "text-emerald-700"
+                            : "text-muted-foreground"
+                        }
+                      >
+                        {instructor.is_active ? "Active" : "Inactive"}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap justify-end gap-1">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setEditingId(instructor.id)}
+                        >
+                          Edit
+                        </Button>
+                        <form action={toggleAction}>
+                          <input
+                            type="hidden"
+                            name="instructor_id"
+                            value={instructor.id}
+                          />
+                          <input
+                            type="hidden"
+                            name="is_active"
+                            value={instructor.is_active ? "0" : "1"}
+                          />
+                          <Button
+                            type="submit"
+                            size="sm"
+                            variant="ghost"
+                            disabled={togglePending}
+                          >
+                            {instructor.is_active ? "Deactivate" : "Activate"}
+                          </Button>
+                        </form>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setResetId(instructor.id)}
+                        >
+                          Reset password
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <AlertDialog open={addOpen} onOpenChange={closeAdd}>
+        <AlertDialogContent className="max-h-[90vh] overflow-y-auto data-[size=default]:max-w-lg data-[size=default]:sm:max-w-lg">
+          <AlertDialogHeader>
+            <AlertDialogMedia>
+              <UserRoundPlusIcon />
+            </AlertDialogMedia>
+            <AlertDialogTitle>Add instructor</AlertDialogTitle>
+            <AlertDialogDescription>
+              Create an instructor account and assign them to a department.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {addOpen ? (
+            <form
+              key="create-instructor"
+              id="create-instructor-form"
+              action={createAction}
+              className="grid gap-4 sm:grid-cols-2"
+            >
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="create-email">Email</Label>
+                <Input id="create-email" name="email" type="email" required />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="create-password">Temporary password</Label>
+                <Input
+                  id="create-password"
+                  name="password"
+                  type="password"
+                  minLength={8}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="create-first_name">First name</Label>
+                <Input id="create-first_name" name="first_name" required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="create-middle_name">Middle name</Label>
+                <Input id="create-middle_name" name="middle_name" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="create-last_name">Last name</Label>
+                <Input id="create-last_name" name="last_name" required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="create-suffix">Suffix</Label>
+                <Input id="create-suffix" name="suffix" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="create-employee_no">Employee no.</Label>
+                <Input id="create-employee_no" name="employee_no" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="create-designation">Designation</Label>
+                <Input id="create-designation" name="designation" />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="create-department_id">Department</Label>
+                <select
+                  id="create-department_id"
+                  name="department_id"
+                  required
+                  defaultValue=""
+                  className={selectClassName}
+                >
+                  <option value="" disabled>
+                    Select department
+                  </option>
+                  {activeDepartments.map((dept) => (
+                    <option
+                      key={dept.department_id}
+                      value={dept.department_id}
+                    >
+                      {dept.department_code} — {dept.department_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </form>
+          ) : null}
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={createPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              type="submit"
+              form="create-instructor-form"
+              disabled={createPending}
+            >
+              {createPending ? (
+                <>
+                  <Loader2 className="animate-spin" />
+                  Creating…
+                </>
+              ) : (
+                "Create instructor"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={editDialogOpen} onOpenChange={closeEdit}>
+        <AlertDialogContent className="max-h-[90vh] overflow-y-auto data-[size=default]:max-w-lg data-[size=default]:sm:max-w-lg">
+          <AlertDialogHeader>
+            <AlertDialogMedia>
+              <PencilIcon />
+            </AlertDialogMedia>
+            <AlertDialogTitle>Edit instructor</AlertDialogTitle>
+            <AlertDialogDescription>
+              Update name, assignment, and status for this instructor.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {editing ? (
+            <form
+              key={`edit-${editing.id}-${editing.updated_at}`}
+              id="edit-instructor-form"
+              action={updateAction}
+              className="grid gap-4 sm:grid-cols-2"
+            >
+              <input type="hidden" name="instructor_id" value={editing.id} />
+              <div className="space-y-2">
+                <Label htmlFor="edit-first_name">First name</Label>
+                <Input
+                  id="edit-first_name"
+                  name="first_name"
+                  required
+                  defaultValue={editing.first_name}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-middle_name">Middle name</Label>
+                <Input
+                  id="edit-middle_name"
+                  name="middle_name"
+                  defaultValue={editing.middle_name ?? ""}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-last_name">Last name</Label>
+                <Input
+                  id="edit-last_name"
+                  name="last_name"
+                  required
+                  defaultValue={editing.last_name}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-suffix">Suffix</Label>
+                <Input
+                  id="edit-suffix"
+                  name="suffix"
+                  defaultValue={editing.suffix ?? ""}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-employee_no">Employee no.</Label>
+                <Input
+                  id="edit-employee_no"
+                  name="employee_no"
+                  defaultValue={editing.employee_no ?? ""}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-designation">Designation</Label>
+                <Input
+                  id="edit-designation"
+                  name="designation"
+                  defaultValue={editing.designation ?? ""}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-contact_number">Contact number</Label>
+                <Input
+                  id="edit-contact_number"
+                  name="contact_number"
+                  defaultValue={editing.contact_number ?? ""}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-department_id">Department</Label>
+                <select
+                  id="edit-department_id"
+                  name="department_id"
+                  required
+                  defaultValue={editing.department_id?.toString() ?? ""}
+                  className={selectClassName}
+                >
+                  <option value="" disabled>
+                    Select department
+                  </option>
+                  {activeDepartments.map((dept) => (
+                    <option
+                      key={dept.department_id}
+                      value={dept.department_id}
+                    >
+                      {dept.department_code} — {dept.department_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="edit-is_active">Status</Label>
+                <select
+                  id="edit-is_active"
+                  name="is_active"
+                  defaultValue={editing.is_active ? "1" : "0"}
+                  className={selectClassName}
+                >
+                  <option value="1">Active</option>
+                  <option value="0">Inactive</option>
+                </select>
+              </div>
+            </form>
+          ) : null}
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={updatePending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              type="submit"
+              form="edit-instructor-form"
+              disabled={updatePending || !editing}
+            >
+              {updatePending ? (
+                <>
+                  <Loader2 className="animate-spin" />
+                  Saving…
+                </>
+              ) : (
+                "Save instructor"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={resetDialogOpen} onOpenChange={closeReset}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogMedia>
+              <KeyRoundIcon />
+            </AlertDialogMedia>
+            <AlertDialogTitle>Reset password</AlertDialogTitle>
+            <AlertDialogDescription>
+              {resetting
+                ? `Set a new temporary password for ${resetting.full_name}.`
+                : "Set a new temporary password for this instructor."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {resetting ? (
+            <form id="reset-instructor-password-form" action={resetAction}>
+              <input
+                type="hidden"
+                name="instructor_id"
+                value={resetting.id}
+              />
+              <div className="space-y-2">
+                <Label htmlFor="reset-new_password">New password</Label>
+                <Input
+                  id="reset-new_password"
+                  name="new_password"
+                  type="password"
+                  minLength={8}
+                  required
+                />
+              </div>
+            </form>
+          ) : null}
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={resetPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              type="submit"
+              form="reset-instructor-password-form"
+              disabled={resetPending || !resetting}
+            >
+              {resetPending ? (
+                <>
+                  <Loader2 className="animate-spin" />
+                  Saving…
+                </>
+              ) : (
+                "Save password"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
