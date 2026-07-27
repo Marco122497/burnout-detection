@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 import {
   submitWeeklyMonitoring,
@@ -24,6 +25,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 const initialState: StudentActionState = {};
 
@@ -33,6 +35,37 @@ const sectionTitles: Record<string, string> = {
   study: "Section 3 — Study Time",
   sleep: "Section 4 — Sleep Hours",
 };
+
+function getUnansweredQuestions(
+  form: HTMLFormElement,
+  sections: QuestionnaireSection[]
+) {
+  const data = new FormData(form);
+  const unanswered: {
+    questionId: number;
+    sectionKey: string;
+    sectionTitle: string;
+    questionNumber: number;
+  }[] = [];
+
+  for (const section of sections) {
+    section.questions.forEach((question, index) => {
+      if (!question.is_required) return;
+      const value = data.get(`q_${question.question_id}`);
+      if (value == null || String(value).trim() === "") {
+        unanswered.push({
+          questionId: question.question_id,
+          sectionKey: section.key,
+          sectionTitle:
+            sectionTitles[section.key] ?? section.questionnaire_name,
+          questionNumber: index + 1,
+        });
+      }
+    });
+  }
+
+  return unanswered;
+}
 
 export function WeeklyMonitoringForm({
   term,
@@ -51,6 +84,7 @@ export function WeeklyMonitoringForm({
     submitWeeklyMonitoring,
     initialState
   );
+  const [unansweredIds, setUnansweredIds] = useState<number[]>([]);
   useActionToast(state);
 
   const ready = sections.every((section) => section.questions.length > 0);
@@ -60,6 +94,31 @@ export function WeeklyMonitoringForm({
     !ready ||
     !term ||
     !monitoringEnabled;
+
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    const form = event.currentTarget;
+    const unanswered = getUnansweredQuestions(form, sections);
+
+    if (unanswered.length === 0) {
+      setUnansweredIds([]);
+      return;
+    }
+
+    event.preventDefault();
+
+    const first = unanswered[0];
+    setUnansweredIds([first.questionId]);
+
+    toast.error("Please answer this question before submitting.", {
+      description: `${first.sectionTitle} · Question ${first.questionNumber}`,
+      duration: 5000,
+    });
+
+    const firstMissing = form.querySelector<HTMLElement>(
+      `[data-question-id="${first.questionId}"]`
+    );
+    firstMissing?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
 
   return (
     <div className="space-y-6">
@@ -105,7 +164,12 @@ export function WeeklyMonitoringForm({
         </CardContent>
       </Card>
 
-      <form action={formAction} className="space-y-6">
+      <form
+        action={formAction}
+        onSubmit={handleSubmit}
+        noValidate
+        className="space-y-6"
+      >
         <input type="hidden" name="week_number" value={currentWeek ?? 1} />
 
         {sections.map((section) => {
@@ -130,62 +194,77 @@ export function WeeklyMonitoringForm({
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-5">
-                {section.questions.map((question, index) => (
-                  <fieldset
-                    key={question.question_id}
-                    className="space-y-3 rounded-lg border p-3"
-                    disabled={disabled}
-                  >
-                    <legend className="px-1 text-sm font-medium">
-                      {index + 1}. {question.question_text}
-                      {question.reverse_scored ? (
-                        <span className="ml-2 text-xs font-normal text-muted-foreground">
-                          (reverse scored)
-                        </span>
-                      ) : null}
-                    </legend>
-                    <div className="grid gap-2 sm:grid-cols-5">
-                      {options.map((option) => {
-                        const classicScore = option.value - 1;
-                        return (
-                          <label
-                            key={`${question.question_id}-${option.value}`}
-                            className="flex cursor-pointer items-start gap-2 rounded-md border px-2 py-2 text-sm has-[:checked]:border-primary has-[:checked]:bg-primary/5"
-                          >
-                            <input
-                              type="radio"
-                              name={`q_${question.question_id}`}
-                              value={option.value}
-                              required={question.is_required}
-                              className="mt-0.5"
-                              aria-label={
-                                section.key === "pss"
-                                  ? `${classicScore} ${option.label}`
-                                  : `${option.value} ${option.label}`
-                              }
-                            />
-                            <span>
-                              {section.key === "pss" ? (
-                                <span className="font-medium leading-snug">
-                                  {classicScore} — {option.label}
-                                </span>
-                              ) : (
-                                <>
-                                  <span className="font-medium">
-                                    {option.value}
+                {section.questions.map((question, index) => {
+                  const isMissing = unansweredIds.includes(question.question_id);
+                  return (
+                    <fieldset
+                      key={question.question_id}
+                      data-question-id={question.question_id}
+                      className={cn(
+                        "space-y-3 rounded-lg border p-3",
+                        isMissing && "border-destructive bg-destructive/5"
+                      )}
+                      disabled={disabled}
+                    >
+                      <legend className="px-1 text-sm font-medium">
+                        {index + 1}. {question.question_text}
+                        {question.reverse_scored ? (
+                          <span className="ml-2 text-xs font-normal text-muted-foreground">
+                            (reverse scored)
+                          </span>
+                        ) : null}
+                      </legend>
+                      <div className="grid gap-2 sm:grid-cols-5">
+                        {options.map((option) => {
+                          const classicScore = option.value - 1;
+                          return (
+                            <label
+                              key={`${question.question_id}-${option.value}`}
+                              className="flex cursor-pointer items-start gap-2 rounded-md border px-2 py-2 text-sm has-[:checked]:border-primary has-[:checked]:bg-primary/5"
+                            >
+                              <input
+                                type="radio"
+                                name={`q_${question.question_id}`}
+                                value={option.value}
+                                required={question.is_required}
+                                className="mt-0.5"
+                                onChange={() => {
+                                  if (!isMissing) return;
+                                  setUnansweredIds((prev) =>
+                                    prev.filter(
+                                      (id) => id !== question.question_id
+                                    )
+                                  );
+                                }}
+                                aria-label={
+                                  section.key === "pss"
+                                    ? `${classicScore} ${option.label}`
+                                    : `${option.value} ${option.label}`
+                                }
+                              />
+                              <span>
+                                {section.key === "pss" ? (
+                                  <span className="font-medium leading-snug">
+                                    {classicScore} — {option.label}
                                   </span>
-                                  <span className="block text-xs text-muted-foreground">
-                                    {option.label}
-                                  </span>
-                                </>
-                              )}
-                            </span>
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </fieldset>
-                ))}
+                                ) : (
+                                  <>
+                                    <span className="font-medium">
+                                      {option.value}
+                                    </span>
+                                    <span className="block text-xs text-muted-foreground">
+                                      {option.label}
+                                    </span>
+                                  </>
+                                )}
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </fieldset>
+                  );
+                })}
               </CardContent>
             </Card>
           );
