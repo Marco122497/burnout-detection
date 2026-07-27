@@ -60,10 +60,11 @@ export async function getGuidanceStudentRows(
 
   const ids = students.map((s) => s.id);
 
+  // Keep select flat (no nested ml_predictions) so primary/fallback types stay compatible.
   let monitoringQuery = supabase
     .from("weekly_monitoring")
     .select(
-      "monitoring_id, student_id, week_number, stress_score, academic_workload_score, study_time_score, sleep_hours_score, submitted_at, term_id, created_at, mfbi_results(mfbi_id, mfbi_score, burnout_risk_level, ml_predictions(final_prediction))"
+      "monitoring_id, student_id, week_number, stress_score, academic_workload_score, study_time_score, sleep_hours_score, submitted_at, term_id, created_at, mfbi_results(mfbi_id, mfbi_score, burnout_risk_level)"
     )
     .in("student_id", ids)
     .order("created_at", { ascending: false });
@@ -72,35 +73,8 @@ export async function getGuidanceStudentRows(
     monitoringQuery = monitoringQuery.eq("term_id", term.term_id);
   }
 
-  const primary = await monitoringQuery;
-  let monitoringRows = primary.data;
-  let monitoringError = primary.error;
-
-  // Fallback if nested ml_predictions embed is unavailable.
-  if (monitoringError) {
-    let fallbackQuery = supabase
-      .from("weekly_monitoring")
-      .select(
-        "monitoring_id, student_id, week_number, stress_score, academic_workload_score, study_time_score, sleep_hours_score, submitted_at, term_id, created_at, mfbi_results(mfbi_id, mfbi_score, burnout_risk_level)"
-      )
-      .in("student_id", ids)
-      .order("created_at", { ascending: false });
-
-    if (term?.term_id) {
-      fallbackQuery = fallbackQuery.eq("term_id", term.term_id);
-    }
-
-    const fallback = await fallbackQuery;
-    // Fallback omits nested ml_predictions; runtime code already handles that.
-    monitoringRows = fallback.data as typeof monitoringRows;
-    monitoringError = fallback.error;
-  }
-
-  if (monitoringError) {
-    monitoringRows = [];
-  }
-
-  const monitoringList = monitoringRows ?? [];
+  const { data: monitoringRows, error: monitoringError } = await monitoringQuery;
+  const monitoringList = monitoringError ? [] : (monitoringRows ?? []);
   const latestMonitoring = new Map<string, (typeof monitoringList)[number]>();
   const submittedThisWeek = new Set<string>();
   const mfbiIds: number[] = [];
@@ -110,7 +84,7 @@ export async function getGuidanceStudentRows(
       latestMonitoring.set(row.student_id, row);
       const mfbiRaw = row.mfbi_results;
       const mfbi = Array.isArray(mfbiRaw) ? mfbiRaw[0] : mfbiRaw;
-      if (mfbi?.mfbi_id && !(mfbi as { ml_predictions?: unknown }).ml_predictions) {
+      if (mfbi?.mfbi_id) {
         mfbiIds.push(mfbi.mfbi_id);
       }
     }
@@ -139,11 +113,6 @@ export async function getGuidanceStudentRows(
     const monitoring = latestMonitoring.get(student.id) ?? null;
     const mfbiRaw = monitoring?.mfbi_results;
     const mfbi = Array.isArray(mfbiRaw) ? mfbiRaw[0] : mfbiRaw;
-    const predictionRaw = (mfbi as { ml_predictions?: unknown } | null)
-      ?.ml_predictions;
-    const nestedPrediction = Array.isArray(predictionRaw)
-      ? predictionRaw[0]
-      : predictionRaw;
     const stressScore =
       monitoring?.stress_score != null ? Number(monitoring.stress_score) : null;
 
@@ -185,10 +154,9 @@ export async function getGuidanceStudentRows(
           : null,
       mfbi_score: mfbi?.mfbi_score != null ? Number(mfbi.mfbi_score) : null,
       burnout_level: mfbi?.burnout_risk_level ?? null,
-      prediction:
-        (nestedPrediction as { final_prediction?: string } | null)
-          ?.final_prediction ??
-        (mfbi?.mfbi_id ? predictionByMfbi.get(mfbi.mfbi_id) ?? null : null),
+      prediction: mfbi?.mfbi_id
+        ? predictionByMfbi.get(mfbi.mfbi_id) ?? null
+        : null,
       monitoring_date: monitoring?.submitted_at ?? null,
       submittedThisWeek: submittedThisWeek.has(student.id),
       department_id: student.department_id,
