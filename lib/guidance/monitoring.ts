@@ -72,7 +72,9 @@ export async function getGuidanceStudentRows(
     monitoringQuery = monitoringQuery.eq("term_id", term.term_id);
   }
 
-  let { data: monitoringRows, error: monitoringError } = await monitoringQuery;
+  const primary = await monitoringQuery;
+  let monitoringRows = primary.data;
+  let monitoringError = primary.error;
 
   // Fallback if nested ml_predictions embed is unavailable.
   if (monitoringError) {
@@ -89,7 +91,8 @@ export async function getGuidanceStudentRows(
     }
 
     const fallback = await fallbackQuery;
-    monitoringRows = fallback.data;
+    // Fallback omits nested ml_predictions; runtime code already handles that.
+    monitoringRows = fallback.data as typeof monitoringRows;
     monitoringError = fallback.error;
   }
 
