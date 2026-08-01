@@ -3,6 +3,12 @@ import type { Department } from "@/lib/auth/roles";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
+/**
+ * Without this, Next statically prerenders the page at build time on Vercel
+ * (the admin client reads no request data), freezing the department list.
+ */
+export const dynamic = "force-dynamic";
+
 async function getActiveDepartments(): Promise<Department[]> {
   const select =
     "department_id, department_code, department_name, description, is_active, created_at, updated_at";
