@@ -35,6 +35,10 @@ export type StudentHistoryRow = {
   mfbi_score: number | null;
   burnout_level: string | null;
   prediction: string | null;
+  normalized_stress: number | null;
+  normalized_workload: number | null;
+  normalized_study_time: number | null;
+  normalized_sleep: number | null;
 };
 
 export type InstructorDashboardData = {
@@ -262,7 +266,7 @@ export async function getStudentAssessmentHistory(
   const { data: monitoringRows } = await supabase
     .from("weekly_monitoring")
     .select(
-      "monitoring_id, week_number, stress_score, academic_workload_score, study_time_score, sleep_hours_score, submitted_at, mfbi_results(mfbi_id, mfbi_score, burnout_risk_level)"
+      "monitoring_id, week_number, stress_score, academic_workload_score, study_time_score, sleep_hours_score, submitted_at, mfbi_results(mfbi_id, mfbi_score, burnout_risk_level, normalized_stress, normalized_academic_workload, normalized_study_time, normalized_sleep_hours)"
     )
     .eq("student_id", studentId)
     .order("week_number", { ascending: false });
@@ -305,6 +309,20 @@ export async function getStudentAssessmentHistory(
       prediction: mfbi?.mfbi_id
         ? predictionByMfbi.get(mfbi.mfbi_id) ?? null
         : null,
+      normalized_stress:
+        mfbi?.normalized_stress != null ? Number(mfbi.normalized_stress) : null,
+      normalized_workload:
+        mfbi?.normalized_academic_workload != null
+          ? Number(mfbi.normalized_academic_workload)
+          : null,
+      normalized_study_time:
+        mfbi?.normalized_study_time != null
+          ? Number(mfbi.normalized_study_time)
+          : null,
+      normalized_sleep:
+        mfbi?.normalized_sleep_hours != null
+          ? Number(mfbi.normalized_sleep_hours)
+          : null,
     };
   });
 

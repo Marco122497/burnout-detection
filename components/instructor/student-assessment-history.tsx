@@ -12,6 +12,10 @@ import type {
   MonitoringAnswer,
   MonitoringAnswersMap,
 } from "@/lib/student/queries";
+import {
+  BurnoutFactorSection,
+  BurnoutHero,
+} from "@/components/shared/burnout-summary";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
@@ -84,6 +88,33 @@ export function StudentAssessmentHistoryView({
   backHref?: string;
 }) {
   const [openId, setOpenId] = useState<number | null>(null);
+  const latest = history[0] ?? null;
+
+  const factors =
+    latest &&
+    latest.normalized_stress != null &&
+    latest.normalized_workload != null &&
+    latest.normalized_study_time != null &&
+    latest.normalized_sleep != null
+      ? {
+          stress: {
+            raw: latest.stress_score,
+            normalized: latest.normalized_stress,
+          },
+          workload: {
+            raw: latest.academic_workload,
+            normalized: latest.normalized_workload,
+          },
+          studyTime: {
+            raw: latest.study_time,
+            normalized: latest.normalized_study_time,
+          },
+          sleep: {
+            raw: latest.sleep_hours,
+            normalized: latest.normalized_sleep,
+          },
+        }
+      : null;
 
   return (
     <div className="space-y-6">
@@ -111,43 +142,28 @@ export function StudentAssessmentHistoryView({
         </Link>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Latest PSS</CardDescription>
-            <CardTitle className="text-2xl">
-              {student.stress_score ?? "—"}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-xs text-muted-foreground">
-            {student.stress_level ?? "No data"}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Latest MFBI</CardDescription>
-            <CardTitle className="text-2xl">
-              {student.mfbi_score != null
-                ? student.mfbi_score.toFixed(2)
-                : "—"}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Burnout risk</CardDescription>
-            <CardTitle className="text-2xl">
-              {student.prediction || student.burnout_level || "—"}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Submissions</CardDescription>
-            <CardTitle className="text-2xl">{history.length}</CardTitle>
-          </CardHeader>
-        </Card>
-      </div>
+      <BurnoutHero
+        level={student.prediction || student.burnout_level || null}
+        mfbiScore={student.mfbi_score}
+        weekLabel={
+          student.week_number != null ? `Week ${student.week_number}` : null
+        }
+        description="Based on this student's latest weekly monitoring submission."
+      >
+        <p className="pt-1 text-xs text-muted-foreground">
+          {history.length} submission{history.length === 1 ? "" : "s"}
+          {latest?.submitted_at
+            ? ` · Last: ${new Date(latest.submitted_at).toLocaleString()}`
+            : ""}
+        </p>
+      </BurnoutHero>
+
+      <BurnoutFactorSection
+        factors={factors}
+        stressLevel={student.stress_level}
+        heading="What makes up the burnout score"
+        subheading="The burnout index combines these four factors from the latest weekly monitoring."
+      />
 
       <Card>
         <CardHeader>

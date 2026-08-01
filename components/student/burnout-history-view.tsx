@@ -3,6 +3,10 @@
 import { Fragment, useState } from "react";
 import { ChevronDownIcon } from "lucide-react";
 
+import {
+  BurnoutFactorSection,
+  BurnoutHero,
+} from "@/components/shared/burnout-summary";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -18,21 +22,6 @@ import {
   type MonitoringRow,
 } from "@/lib/student/queries";
 import { cn } from "@/lib/utils";
-
-function riskTone(level: string | null | undefined) {
-  switch (level) {
-    case "Low":
-      return "border-emerald-200 bg-emerald-50 text-emerald-900";
-    case "Moderate":
-      return "border-amber-200 bg-amber-50 text-amber-950";
-    case "High":
-      return "border-orange-200 bg-orange-50 text-orange-950";
-    case "Severe":
-      return "border-rose-200 bg-rose-50 text-rose-950";
-    default:
-      return "border-border bg-muted/40 text-muted-foreground";
-  }
-}
 
 function monthlyBuckets(history: MonitoringRow[]) {
   const map = new Map<string, number[]>();
@@ -107,12 +96,10 @@ function AnswersPanel({ answers }: { answers: MonitoringAnswer[] }) {
 
 export function BurnoutHistoryView({
   stressLevel,
-  stressScore,
   history,
   answers,
 }: {
   stressLevel: string | null;
-  stressScore: number | null;
   history: MonitoringRow[];
   answers: MonitoringAnswersMap;
 }) {
@@ -122,91 +109,48 @@ export function BurnoutHistoryView({
   const monthly = monthlyBuckets(history);
   const weeklyScores = [...history].reverse();
 
+  const factors =
+    latest && mfbi
+      ? {
+          stress: {
+            raw: latest.stress_score,
+            normalized: mfbi.normalized_stress,
+          },
+          workload: {
+            raw: latest.academic_workload,
+            normalized: mfbi.normalized_workload,
+          },
+          studyTime: {
+            raw: latest.study_time,
+            normalized: mfbi.normalized_study_time,
+          },
+          sleep: {
+            raw: latest.sleep_hours,
+            normalized: mfbi.normalized_sleep,
+          },
+        }
+      : null;
+
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <Card className={cn("border", riskTone(stressLevel))}>
-          <CardHeader className="pb-2">
-            <CardDescription className="text-current/70">
-              Stress level
-            </CardDescription>
-            <CardTitle className="text-2xl">{stressLevel ?? "No data"}</CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-current/70">
-            {stressScore != null
-              ? `PSS score: ${stressScore}`
-              : "Submit weekly monitoring"}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Academic workload</CardDescription>
-            <CardTitle className="text-2xl">
-              {latest ? latest.academic_workload : "—"}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            Score (0–10)
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Study time</CardDescription>
-            <CardTitle className="text-2xl">
-              {latest ? `${latest.study_time}h` : "—"}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            Estimated hours / day
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Sleep hours</CardDescription>
-            <CardTitle className="text-2xl">
-              {latest ? `${latest.sleep_hours}h` : "—"}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            Estimated hours / night
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>MFBI score</CardDescription>
-            <CardTitle className="text-2xl">
-              {mfbi ? mfbi.mfbi_score.toFixed(2) : "—"}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            Multi-Factor Burnout Index
-          </CardContent>
-        </Card>
-        <Card
-          className={cn(
-            "border",
-            riskTone(
-              latest?.prediction?.final_prediction ?? mfbi?.burnout_level
-            )
-          )}
-        >
-          <CardHeader className="pb-2">
-            <CardDescription className="text-current/70">
-              Predicted burnout risk
-            </CardDescription>
-            <CardTitle className="text-2xl">
-              {latest?.prediction?.final_prediction ??
-                mfbi?.burnout_level ??
-                "No data"}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-current/70">
-            {latest?.prediction
-              ? `${latest.prediction.selected_model} · DT ${latest.prediction.decision_tree_prediction} / RF ${latest.prediction.random_forest_prediction}`
-              : "Decision Tree + Random Forest"}
-          </CardContent>
-        </Card>
-      </div>
+      <BurnoutHero
+        level={latest?.prediction?.final_prediction ?? mfbi?.burnout_level ?? null}
+        mfbiScore={mfbi?.mfbi_score ?? null}
+        weekLabel={latest ? `Week ${latest.week_number}` : null}
+      >
+        <p className="pt-1 text-xs text-muted-foreground">
+          {latest?.prediction
+            ? `Prediction: ${latest.prediction.selected_model} · DT ${latest.prediction.decision_tree_prediction} / RF ${latest.prediction.random_forest_prediction}`
+            : "Prediction: Decision Tree + Random Forest"}
+        </p>
+      </BurnoutHero>
+
+      <BurnoutFactorSection
+        factors={factors}
+        stressLevel={stressLevel}
+        heading="What makes up your burnout score"
+        subheading="Your burnout index combines these four factors from your latest weekly monitoring."
+      />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>

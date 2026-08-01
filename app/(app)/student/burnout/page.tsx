@@ -27,7 +27,6 @@ export default async function StudentBurnoutPage() {
       </div>
       <BurnoutHistoryView
         stressLevel={snapshot.stress?.stress_level ?? null}
-        stressScore={snapshot.stress?.stress_score ?? null}
         history={snapshot.history}
         answers={answers}
       />
