@@ -21,6 +21,37 @@ async function getIp() {
   );
 }
 
+const CODE_STOP_WORDS = new Set(["of", "in", "and", "the", "for", "a", "an"]);
+
+/**
+ * Builds a department code from the name: acronym tokens (already all-caps)
+ * are kept whole, other words contribute their first letter, stop words are
+ * skipped. "Bachelor of Science in Computer Science" -> "BSCS",
+ * "BSED-English" -> "BSEDE", "Nursing" -> "NURS".
+ */
+function generateDepartmentCode(name: string) {
+  const words = name
+    .split(/[\s-]+/)
+    .filter(Boolean)
+    .filter((word) => !CODE_STOP_WORDS.has(word.toLowerCase()));
+
+  let code: string;
+  if (words.length === 0) {
+    code = "DEPT";
+  } else if (words.length === 1) {
+    code = words[0].slice(0, 4);
+  } else {
+    code = words
+      .map((word) =>
+        word.length > 1 && word === word.toUpperCase() ? word : word[0]
+      )
+      .join("");
+  }
+
+  code = code.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  return code || "DEPT";
+}
+
 export async function createDepartment(
   _prev: GuidanceActionState,
   formData: FormData
@@ -29,14 +60,26 @@ export async function createDepartment(
     "Guidance Counselor",
   ]);
 
-  const department_code = String(formData.get("department_code") || "")
-    .trim()
-    .toUpperCase();
   const department_name = String(formData.get("department_name") || "").trim();
   const description = String(formData.get("description") || "").trim() || null;
 
-  if (!department_code || !department_name) {
-    return { error: "Department code and name are required." };
+  if (!department_name) {
+    return { error: "Department name is required." };
+  }
+
+  const { data: existingRows } = await supabase
+    .from("departments")
+    .select("department_code");
+  const existingCodes = new Set(
+    (existingRows ?? []).map((row) => row.department_code.toUpperCase())
+  );
+
+  const baseCode = generateDepartmentCode(department_name);
+  let department_code = baseCode;
+  let suffix = 2;
+  while (existingCodes.has(department_code)) {
+    department_code = `${baseCode}${suffix}`;
+    suffix += 1;
   }
 
   const { data, error } = await supabase

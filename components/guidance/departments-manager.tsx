@@ -43,27 +43,31 @@ const textareaClassName =
 function DepartmentFields({
   department,
   includeStatus,
+  includeCode = true,
   idPrefix = "",
 }: {
   department?: DepartmentWithCounts | null;
   includeStatus?: boolean;
+  includeCode?: boolean;
   idPrefix?: string;
 }) {
   const id = (name: string) => `${idPrefix}${name}`;
 
   return (
     <>
-      <div className="space-y-2">
-        <Label htmlFor={id("department_code")}>Code</Label>
-        <Input
-          id={id("department_code")}
-          name="department_code"
-          required
-          defaultValue={department?.department_code ?? ""}
-          placeholder="CS"
-        />
-      </div>
-      <div className="space-y-2">
+      {includeCode ? (
+        <div className="space-y-2">
+          <Label htmlFor={id("department_code")}>Code</Label>
+          <Input
+            id={id("department_code")}
+            name="department_code"
+            required
+            defaultValue={department?.department_code ?? ""}
+            placeholder="CS"
+          />
+        </div>
+      ) : null}
+      <div className={includeCode ? "space-y-2" : "space-y-2 sm:col-span-2"}>
         <Label htmlFor={id("department_name")}>Name</Label>
         <Input
           id={id("department_name")}
@@ -291,7 +295,8 @@ export function DepartmentsManager({
             </AlertDialogMedia>
             <AlertDialogTitle>Add department</AlertDialogTitle>
             <AlertDialogDescription>
-              Create an academic department and set its basic details.
+              Create an academic department. The department code is generated
+              automatically from the name.
             </AlertDialogDescription>
           </AlertDialogHeader>
 
@@ -302,7 +307,7 @@ export function DepartmentsManager({
               action={createAction}
               className="grid gap-4 sm:grid-cols-2"
             >
-              <DepartmentFields idPrefix="add-" />
+              <DepartmentFields idPrefix="add-" includeCode={false} />
             </form>
           ) : null}
 
