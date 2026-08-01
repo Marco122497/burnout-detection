@@ -1,26 +1,26 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 import {
   KeyRoundIcon,
   Loader2,
   PencilIcon,
   PlusIcon,
+  SearchIcon,
   UserRoundCheckIcon,
   UserRoundPlusIcon,
   UserRoundXIcon,
 } from "lucide-react";
 
 import {
-  createInstructor,
-  resetInstructorPassword,
-  toggleInstructorStatus,
-  updateInstructor,
+  createGuidanceUser,
+  resetUserPassword,
+  toggleUserStatus,
+  updateUser,
   type GuidanceActionState,
 } from "@/app/actions/guidance";
 import { useActionToast } from "@/hooks/use-action-toast";
-import type { Department } from "@/lib/auth/roles";
-import type { InstructorListItem } from "@/lib/guidance/queries";
+import type { UserListItem } from "@/lib/guidance/queries";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -60,31 +60,32 @@ const initialState: GuidanceActionState = {};
 const selectClassName =
   "h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
-export function InstructorsManager({
-  instructors,
-  departments,
+export function AdminsManager({
+  admins,
+  currentUserId,
 }: {
-  instructors: InstructorListItem[];
-  departments: Department[];
+  admins: UserListItem[];
+  currentUserId: string;
 }) {
+  const [search, setSearch] = useState("");
   const [addOpen, setAddOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [resetId, setResetId] = useState<string | null>(null);
 
   const [createState, createAction, createPending] = useActionState(
-    createInstructor,
+    createGuidanceUser,
     initialState
   );
   const [updateState, updateAction, updatePending] = useActionState(
-    updateInstructor,
+    updateUser,
     initialState
   );
   const [toggleState, toggleAction, togglePending] = useActionState(
-    toggleInstructorStatus,
+    toggleUserStatus,
     initialState
   );
   const [resetState, resetAction, resetPending] = useActionState(
-    resetInstructorPassword,
+    resetUserPassword,
     initialState
   );
 
@@ -105,11 +106,19 @@ export function InstructorsManager({
     if (resetState.success) setResetId(null);
   }, [resetState]);
 
-  const editing = instructors.find((i) => i.id === editingId) ?? null;
-  const resetting = instructors.find((i) => i.id === resetId) ?? null;
-  const editDialogOpen = editingId !== null;
-  const resetDialogOpen = resetId !== null;
-  const activeDepartments = departments.filter((d) => d.is_active);
+  const filteredAdmins = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return admins;
+    return admins.filter((admin) =>
+      [admin.full_name, admin.employee_no ?? "", admin.designation ?? ""]
+        .join(" ")
+        .toLowerCase()
+        .includes(query)
+    );
+  }, [admins, search]);
+
+  const editing = admins.find((a) => a.id === editingId) ?? null;
+  const resetting = admins.find((a) => a.id === resetId) ?? null;
 
   function closeAdd(open: boolean) {
     setAddOpen(open);
@@ -128,19 +137,34 @@ export function InstructorsManager({
       <Card>
         <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1.5">
-            <CardTitle>Instructor list</CardTitle>
+            <CardTitle>Guidance/admin accounts</CardTitle>
             <CardDescription>
-              Activate/deactivate, edit details, or reset passwords.
+              Create, edit, activate/deactivate, and reset passwords for
+              guidance counselor accounts.
             </CardDescription>
           </div>
           <Button type="button" onClick={() => setAddOpen(true)}>
             <PlusIcon className="size-4" />
-            Add instructor
+            Add admin
           </Button>
         </CardHeader>
-        <CardContent>
-          {instructors.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No instructors yet.</p>
+        <CardContent className="space-y-4">
+          <div className="relative">
+            <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search by name, employee number, or designation…"
+              className="pl-8"
+            />
+          </div>
+
+          {filteredAdmins.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              {admins.length === 0
+                ? "No guidance/admin accounts yet."
+                : "No accounts match your search."}
+            </p>
           ) : (
             <Table>
               <TableHeader>
@@ -148,40 +172,41 @@ export function InstructorsManager({
                   <TableHead>Name</TableHead>
                   <TableHead>Employee no.</TableHead>
                   <TableHead>Designation</TableHead>
-                  <TableHead>Department</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {instructors.map((instructor) => (
-                  <TableRow key={instructor.id}>
+                {filteredAdmins.map((admin) => (
+                  <TableRow key={admin.id}>
                     <TableCell>
                       <div>
-                        <p className="font-medium">{instructor.full_name}</p>
-                        {instructor.contact_number ? (
+                        <p className="font-medium">
+                          {admin.full_name}
+                          {admin.id === currentUserId ? (
+                            <span className="ml-1.5 text-xs text-muted-foreground">
+                              (you)
+                            </span>
+                          ) : null}
+                        </p>
+                        {admin.contact_number ? (
                           <p className="text-xs text-muted-foreground">
-                            {instructor.contact_number}
+                            {admin.contact_number}
                           </p>
                         ) : null}
                       </div>
                     </TableCell>
-                    <TableCell>{instructor.employee_no || "—"}</TableCell>
-                    <TableCell>{instructor.designation || "—"}</TableCell>
-                    <TableCell>
-                      {instructor.department_code
-                        ? `${instructor.department_code} · ${instructor.department_name}`
-                        : "—"}
-                    </TableCell>
+                    <TableCell>{admin.employee_no || "—"}</TableCell>
+                    <TableCell>{admin.designation || "—"}</TableCell>
                     <TableCell>
                       <span
                         className={
-                          instructor.is_active
+                          admin.is_active
                             ? "text-emerald-700"
                             : "text-muted-foreground"
                         }
                       >
-                        {instructor.is_active ? "Active" : "Inactive"}
+                        {admin.is_active ? "Active" : "Inactive"}
                       </span>
                     </TableCell>
                     <TableCell>
@@ -194,7 +219,7 @@ export function InstructorsManager({
                                 size="icon-sm"
                                 variant="outline"
                                 aria-label="Edit"
-                                onClick={() => setEditingId(instructor.id)}
+                                onClick={() => setEditingId(admin.id)}
                               >
                                 <PencilIcon />
                               </Button>
@@ -205,13 +230,13 @@ export function InstructorsManager({
                         <form action={toggleAction}>
                           <input
                             type="hidden"
-                            name="instructor_id"
-                            value={instructor.id}
+                            name="user_id"
+                            value={admin.id}
                           />
                           <input
                             type="hidden"
                             name="is_active"
-                            value={instructor.is_active ? "0" : "1"}
+                            value={admin.is_active ? "0" : "1"}
                           />
                           <Tooltip>
                             <TooltipTrigger
@@ -220,14 +245,16 @@ export function InstructorsManager({
                                   type="submit"
                                   size="icon-sm"
                                   variant="ghost"
-                                  disabled={togglePending}
+                                  disabled={
+                                    togglePending ||
+                                    (admin.id === currentUserId &&
+                                      admin.is_active)
+                                  }
                                   aria-label={
-                                    instructor.is_active
-                                      ? "Deactivate"
-                                      : "Activate"
+                                    admin.is_active ? "Deactivate" : "Activate"
                                   }
                                 >
-                                  {instructor.is_active ? (
+                                  {admin.is_active ? (
                                     <UserRoundXIcon />
                                   ) : (
                                     <UserRoundCheckIcon />
@@ -236,7 +263,7 @@ export function InstructorsManager({
                               }
                             />
                             <TooltipContent>
-                              {instructor.is_active ? "Deactivate" : "Activate"}
+                              {admin.is_active ? "Deactivate" : "Activate"}
                             </TooltipContent>
                           </Tooltip>
                         </form>
@@ -248,7 +275,7 @@ export function InstructorsManager({
                                 size="icon-sm"
                                 variant="outline"
                                 aria-label="Reset password"
-                                onClick={() => setResetId(instructor.id)}
+                                onClick={() => setResetId(admin.id)}
                               >
                                 <KeyRoundIcon />
                               </Button>
@@ -272,27 +299,34 @@ export function InstructorsManager({
             <AlertDialogMedia>
               <UserRoundPlusIcon />
             </AlertDialogMedia>
-            <AlertDialogTitle>Add instructor</AlertDialogTitle>
+            <AlertDialogTitle>Add guidance/admin account</AlertDialogTitle>
             <AlertDialogDescription>
-              Create an instructor account and assign them to a department.
+              Create a new guidance counselor account with full admin access.
             </AlertDialogDescription>
           </AlertDialogHeader>
 
           {addOpen ? (
             <form
-              key="create-instructor"
-              id="create-instructor-form"
+              key="create-admin"
+              id="create-admin-form"
               action={createAction}
               className="grid gap-x-3 gap-y-2.5 sm:grid-cols-2"
             >
               <div className="space-y-1.5 sm:col-span-2">
-                <Label htmlFor="create-email">Email</Label>
-                <Input id="create-email" name="email" type="email" required />
+                <Label htmlFor="admin-create-email">Email</Label>
+                <Input
+                  id="admin-create-email"
+                  name="email"
+                  type="email"
+                  required
+                />
               </div>
               <div className="space-y-1.5 sm:col-span-2">
-                <Label htmlFor="create-password">Temporary password</Label>
+                <Label htmlFor="admin-create-password">
+                  Temporary password
+                </Label>
                 <Input
-                  id="create-password"
+                  id="admin-create-password"
                   name="password"
                   type="password"
                   minLength={8}
@@ -300,59 +334,43 @@ export function InstructorsManager({
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="create-first_name">First name</Label>
-                <Input id="create-first_name" name="first_name" required />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="create-middle_name">Middle name</Label>
-                <Input id="create-middle_name" name="middle_name" />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="create-last_name">Last name</Label>
-                <Input id="create-last_name" name="last_name" required />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="create-suffix">Suffix</Label>
-                <Input id="create-suffix" name="suffix" />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="create-employee_no">Employee no.</Label>
-                <Input id="create-employee_no" name="employee_no" />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="create-designation">Designation</Label>
-                <Input id="create-designation" name="designation" />
-              </div>
-              <div className="space-y-1.5 sm:col-span-2">
-                <Label htmlFor="create-department_id">Department</Label>
-                <select
-                  id="create-department_id"
-                  name="department_id"
+                <Label htmlFor="admin-create-first_name">First name</Label>
+                <Input
+                  id="admin-create-first_name"
+                  name="first_name"
                   required
-                  defaultValue=""
-                  className={selectClassName}
-                >
-                  <option value="" disabled>
-                    Select department
-                  </option>
-                  {activeDepartments.map((dept) => (
-                    <option
-                      key={dept.department_id}
-                      value={dept.department_id}
-                    >
-                      {dept.department_code} — {dept.department_name}
-                    </option>
-                  ))}
-                </select>
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="admin-create-middle_name">Middle name</Label>
+                <Input id="admin-create-middle_name" name="middle_name" />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="admin-create-last_name">Last name</Label>
+                <Input id="admin-create-last_name" name="last_name" required />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="admin-create-suffix">Suffix</Label>
+                <Input id="admin-create-suffix" name="suffix" />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="admin-create-employee_no">Employee no.</Label>
+                <Input id="admin-create-employee_no" name="employee_no" />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="admin-create-designation">Designation</Label>
+                <Input id="admin-create-designation" name="designation" />
               </div>
             </form>
           ) : null}
 
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={createPending}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={createPending}>
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               type="submit"
-              form="create-instructor-form"
+              form="create-admin-form"
               disabled={createPending}
             >
               {createPending ? (
@@ -361,133 +379,126 @@ export function InstructorsManager({
                   Creating…
                 </>
               ) : (
-                "Create instructor"
+                "Create account"
               )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={editDialogOpen} onOpenChange={closeEdit}>
+      <AlertDialog open={editingId !== null} onOpenChange={closeEdit}>
         <AlertDialogContent className="max-h-[90vh] overflow-y-auto data-[size=default]:max-w-lg data-[size=default]:sm:max-w-lg">
           <AlertDialogHeader>
             <AlertDialogMedia>
               <PencilIcon />
             </AlertDialogMedia>
-            <AlertDialogTitle>Edit instructor</AlertDialogTitle>
+            <AlertDialogTitle>Edit guidance/admin account</AlertDialogTitle>
             <AlertDialogDescription>
-              Update name, assignment, and status for this instructor.
+              {editing
+                ? `Update details for ${editing.full_name}.`
+                : "Update details for this account."}
             </AlertDialogDescription>
           </AlertDialogHeader>
 
           {editing ? (
             <form
               key={`edit-${editing.id}-${editing.updated_at}`}
-              id="edit-instructor-form"
+              id="edit-admin-form"
               action={updateAction}
               className="grid gap-4 sm:grid-cols-2"
             >
-              <input type="hidden" name="instructor_id" value={editing.id} />
+              <input type="hidden" name="user_id" value={editing.id} />
               <div className="space-y-2">
-                <Label htmlFor="edit-first_name">First name</Label>
+                <Label htmlFor="admin-edit-first_name">First name</Label>
                 <Input
-                  id="edit-first_name"
+                  id="admin-edit-first_name"
                   name="first_name"
                   required
                   defaultValue={editing.first_name}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-middle_name">Middle name</Label>
+                <Label htmlFor="admin-edit-middle_name">Middle name</Label>
                 <Input
-                  id="edit-middle_name"
+                  id="admin-edit-middle_name"
                   name="middle_name"
                   defaultValue={editing.middle_name ?? ""}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-last_name">Last name</Label>
+                <Label htmlFor="admin-edit-last_name">Last name</Label>
                 <Input
-                  id="edit-last_name"
+                  id="admin-edit-last_name"
                   name="last_name"
                   required
                   defaultValue={editing.last_name}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-suffix">Suffix</Label>
+                <Label htmlFor="admin-edit-suffix">Suffix</Label>
                 <Input
-                  id="edit-suffix"
+                  id="admin-edit-suffix"
                   name="suffix"
                   defaultValue={editing.suffix ?? ""}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-employee_no">Employee no.</Label>
+                <Label htmlFor="admin-edit-employee_no">Employee no.</Label>
                 <Input
-                  id="edit-employee_no"
+                  id="admin-edit-employee_no"
                   name="employee_no"
                   defaultValue={editing.employee_no ?? ""}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-designation">Designation</Label>
+                <Label htmlFor="admin-edit-designation">Designation</Label>
                 <Input
-                  id="edit-designation"
+                  id="admin-edit-designation"
                   name="designation"
                   defaultValue={editing.designation ?? ""}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-contact_number">Contact number</Label>
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="admin-edit-contact_number">
+                  Contact number
+                </Label>
                 <Input
-                  id="edit-contact_number"
+                  id="admin-edit-contact_number"
                   name="contact_number"
                   defaultValue={editing.contact_number ?? ""}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-department_id">Department</Label>
-                <select
-                  id="edit-department_id"
-                  name="department_id"
-                  required
-                  defaultValue={editing.department_id?.toString() ?? ""}
-                  className={selectClassName}
-                >
-                  <option value="" disabled>
-                    Select department
-                  </option>
-                  {activeDepartments.map((dept) => (
-                    <option
-                      key={dept.department_id}
-                      value={dept.department_id}
-                    >
-                      {dept.department_code} — {dept.department_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
               <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="edit-is_active">Status</Label>
+                <Label htmlFor="admin-edit-is_active">Status</Label>
+                {editing.id === currentUserId ? (
+                  <input type="hidden" name="is_active" value="1" />
+                ) : null}
                 <select
-                  id="edit-is_active"
-                  name="is_active"
+                  id="admin-edit-is_active"
+                  name={editing.id === currentUserId ? undefined : "is_active"}
                   defaultValue={editing.is_active ? "1" : "0"}
                   className={selectClassName}
+                  disabled={editing.id === currentUserId}
                 >
                   <option value="1">Active</option>
                   <option value="0">Inactive</option>
                 </select>
+                {editing.id === currentUserId ? (
+                  <p className="text-xs text-muted-foreground">
+                    You cannot change the status of your own account.
+                  </p>
+                ) : null}
               </div>
             </form>
           ) : null}
 
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={updatePending}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={updatePending}>
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               type="submit"
-              form="edit-instructor-form"
+              form="edit-admin-form"
               disabled={updatePending || !editing}
             >
               {updatePending ? (
@@ -496,14 +507,14 @@ export function InstructorsManager({
                   Saving…
                 </>
               ) : (
-                "Save instructor"
+                "Save account"
               )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={resetDialogOpen} onOpenChange={closeReset}>
+      <AlertDialog open={resetId !== null} onOpenChange={closeReset}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogMedia>
@@ -513,21 +524,17 @@ export function InstructorsManager({
             <AlertDialogDescription>
               {resetting
                 ? `Set a new temporary password for ${resetting.full_name}.`
-                : "Set a new temporary password for this instructor."}
+                : "Set a new temporary password for this account."}
             </AlertDialogDescription>
           </AlertDialogHeader>
 
           {resetting ? (
-            <form id="reset-instructor-password-form" action={resetAction}>
-              <input
-                type="hidden"
-                name="instructor_id"
-                value={resetting.id}
-              />
+            <form id="reset-admin-password-form" action={resetAction}>
+              <input type="hidden" name="user_id" value={resetting.id} />
               <div className="space-y-2">
-                <Label htmlFor="reset-new_password">New password</Label>
+                <Label htmlFor="admin-reset-new_password">New password</Label>
                 <Input
-                  id="reset-new_password"
+                  id="admin-reset-new_password"
                   name="new_password"
                   type="password"
                   minLength={8}
@@ -538,10 +545,12 @@ export function InstructorsManager({
           ) : null}
 
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={resetPending}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={resetPending}>
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               type="submit"
-              form="reset-instructor-password-form"
+              form="reset-admin-password-form"
               disabled={resetPending || !resetting}
             >
               {resetPending ? (

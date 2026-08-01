@@ -43,11 +43,11 @@ export default async function GuidanceAnnouncementsPage() {
       <div>
         <p className="text-sm font-medium text-primary">Announcements</p>
         <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
-          University announcements
+          School announcements
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Create announcements for the entire university or target by
-          department, course, year level, or section.
+          Create announcements for the entire department or target by
+          department, year level, or section.
         </p>
       </div>
       <GuidanceAnnouncementsManager

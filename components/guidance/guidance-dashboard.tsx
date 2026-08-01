@@ -1,27 +1,40 @@
-import Link from "next/link";
-import {
-  Building2Icon,
-  ChartColumnIcon,
-  ClipboardListIcon,
-  FileTextIcon,
-  MegaphoneIcon,
-  UserRoundCogIcon,
-  UsersIcon,
-} from "lucide-react";
-
-import { buttonVariants } from "@/components/ui/button";
 import {
   Card,
-  CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
+import {
+  GuidanceDashboardCharts,
+  type GuidanceDashboardChartData,
+} from "@/components/guidance/guidance-dashboard-charts";
+
+function StatCard({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: number;
+  hint?: string;
+}) {
+  return (
+    <Card size="sm">
+      <CardHeader className="gap-0.5">
+        <CardDescription className="text-xs">{label}</CardDescription>
+        <CardTitle className="text-2xl tabular-nums">{value}</CardTitle>
+        {hint ? (
+          <p className="text-xs text-muted-foreground">{hint}</p>
+        ) : null}
+      </CardHeader>
+    </Card>
+  );
+}
 
 export function GuidanceDashboard({
   firstName,
   stats,
+  charts,
 }: {
   firstName: string;
   stats: {
@@ -32,6 +45,7 @@ export function GuidanceDashboard({
     questionnaireCount: number;
     highRiskCount: number;
   };
+  charts: GuidanceDashboardChartData;
 }) {
   return (
     <div className="space-y-6">
@@ -46,111 +60,23 @@ export function GuidanceDashboard({
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Departments</CardDescription>
-            <CardTitle className="text-2xl">{stats.departmentCount}</CardTitle>
-          </CardHeader>
-          <CardContent className="text-xs text-muted-foreground">
-            {stats.activeDeptCount} active
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Instructors</CardDescription>
-            <CardTitle className="text-2xl">{stats.instructorCount}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Students</CardDescription>
-            <CardTitle className="text-2xl">{stats.studentCount}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Questionnaires</CardDescription>
-            <CardTitle className="text-2xl">
-              {stats.questionnaireCount}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>High / severe risk</CardDescription>
-            <CardTitle className="text-2xl">{stats.highRiskCount}</CardTitle>
-          </CardHeader>
-          <CardContent className="text-xs text-muted-foreground">
-            Latest monitoring snapshot
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+        <StatCard
+          label="Departments"
+          value={stats.departmentCount}
+          hint={`${stats.activeDeptCount} active`}
+        />
+        <StatCard label="Instructors" value={stats.instructorCount} />
+        <StatCard label="Students" value={stats.studentCount} />
+        <StatCard label="Questionnaires" value={stats.questionnaireCount} />
+        <StatCard
+          label="High / severe risk"
+          value={stats.highRiskCount}
+          hint="Latest snapshot"
+        />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {[
-          {
-            href: "/guidance/departments",
-            title: "Departments",
-            description: "Add, edit, activate, and view membership counts.",
-            icon: Building2Icon,
-          },
-          {
-            href: "/guidance/instructors",
-            title: "Instructors",
-            description: "Create accounts, assign departments, reset passwords.",
-            icon: UserRoundCogIcon,
-          },
-          {
-            href: "/guidance/questionnaires",
-            title: "Questionnaires",
-            description:
-              "Manage PSS, workload, study, and sleep questions and schedules.",
-            icon: ClipboardListIcon,
-          },
-          {
-            href: "/guidance/monitoring",
-            title: "Student Monitoring",
-            description: "Search and review weekly results across departments.",
-            icon: UsersIcon,
-          },
-          {
-            href: "/guidance/analytics",
-            title: "Analytics",
-            description:
-              "University burnout distribution, averages, and weekly trends.",
-            icon: ChartColumnIcon,
-          },
-          {
-            href: "/guidance/reports",
-            title: "Reports",
-            description: "Export university, department, and instructor reports.",
-            icon: FileTextIcon,
-          },
-          {
-            href: "/guidance/announcements",
-            title: "Announcements",
-            description:
-              "Publish to the university or target by department and section.",
-            icon: MegaphoneIcon,
-          },
-        ].map((item) => (
-          <Card key={item.href}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <item.icon className="size-4" />
-                {item.title}
-              </CardTitle>
-              <CardDescription>{item.description}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Link href={item.href} className={cn(buttonVariants())}>
-                Open
-              </Link>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <GuidanceDashboardCharts data={charts} />
     </div>
   );
 }

@@ -530,6 +530,443 @@ export async function assignInstructorDepartment(
   return { success: "Instructor assigned to department." };
 }
 
+export async function createStudent(
+  _prev: GuidanceActionState,
+  formData: FormData
+): Promise<GuidanceActionState> {
+  const { supabase, user, profile } = await requireRole([
+    "Guidance Counselor",
+  ]);
+
+  const email = String(formData.get("email") || "").trim();
+  const password = String(formData.get("password") || "");
+  const first_name = String(formData.get("first_name") || "").trim();
+  const middle_name = String(formData.get("middle_name") || "").trim() || null;
+  const last_name = String(formData.get("last_name") || "").trim();
+  const suffix = String(formData.get("suffix") || "").trim() || null;
+  const student_number =
+    String(formData.get("student_number") || "").trim() || null;
+  const section = String(formData.get("section") || "").trim() || null;
+  const department_id = Number(formData.get("department_id"));
+  const yearLevelRaw = String(formData.get("year_level") || "").trim();
+  const year_level = yearLevelRaw ? Number(yearLevelRaw) : NaN;
+
+  if (
+    !email ||
+    !password ||
+    !first_name ||
+    !last_name ||
+    !student_number ||
+    !department_id
+  ) {
+    return {
+      error:
+        "Email, password, name, student number, and course are required.",
+    };
+  }
+
+  if (password.length < 8) {
+    return { error: "Password must be at least 8 characters." };
+  }
+
+  if (Number.isNaN(year_level) || year_level < 1 || year_level > 4) {
+    return { error: "Year level must be between 1 and 4." };
+  }
+
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch {
+    return {
+      error:
+        "Missing SUPABASE_SERVICE_ROLE_KEY. Add it to .env.local to create students.",
+    };
+  }
+
+  const { data: department, error: departmentError } = await admin
+    .from("departments")
+    .select("department_id, department_name, description")
+    .eq("department_id", department_id)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (departmentError || !department) {
+    return { error: "Please select a valid course." };
+  }
+
+  const course =
+    department.description?.trim() || department.department_name || null;
+
+  const { data, error } = await admin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: {
+      first_name,
+      middle_name,
+      last_name,
+      suffix,
+      student_number,
+      department_id,
+      course,
+      year_level,
+      section,
+      role: "Student",
+    },
+  });
+
+  if (error) {
+    if (/already|registered|exists/i.test(error.message)) {
+      return { error: "An account with this email already exists." };
+    }
+    return { error: error.message };
+  }
+
+  if (!data.user) {
+    return { error: "Failed to create student account." };
+  }
+
+  await admin
+    .from("profiles")
+    .update({
+      student_number,
+      department_id,
+      course,
+      year_level,
+      section,
+      role: "Student",
+      is_active: true,
+    })
+    .eq("id", data.user.id);
+
+  await supabase.from("audit_logs").insert(
+    toAuditLogRow({
+      user_id: user.id,
+      user_role: profile.role,
+      action: "CREATE_STUDENT",
+      action_type: "CREATE",
+      table_name: "profiles",
+      record_id: data.user.id,
+      description: `Created student ${first_name} ${last_name}`,
+      ip_address: await getIp(),
+    })
+  );
+
+  revalidatePath("/guidance/students");
+  revalidatePath("/guidance/monitoring");
+  revalidatePath("/guidance/departments");
+  return { success: "Student account created." };
+}
+
+export async function createGuidanceUser(
+  _prev: GuidanceActionState,
+  formData: FormData
+): Promise<GuidanceActionState> {
+  const { supabase, user, profile } = await requireRole([
+    "Guidance Counselor",
+  ]);
+
+  const email = String(formData.get("email") || "").trim();
+  const password = String(formData.get("password") || "");
+  const first_name = String(formData.get("first_name") || "").trim();
+  const middle_name = String(formData.get("middle_name") || "").trim() || null;
+  const last_name = String(formData.get("last_name") || "").trim();
+  const suffix = String(formData.get("suffix") || "").trim() || null;
+  const employee_no = String(formData.get("employee_no") || "").trim() || null;
+  const designation =
+    String(formData.get("designation") || "").trim() || null;
+
+  if (!email || !password || !first_name || !last_name) {
+    return { error: "Email, password, and name are required." };
+  }
+
+  if (password.length < 8) {
+    return { error: "Password must be at least 8 characters." };
+  }
+
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch {
+    return {
+      error:
+        "Missing SUPABASE_SERVICE_ROLE_KEY. Add it to .env.local to create admin accounts.",
+    };
+  }
+
+  const { data, error } = await admin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: {
+      first_name,
+      middle_name,
+      last_name,
+      suffix,
+      employee_no,
+      designation,
+      role: "Guidance Counselor",
+    },
+  });
+
+  if (error) {
+    if (/already|registered|exists/i.test(error.message)) {
+      return { error: "An account with this email already exists." };
+    }
+    return { error: error.message };
+  }
+
+  if (!data.user) {
+    return { error: "Failed to create admin account." };
+  }
+
+  await admin
+    .from("profiles")
+    .update({
+      employee_no,
+      designation,
+      role: "Guidance Counselor",
+      is_active: true,
+    })
+    .eq("id", data.user.id);
+
+  await supabase.from("audit_logs").insert(
+    toAuditLogRow({
+      user_id: user.id,
+      user_role: profile.role,
+      action: "CREATE_GUIDANCE_USER",
+      action_type: "CREATE",
+      table_name: "profiles",
+      record_id: data.user.id,
+      description: `Created guidance/admin account ${first_name} ${last_name}`,
+      ip_address: await getIp(),
+    })
+  );
+
+  revalidatePath("/guidance/admins");
+  return { success: "Guidance/admin account created." };
+}
+
+export async function updateUser(
+  _prev: GuidanceActionState,
+  formData: FormData
+): Promise<GuidanceActionState> {
+  const { supabase, user, profile } = await requireRole([
+    "Guidance Counselor",
+  ]);
+
+  const user_id = String(formData.get("user_id") || "").trim();
+  const first_name = String(formData.get("first_name") || "").trim();
+  const middle_name = String(formData.get("middle_name") || "").trim() || null;
+  const last_name = String(formData.get("last_name") || "").trim();
+  const suffix = String(formData.get("suffix") || "").trim() || null;
+  const contact_number =
+    String(formData.get("contact_number") || "").trim() || null;
+  const departmentRaw = String(formData.get("department_id") || "").trim();
+  const is_active = String(formData.get("is_active") || "") === "1";
+
+  if (!user_id || !first_name || !last_name) {
+    return { error: "First and last name are required." };
+  }
+
+  if (user_id === user.id && !is_active) {
+    return { error: "You cannot deactivate your own account." };
+  }
+
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch {
+    return {
+      error:
+        "Missing SUPABASE_SERVICE_ROLE_KEY. Add it to .env.local to manage users.",
+    };
+  }
+
+  const { data: target } = await admin
+    .from("profiles")
+    .select("role")
+    .eq("id", user_id)
+    .maybeSingle();
+
+  if (!target) {
+    return { error: "User not found." };
+  }
+
+  const updates: Record<string, unknown> = {
+    first_name,
+    middle_name,
+    last_name,
+    suffix,
+    contact_number,
+    is_active,
+  };
+
+  if (departmentRaw) {
+    const department_id = Number(departmentRaw);
+    if (!Number.isNaN(department_id)) {
+      updates.department_id = department_id;
+    }
+  }
+
+  if (target.role === "Student") {
+    updates.student_number =
+      String(formData.get("student_number") || "").trim() || null;
+    updates.section = String(formData.get("section") || "").trim() || null;
+
+    const yearLevelRaw = String(formData.get("year_level") || "").trim();
+    if (yearLevelRaw) {
+      const year_level = Number(yearLevelRaw);
+      if (Number.isNaN(year_level) || year_level < 1 || year_level > 4) {
+        return { error: "Year level must be between 1 and 4." };
+      }
+      updates.year_level = year_level;
+    }
+  } else {
+    updates.employee_no =
+      String(formData.get("employee_no") || "").trim() || null;
+    updates.designation =
+      String(formData.get("designation") || "").trim() || null;
+  }
+
+  const { error } = await admin
+    .from("profiles")
+    .update(updates)
+    .eq("id", user_id);
+
+  if (error) {
+    if (error.code === "23505") {
+      return { error: "Student or employee number is already in use." };
+    }
+    return { error: error.message };
+  }
+
+  await supabase.from("audit_logs").insert(
+    toAuditLogRow({
+      user_id: user.id,
+      user_role: profile.role,
+      action: "UPDATE_USER",
+      action_type: "UPDATE",
+      table_name: "profiles",
+      record_id: user_id,
+      description: `Updated ${target.role} ${first_name} ${last_name}`,
+      ip_address: await getIp(),
+    })
+  );
+
+  revalidatePath("/guidance/students");
+  revalidatePath("/guidance/admins");
+  revalidatePath("/guidance/instructors");
+  revalidatePath("/guidance/departments");
+  return { success: "User updated." };
+}
+
+export async function toggleUserStatus(
+  _prev: GuidanceActionState,
+  formData: FormData
+): Promise<GuidanceActionState> {
+  const { supabase, user, profile } = await requireRole([
+    "Guidance Counselor",
+  ]);
+  const user_id = String(formData.get("user_id") || "").trim();
+  const is_active = String(formData.get("is_active") || "") === "1";
+
+  if (!user_id) {
+    return { error: "Invalid user." };
+  }
+
+  if (user_id === user.id && !is_active) {
+    return { error: "You cannot deactivate your own account." };
+  }
+
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch {
+    return {
+      error:
+        "Missing SUPABASE_SERVICE_ROLE_KEY. Add it to .env.local to manage users.",
+    };
+  }
+
+  const { error } = await admin
+    .from("profiles")
+    .update({ is_active })
+    .eq("id", user_id);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  await supabase.from("audit_logs").insert(
+    toAuditLogRow({
+      user_id: user.id,
+      user_role: profile.role,
+      action: is_active ? "ACTIVATE_USER" : "DEACTIVATE_USER",
+      action_type: "UPDATE",
+      table_name: "profiles",
+      record_id: user_id,
+      description: is_active ? "User activated" : "User deactivated",
+      ip_address: await getIp(),
+    })
+  );
+
+  revalidatePath("/guidance/students");
+  revalidatePath("/guidance/admins");
+  revalidatePath("/guidance/instructors");
+  return { success: is_active ? "User activated." : "User deactivated." };
+}
+
+export async function resetUserPassword(
+  _prev: GuidanceActionState,
+  formData: FormData
+): Promise<GuidanceActionState> {
+  const { supabase, user, profile } = await requireRole([
+    "Guidance Counselor",
+  ]);
+  const user_id = String(formData.get("user_id") || "").trim();
+  const new_password = String(formData.get("new_password") || "");
+
+  if (!user_id || new_password.length < 8) {
+    return { error: "New password must be at least 8 characters." };
+  }
+
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch {
+    return {
+      error:
+        "Missing SUPABASE_SERVICE_ROLE_KEY. Add it to .env.local to reset passwords.",
+    };
+  }
+
+  const { error } = await admin.auth.admin.updateUserById(user_id, {
+    password: new_password,
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  await supabase.from("audit_logs").insert(
+    toAuditLogRow({
+      user_id: user.id,
+      user_role: profile.role,
+      action: "RESET_USER_PASSWORD",
+      action_type: "UPDATE",
+      table_name: "auth.users",
+      record_id: user_id,
+      description: `Password reset for user ${user_id}`,
+      ip_address: await getIp(),
+    })
+  );
+
+  revalidatePath("/guidance/students");
+  revalidatePath("/guidance/admins");
+  return { success: "Password reset." };
+}
+
 export async function openNextMonitoringWeek(
   _prev: GuidanceActionState,
   _formData: FormData

@@ -76,6 +76,39 @@ export async function getInstructors(
   });
 }
 
+export type UserListItem = Profile & {
+  department_name: string | null;
+  department_code: string | null;
+};
+
+export async function getUsersByRole(
+  supabase: SupabaseClient,
+  role: Profile["role"]
+): Promise<UserListItem[]> {
+  const { data } = await supabase
+    .from("profiles")
+    .select(
+      `${PROFILE_LIST_COLUMNS}, departments(department_code, department_name)`
+    )
+    .eq("role", role)
+    .order("last_name", { ascending: true });
+
+  return (data ?? []).map((row) => {
+    const dept = row.departments as
+      | { department_code: string; department_name: string }
+      | { department_code: string; department_name: string }[]
+      | null;
+    const department = Array.isArray(dept) ? dept[0] : dept;
+    const { departments: _ignored, ...profile } = row;
+
+    return {
+      ...toProfile(profile),
+      department_name: department?.department_name ?? null,
+      department_code: department?.department_code ?? null,
+    };
+  });
+}
+
 export async function getGuidanceDashboardStats(supabase: SupabaseClient) {
   const term = await getActiveTerm(supabase);
 

@@ -3,6 +3,7 @@ import type { UserRole } from "@/lib/auth/roles";
 import {
   BellIcon,
   Building2Icon,
+  GraduationCapIcon,
   ChartColumnIcon,
   ClipboardListIcon,
   FileTextIcon,
@@ -10,6 +11,7 @@ import {
   HistoryIcon,
   KeyRoundIcon,
   LayoutDashboardIcon,
+  ShieldIcon,
   LightbulbIcon,
   MegaphoneIcon,
   UserRoundCogIcon,
@@ -91,6 +93,11 @@ export function getNavItems(role: UserRole, home: string): NavItem[] {
   return [
     { title: "Dashboard", url: home, icon: LayoutDashboardIcon },
     {
+      title: "Students",
+      url: `${home}/students`,
+      icon: GraduationCapIcon,
+    },
+    {
       title: "Departments",
       url: `${home}/departments`,
       icon: Building2Icon,
@@ -99,6 +106,11 @@ export function getNavItems(role: UserRole, home: string): NavItem[] {
       title: "Instructors",
       url: `${home}/instructors`,
       icon: UserRoundCogIcon,
+    },
+    {
+      title: "Admins",
+      url: `${home}/admins`,
+      icon: ShieldIcon,
     },
     {
       title: "Questionnaires",

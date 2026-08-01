@@ -26,6 +26,8 @@ const pageLabels: Record<string, string> = {
   departments: "Departments",
   instructors: "Instructors",
   questionnaires: "Questionnaires",
+  students: "Student Management",
+  admins: "Admin Management",
 };
 
 const dashboardLabels: Record<string, string> = {
