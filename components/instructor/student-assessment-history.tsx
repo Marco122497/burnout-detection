@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { Fragment, useState } from "react";
-import { ChevronDownIcon } from "lucide-react";
+import { ChevronDownIcon, Loader2 } from "lucide-react";
 
 import type {
   StudentHistoryRow,
@@ -16,7 +15,8 @@ import {
   BurnoutFactorSection,
   BurnoutHero,
 } from "@/components/shared/burnout-summary";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { useNavigationPending } from "@/components/layout/navigation-pending";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -82,13 +82,15 @@ export function StudentAssessmentHistoryView({
   answers = {},
   backHref = "/instructor/monitoring",
 }: {
-  student: StudentMonitorRow;
+  student: StudentMonitorRow & { department_name?: string | null };
   history: StudentHistoryRow[];
   answers?: MonitoringAnswersMap;
   backHref?: string;
 }) {
+  const { navigate, isPending, pendingHref } = useNavigationPending();
   const [openId, setOpenId] = useState<number | null>(null);
   const latest = history[0] ?? null;
+  const backLoading = isPending && pendingHref === backHref;
 
   const factors =
     latest &&
@@ -127,19 +129,29 @@ export function StudentAssessmentHistoryView({
           <p className="mt-1 text-sm text-muted-foreground">
             {[
               student.student_number,
-              student.course,
+              student.department_name || student.course,
               student.year_level != null ? `Year ${student.year_level}` : null,
               student.section ? `Section ${student.section}` : null,
             ]
               .filter(Boolean)
-              .join(" · ")}          </p>
+              .join(" · ")}
+          </p>
         </div>
-        <Link
-          href={backHref}
-          className={cn(buttonVariants({ variant: "outline" }))}
+        <Button
+          type="button"
+          variant="outline"
+          disabled={backLoading}
+          onClick={() => navigate(backHref)}
         >
-          Back to student list
-        </Link>
+          {backLoading ? (
+            <>
+              <Loader2 className="animate-spin" />
+              Loading…
+            </>
+          ) : (
+            "Back to student list"
+          )}
+        </Button>
       </div>
 
       <BurnoutHero

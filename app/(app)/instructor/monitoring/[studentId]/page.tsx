@@ -2,7 +2,10 @@ import { notFound } from "next/navigation";
 
 import { StudentAssessmentHistoryView } from "@/components/instructor/student-assessment-history";
 import { requireRole } from "@/lib/auth/session";
-import { getStudentAssessmentHistory } from "@/lib/instructor/queries";
+import {
+  getDepartmentName,
+  getStudentAssessmentHistory,
+} from "@/lib/instructor/queries";
 import { getMonitoringAnswers } from "@/lib/student/queries";
 
 export default async function InstructorStudentHistoryPage({
@@ -20,14 +23,17 @@ export default async function InstructorStudentHistoryPage({
 
   if (!student) notFound();
 
-  const answers = await getMonitoringAnswers(
-    supabase,
-    history.map((row) => row.monitoring_id)
-  );
+  const [answers, departmentName] = await Promise.all([
+    getMonitoringAnswers(
+      supabase,
+      history.map((row) => row.monitoring_id)
+    ),
+    getDepartmentName(supabase, profile.department_id),
+  ]);
 
   return (
     <StudentAssessmentHistoryView
-      student={student}
+      student={{ ...student, department_name: departmentName }}
       history={history}
       answers={answers}
     />

@@ -1,11 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Loader2 } from "lucide-react";
 
 import type { StudentMonitorRow } from "@/lib/instructor/queries";
-import { buttonVariants } from "@/components/ui/button";
+import { useNavigationPending } from "@/components/layout/navigation-pending";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
 
 const selectClassName =
   "h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
@@ -28,6 +27,7 @@ export function StudentMonitoringTable({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { navigate, isPending, pendingHref } = useNavigationPending();
 
   const [q, setQ] = useState(searchParams.get("q") ?? "");
   const [yearLevel, setYearLevel] = useState(
@@ -207,14 +207,29 @@ export function StudentMonitoringTable({
                         {row.submittedThisWeek ? "Submitted" : "Pending"}
                       </td>
                       <td className="px-2 py-2">
-                        <Link
-                          href={`/instructor/monitoring/${row.id}`}
-                          className={cn(
-                            buttonVariants({ variant: "outline", size: "sm" })
-                          )}
-                        >
-                          View
-                        </Link>
+                        {(() => {
+                          const viewHref = `/instructor/monitoring/${row.id}`;
+                          const viewLoading =
+                            isPending && pendingHref === viewHref;
+                          return (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={viewLoading}
+                              onClick={() => navigate(viewHref)}
+                            >
+                              {viewLoading ? (
+                                <>
+                                  <Loader2 className="animate-spin" />
+                                  Loading…
+                                </>
+                              ) : (
+                                "View"
+                              )}
+                            </Button>
+                          );
+                        })()}
                       </td>
                     </tr>
                   ))}
