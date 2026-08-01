@@ -8,11 +8,23 @@ import { getActiveTerm, getCurrentWeekNumber } from "@/lib/student/terms";
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
+export type BurnoutFactor = {
+  raw: number;
+  normalized: number;
+};
+
 export type StudentDashboardData = {
   burnoutLevel: string | null;
   mfbiScore: number | null;
   stressLevel: string | null;
   stressScore: number | null;
+  latestWeek: number | null;
+  factors: {
+    stress: BurnoutFactor;
+    workload: BurnoutFactor;
+    studyTime: BurnoutFactor;
+    sleep: BurnoutFactor;
+  } | null;
   monitoringStatus: "Submitted" | "Pending" | "Closed";
   latestMonitoringDate: string | null;
   currentWeek: number | null;
@@ -171,11 +183,35 @@ export async function getStudentDashboardData(
           ? "Moderate"
           : "High";
 
+  const factors =
+    latest && mfbi
+      ? {
+          stress: {
+            raw: latest.stress_score,
+            normalized: mfbi.normalized_stress,
+          },
+          workload: {
+            raw: latest.academic_workload,
+            normalized: mfbi.normalized_workload,
+          },
+          studyTime: {
+            raw: latest.study_time,
+            normalized: mfbi.normalized_study_time,
+          },
+          sleep: {
+            raw: latest.sleep_hours,
+            normalized: mfbi.normalized_sleep,
+          },
+        }
+      : null;
+
   return {
     burnoutLevel,
     mfbiScore,
     stressLevel,
     stressScore,
+    latestWeek: latest?.week_number ?? null,
+    factors,
     monitoringStatus: submittedThisWeek
       ? "Submitted"
       : term?.monitoring_enabled

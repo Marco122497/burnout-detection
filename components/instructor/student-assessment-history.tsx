@@ -1,10 +1,18 @@
+"use client";
+
 import Link from "next/link";
+import { Fragment, useState } from "react";
+import { ChevronDownIcon } from "lucide-react";
 
 import type {
   StudentHistoryRow,
   StudentMonitorRow,
 } from "@/lib/instructor/queries";
-import { buttonVariants } from "@/components/ui/button";
+import type {
+  MonitoringAnswer,
+  MonitoringAnswersMap,
+} from "@/lib/student/queries";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -14,15 +22,69 @@ import {
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
+function AnswersPanel({ answers }: { answers: MonitoringAnswer[] }) {
+  if (!answers.length) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        No recorded answers for this submission.
+      </p>
+    );
+  }
+
+  const groups: { name: string; items: MonitoringAnswer[] }[] = [];
+  for (const answer of answers) {
+    const group = groups.find((g) => g.name === answer.questionnaire_name);
+    if (group) {
+      group.items.push(answer);
+    } else {
+      groups.push({ name: answer.questionnaire_name, items: [answer] });
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      {groups.map((group) => (
+        <div key={group.name}>
+          <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+            {group.name}
+          </p>
+          <ul className="mt-1.5 divide-y divide-border/60">
+            {group.items.map((answer, index) => (
+              <li
+                key={answer.question_id}
+                className="flex items-start justify-between gap-4 py-1.5"
+              >
+                <span className="text-sm">
+                  <span className="mr-1.5 text-muted-foreground">
+                    {index + 1}.
+                  </span>
+                  {answer.question_text}
+                </span>
+                <span className="shrink-0 text-sm font-medium">
+                  {answer.answer_label ?? answer.answer_value}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function StudentAssessmentHistoryView({
   student,
   history,
+  answers = {},
   backHref = "/instructor/monitoring",
 }: {
   student: StudentMonitorRow;
   history: StudentHistoryRow[];
+  answers?: MonitoringAnswersMap;
   backHref?: string;
 }) {
+  const [openId, setOpenId] = useState<number | null>(null);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -113,32 +175,68 @@ export function StudentAssessmentHistoryView({
                     <th className="px-2 py-2 font-medium">MFBI</th>
                     <th className="px-2 py-2 font-medium">Risk</th>
                     <th className="px-2 py-2 font-medium">Prediction</th>
+                    <th className="px-2 py-2 text-right font-medium">
+                      Answers
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {history.map((row) => (
-                    <tr key={row.monitoring_id} className="border-b last:border-0">
-                      <td className="px-2 py-2">W{row.week_number}</td>
-                      <td className="px-2 py-2">
-                        {row.submitted_at
-                          ? new Date(row.submitted_at).toLocaleString()
-                          : "—"}
-                      </td>
-                      <td className="px-2 py-2">{row.stress_score}</td>
-                      <td className="px-2 py-2">{row.academic_workload}</td>
-                      <td className="px-2 py-2">{row.study_time}</td>
-                      <td className="px-2 py-2">{row.sleep_hours}</td>
-                      <td className="px-2 py-2">
-                        {row.mfbi_score != null
-                          ? row.mfbi_score.toFixed(2)
-                          : "—"}
-                      </td>
-                      <td className="px-2 py-2">
-                        {row.burnout_level ?? "—"}
-                      </td>
-                      <td className="px-2 py-2">{row.prediction ?? "—"}</td>
-                    </tr>
-                  ))}
+                  {history.map((row) => {
+                    const isOpen = openId === row.monitoring_id;
+                    return (
+                      <Fragment key={row.monitoring_id}>
+                        <tr className="border-b last:border-0">
+                          <td className="px-2 py-2">W{row.week_number}</td>
+                          <td className="px-2 py-2">
+                            {row.submitted_at
+                              ? new Date(row.submitted_at).toLocaleString()
+                              : "—"}
+                          </td>
+                          <td className="px-2 py-2">{row.stress_score}</td>
+                          <td className="px-2 py-2">{row.academic_workload}</td>
+                          <td className="px-2 py-2">{row.study_time}</td>
+                          <td className="px-2 py-2">{row.sleep_hours}</td>
+                          <td className="px-2 py-2">
+                            {row.mfbi_score != null
+                              ? row.mfbi_score.toFixed(2)
+                              : "—"}
+                          </td>
+                          <td className="px-2 py-2">
+                            {row.burnout_level ?? "—"}
+                          </td>
+                          <td className="px-2 py-2">{row.prediction ?? "—"}</td>
+                          <td className="px-2 py-2 text-right">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={() =>
+                                setOpenId(isOpen ? null : row.monitoring_id)
+                              }
+                              aria-expanded={isOpen}
+                            >
+                              View answers
+                              <ChevronDownIcon
+                                className={cn(
+                                  "size-3.5 transition-transform",
+                                  isOpen && "rotate-180"
+                                )}
+                              />
+                            </Button>
+                          </td>
+                        </tr>
+                        {isOpen ? (
+                          <tr className="border-b bg-muted/30 last:border-0">
+                            <td colSpan={10} className="px-4 py-4">
+                              <AnswersPanel
+                                answers={answers[row.monitoring_id] ?? []}
+                              />
+                            </td>
+                          </tr>
+                        ) : null}
+                      </Fragment>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

@@ -1,6 +1,7 @@
 import type { createClient } from "@/lib/supabase/server";
 import { buildFullName, toProfile, type Department, type Profile } from "@/lib/auth/roles";
 import { getCachedDepartments } from "@/lib/cache/data";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getActiveTerm } from "@/lib/student/terms";
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
@@ -79,7 +80,40 @@ export async function getInstructors(
 export type UserListItem = Profile & {
   department_name: string | null;
   department_code: string | null;
+  email?: string | null;
 };
+
+/**
+ * Emails live in auth.users, so this needs the service-role admin client.
+ * Returns an empty map when the key is not configured.
+ */
+export async function getUserEmails(): Promise<Record<string, string>> {
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch {
+    return {};
+  }
+
+  const emails: Record<string, string> = {};
+  const perPage = 1000;
+
+  for (let page = 1; page <= 20; page++) {
+    const { data, error } = await admin.auth.admin.listUsers({
+      page,
+      perPage,
+    });
+    if (error) break;
+
+    for (const user of data.users) {
+      if (user.email) emails[user.id] = user.email;
+    }
+
+    if (data.users.length < perPage) break;
+  }
+
+  return emails;
+}
 
 export async function getUsersByRole(
   supabase: SupabaseClient,

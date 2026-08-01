@@ -1,4 +1,9 @@
 import type { createClient } from "@/lib/supabase/server";
+import {
+  getScaleOptions,
+  QUESTIONNAIRE_KEYS,
+  QUESTIONNAIRE_NAMES,
+} from "@/lib/student/questionnaires";
 import { getActiveTerm, getCurrentWeekNumber } from "@/lib/student/terms";
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
@@ -139,6 +144,82 @@ export async function getLatestBurnoutSnapshot(
     submittedThisWeek,
     history,
   };
+}
+
+export type MonitoringAnswer = {
+  question_id: number;
+  question_text: string;
+  question_order: number;
+  questionnaire_name: string;
+  answer_value: number;
+  answer_label: string | null;
+};
+
+export type MonitoringAnswersMap = Record<number, MonitoringAnswer[]>;
+
+const NAME_TO_KEY = new Map(
+  QUESTIONNAIRE_KEYS.map((key) => [QUESTIONNAIRE_NAMES[key], key] as const)
+);
+
+export async function getMonitoringAnswers(
+  supabase: SupabaseClient,
+  monitoringIds: number[]
+): Promise<MonitoringAnswersMap> {
+  if (!monitoringIds.length) return {};
+
+  const { data } = await supabase
+    .from("weekly_monitoring_answers")
+    .select(
+      "monitoring_id, answer_value, questions(question_id, question_text, question_order, questionnaire_id, questionnaires(questionnaire_name))"
+    )
+    .in("monitoring_id", monitoringIds);
+
+  const sectionOrder = new Map(
+    QUESTIONNAIRE_KEYS.map((key, index) => [QUESTIONNAIRE_NAMES[key], index])
+  );
+
+  const map: MonitoringAnswersMap = {};
+
+  for (const row of data ?? []) {
+    const questionRaw = row.questions;
+    const question = Array.isArray(questionRaw) ? questionRaw[0] : questionRaw;
+    if (!question) continue;
+
+    const questionnaireRaw = question.questionnaires;
+    const questionnaire = Array.isArray(questionnaireRaw)
+      ? questionnaireRaw[0]
+      : questionnaireRaw;
+    const questionnaireName = questionnaire?.questionnaire_name ?? "Other";
+
+    const key = NAME_TO_KEY.get(questionnaireName);
+    const label = key
+      ? getScaleOptions(key).find(
+          (option) => option.value === Number(row.answer_value)
+        )?.label ?? null
+      : null;
+
+    const list = map[row.monitoring_id] ?? [];
+    list.push({
+      question_id: question.question_id,
+      question_text: question.question_text,
+      question_order: question.question_order,
+      questionnaire_name: questionnaireName,
+      answer_value: Number(row.answer_value),
+      answer_label: label,
+    });
+    map[row.monitoring_id] = list;
+  }
+
+  for (const list of Object.values(map)) {
+    list.sort((a, b) => {
+      const sectionA = sectionOrder.get(a.questionnaire_name) ?? 99;
+      const sectionB = sectionOrder.get(b.questionnaire_name) ?? 99;
+      if (sectionA !== sectionB) return sectionA - sectionB;
+      return a.question_order - b.question_order;
+    });
+  }
+
+  return map;
 }
 
 export async function getStudentNotifications(

@@ -244,7 +244,6 @@ export function GuidanceStudentMonitoring({
                     <th className="px-2 py-2 font-medium">Student</th>
                     <th className="px-2 py-2 font-medium">Department</th>
                     <th className="px-2 py-2 font-medium">Year</th>
-                    <th className="px-2 py-2 font-medium">Section</th>
                     <th className="px-2 py-2 font-medium">Stress</th>
                     <th className="px-2 py-2 font-medium">Workload</th>
                     <th className="px-2 py-2 font-medium">Study</th>
@@ -268,7 +267,6 @@ export function GuidanceStudentMonitoring({
                         {row.department_name || "—"}
                       </td>
                       <td className="px-2 py-2">{row.year_level ?? "—"}</td>
-                      <td className="px-2 py-2">{row.section || "—"}</td>
                       <td className="px-2 py-2">
                         {row.stress_level
                           ? `${row.stress_level} (${row.stress_score})`

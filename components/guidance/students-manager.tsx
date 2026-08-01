@@ -124,6 +124,7 @@ export function StudentsManager({
     return students.filter((student) =>
       [
         student.full_name,
+        student.email ?? "",
         student.student_number ?? "",
         student.section ?? "",
         student.department_code ?? "",
@@ -172,7 +173,7 @@ export function StudentsManager({
             <Input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search by name, student number, section, or course…"
+              placeholder="Search by name, email, student number, section, or course…"
               className="pl-8"
             />
           </div>
@@ -201,9 +202,9 @@ export function StudentsManager({
                     <TableCell>
                       <div>
                         <p className="font-medium">{student.full_name}</p>
-                        {student.contact_number ? (
+                        {student.email ? (
                           <p className="text-xs text-muted-foreground">
-                            {student.contact_number}
+                            {student.email}
                           </p>
                         ) : null}
                       </div>
