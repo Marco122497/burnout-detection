@@ -164,7 +164,7 @@ export function StudentMonitoringTable({
                     <th className="px-2 py-2 font-medium">Stress</th>
                     <th className="px-2 py-2 font-medium">Workload</th>
                     <th className="px-2 py-2 font-medium">Study</th>
-                    <th className="px-2 py-2 font-medium">Sleep</th>
+                    <th className="px-2 py-2 font-medium">Sleep Risk</th>
                     <th className="px-2 py-2 font-medium">MFBI</th>
                     <th className="px-2 py-2 font-medium">Risk</th>
                     <th className="px-2 py-2 font-medium">Week</th>
@@ -193,7 +193,9 @@ export function StudentMonitoringTable({
                         {row.study_time != null ? `${row.study_time}h` : "—"}
                       </td>
                       <td className="px-2 py-2">
-                        {row.sleep_hours != null ? `${row.sleep_hours}h` : "—"}
+                        {row.sleep_hours != null
+                          ? `${row.sleep_hours}`
+                          : "—"}
                       </td>
                       <td className="px-2 py-2">
                         {row.mfbi_score != null

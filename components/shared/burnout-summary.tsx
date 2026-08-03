@@ -155,12 +155,17 @@ function FactorCard({
   description,
   factor,
   rawLabel,
+  primaryLabel,
+  footnote = "Contribution to the burnout score — lower is better.",
 }: {
   icon: React.ReactNode;
   label: string;
   description: string;
   factor: BurnoutFactor | null;
   rawLabel?: string;
+  /** Overrides the primary percentage display (e.g. "Sleep Risk = 64%"). */
+  primaryLabel?: string;
+  footnote?: string;
 }) {
   const percent = factor ? Math.round(factor.normalized * 100) : null;
 
@@ -178,13 +183,13 @@ function FactorCard({
       <CardContent className="space-y-2">
         {factor ? (
           <>
-            <div className="flex items-baseline justify-between">
+            <div className="flex items-baseline justify-between gap-2">
               <span className="font-[family-name:var(--font-display)] text-xl font-semibold tabular-nums">
-                {percent}%
+                {primaryLabel ?? `${percent}%`}
               </span>
-              <span className="text-xs text-muted-foreground">
-                {rawLabel ?? `Score: ${factor.raw}`}
-              </span>
+              {rawLabel ? (
+                <span className="text-xs text-muted-foreground">{rawLabel}</span>
+              ) : null}
             </div>
             <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
               <div
@@ -195,9 +200,7 @@ function FactorCard({
                 style={{ width: `${Math.max(percent ?? 0, 3)}%` }}
               />
             </div>
-            <p className="text-[11px] text-muted-foreground">
-              Contribution to the burnout score — lower is better.
-            </p>
+            <p className="text-[11px] text-muted-foreground">{footnote}</p>
           </>
         ) : (
           <p className="text-sm text-muted-foreground">No data yet.</p>
@@ -234,7 +237,7 @@ export function BurnoutFactorSection({
       <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <FactorCard
           icon={<BrainIcon />}
-          label="Perceived Stress"
+          label="Stress Level"
           description="How stressed the past week felt (PSS)."
           factor={factors?.stress ?? null}
           rawLabel={
@@ -258,8 +261,14 @@ export function BurnoutFactorSection({
         <FactorCard
           icon={<MoonIcon />}
           label="Sleep Hours"
-          description="Sleeping patterns and duration."
+          description="How poor sleep contributed to burnout risk."
           factor={factors?.sleep ?? null}
+          primaryLabel={
+            factors
+              ? `${Math.round(factors.sleep.normalized * 100)}%`
+              : undefined
+          }
+          footnote="Higher means poorer sleep and greater burnout risk."
         />
       </div>
     </div>

@@ -153,7 +153,7 @@ export async function submitWeeklyMonitoring(
     stressScore: scores.stress_score,
     academicWorkload: scores.academic_workload_score,
     studyTime: scores.study_time_score,
-    sleepHours: scores.sleep_hours_score,
+    sleepRisk: scores.sleep_hours_score,
   });
 
   const { data: mfbiRow, error: mfbiError } = await supabase

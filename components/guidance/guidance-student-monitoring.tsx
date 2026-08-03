@@ -279,7 +279,9 @@ export function GuidanceStudentMonitoring({
                         {row.study_time != null ? `${row.study_time}h` : "—"}
                       </td>
                       <td className="px-2 py-2">
-                        {row.sleep_hours != null ? `${row.sleep_hours}h` : "—"}
+                        {row.sleep_hours != null
+                          ? `${row.sleep_hours}`
+                          : "—"}
                       </td>
                       <td className="px-2 py-2">
                         {row.mfbi_score != null

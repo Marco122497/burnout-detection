@@ -4,7 +4,8 @@ export type MfbiInput = {
   stressScore: number;
   academicWorkload: number;
   studyTime: number;
-  sleepHours: number;
+  /** Sleep Risk Score 0–100 (higher = poorer sleep). */
+  sleepRisk: number;
 };
 
 export type MfbiResult = {
@@ -39,17 +40,17 @@ export function classifyMfbiScore(score: number): BurnoutLevel {
 /**
  * MFBI = (SL_n + AW_n + ST_n + SH_n) / 4
  *
- * Normalization (0–1):
+ * Normalization (0–1), all oriented so higher = greater burnout risk:
  * - Stress (PSS-10): 0–40
  * - Academic workload: 0–10
  * - Study time: 0–12 hours/day
- * - Sleep: inverted vs 8h ideal → (8 - hours) / 8
+ * - Sleep risk: 0–100 (already risk-oriented; no hours inversion)
  */
 export function computeMfbi(input: MfbiInput): MfbiResult {
   const normalized_stress = clamp01(input.stressScore / 40);
   const normalized_academic_workload = clamp01(input.academicWorkload / 10);
   const normalized_study_time = clamp01(input.studyTime / 12);
-  const normalized_sleep_hours = clamp01((8 - input.sleepHours) / 8);
+  const normalized_sleep_hours = clamp01(input.sleepRisk / 100);
 
   const mfbi_score = round4(
     (normalized_stress +

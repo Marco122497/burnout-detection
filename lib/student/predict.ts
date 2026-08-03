@@ -41,12 +41,12 @@ export function predictDecisionTree(
     prediction = "High";
   } else if (mfbi.mfbi_score >= 0.4 || sections.stress_score >= 22) {
     prediction =
-      sections.sleep_hours_score < 6 || sections.academic_workload_score >= 7.5
+      sections.sleep_hours_score >= 50 || sections.academic_workload_score >= 7.5
         ? "High"
         : "Moderate";
   } else if (mfbi.mfbi_score > 0.39) {
     prediction =
-      sections.study_time_score >= 9 && sections.sleep_hours_score < 6.5
+      sections.study_time_score >= 9 && sections.sleep_hours_score >= 45
         ? "High"
         : "Moderate";
   } else {
@@ -72,7 +72,7 @@ export function predictRandomForest(
     classifyMfbiScore(sections.stress_score / 40),
     classifyMfbiScore(sections.academic_workload_score / 10),
     classifyMfbiScore(sections.study_time_score / 12),
-    classifyMfbiScore((8 - sections.sleep_hours_score) / 8),
+    classifyMfbiScore(sections.sleep_hours_score / 100),
   ];
 
   const counts = new Map<BurnoutLevel, number>();

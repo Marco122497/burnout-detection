@@ -12,6 +12,7 @@ export type SectionScores = {
   stress_level: "Low" | "Moderate" | "High";
   academic_workload_score: number;
   study_time_score: number;
+  /** Sleep Risk Score 0–100 (higher = poorer sleep). Stored as sleep_hours_score. */
   sleep_hours_score: number;
 };
 
@@ -87,41 +88,44 @@ export function scoreStudySection(questions: QuestionRow[], answers: AnswerMap) 
 }
 
 /**
- * Sleep hours score as estimated hours/night.
- * Q with reverse risk (impact) lowers effective sleep when high.
- * Buckets: 1→4.5, 2→5.5, 3→6.5, 4→7.5, 5→8.5
+ * Negatively worded sleep items (agreeing = worse sleep). Used as a
+ * fallback when reverse_scored is not set on the question row.
+ */
+const NEGATIVE_SLEEP_WORDING = /difficulty|trouble|lack of sleep|could not sleep|couldn't sleep/i;
+
+/**
+ * Sleep Risk Score (0–100). Higher always = poorer sleep / greater burnout risk.
+ *
+ * Likert scale: 1 = Strongly Disagree … 5 = Strongly Agree.
+ *
+ * 1. Positive statements (slept enough, rested, regular schedule) → scored as-is
+ *    (Agree raises sleep quality).
+ * 2. Negative statements (difficulty sleeping, etc.) → reverse-scored via the
+ *    reverse_scored DB flag (or wording fallback) so Agree does not raise quality.
+ * 3. Average quality (1–5) is inverted to risk: ((5 − avg) / 4) × 100.
  */
 export function scoreSleepSection(questions: QuestionRow[], answers: AnswerMap) {
   if (!questions.length) throw new Error("Sleep Hours questions missing.");
 
-  const hourMap: Record<number, number> = {
-    1: 4.5,
-    2: 5.5,
-    3: 6.5,
-    4: 7.5,
-    5: 8.5,
-  };
-
-  let sum = 0;
+  let qualitySum = 0;
   for (const question of questions) {
     const raw = answers[question.question_id];
     if (!assertLikert(raw)) {
       throw new Error("Please answer every Sleep Hours question.");
     }
 
-    // Higher "lack of sleep impact" reduces estimated restorative sleep.
-    if (/lack of sleep affect/i.test(question.question_text)) {
-      sum += hourMap[6 - raw] ?? hourMap[raw];
-    } else if (/hours did you sleep/i.test(question.question_text)) {
-      sum += hourMap[raw];
-    } else {
-      // consistency / rested → map mid toward hours quality
-      sum += 4 + ((raw - 1) / 4) * 4.5;
-    }
+    const isNegative =
+      question.reverse_scored ||
+      NEGATIVE_SLEEP_WORDING.test(question.question_text);
+
+    // Positive → keep raw; negative → flip so Agree lowers quality.
+    const qualityValue = isNegative ? 6 - raw : raw;
+    qualitySum += qualityValue;
   }
 
-  const average = sum / questions.length;
-  return Math.min(12, Math.round(average * 100) / 100);
+  const avgQuality = qualitySum / questions.length; // 1–5, higher = better sleep
+  const risk = ((5 - avgQuality) / 4) * 100; // 0–100, higher = worse sleep
+  return Math.round(Math.min(100, Math.max(0, risk)) * 100) / 100;
 }
 
 export function computeSectionScores(

@@ -199,7 +199,7 @@ export function StudentAssessmentHistoryView({
                     <th className="px-2 py-2 font-medium">PSS</th>
                     <th className="px-2 py-2 font-medium">Workload</th>
                     <th className="px-2 py-2 font-medium">Study</th>
-                    <th className="px-2 py-2 font-medium">Sleep</th>
+                    <th className="px-2 py-2 font-medium">Sleep Risk</th>
                     <th className="px-2 py-2 font-medium">MFBI</th>
                     <th className="px-2 py-2 font-medium">Risk</th>
                     <th className="px-2 py-2 font-medium">Prediction</th>
