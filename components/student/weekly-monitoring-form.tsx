@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { useActionState, useEffect, useRef, useState } from "react";
+import { CheckCircle2Icon, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -85,15 +85,26 @@ export function WeeklyMonitoringForm({
     initialState
   );
   const [unansweredIds, setUnansweredIds] = useState<number[]>([]);
+  const headerRef = useRef<HTMLDivElement>(null);
+  const lastScrolledSuccess = useRef<string | undefined>(undefined);
   useActionToast(state);
 
+  const alreadySubmitted = submittedThisWeek || Boolean(state.success);
   const ready = sections.every((section) => section.questions.length > 0);
   const disabled =
     pending ||
-    submittedThisWeek ||
+    alreadySubmitted ||
     !ready ||
     !term ||
     !monitoringEnabled;
+
+  useEffect(() => {
+    if (!state.success || state.success === lastScrolledSuccess.current) {
+      return;
+    }
+    lastScrolledSuccess.current = state.success;
+    headerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [state.success]);
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     const form = event.currentTarget;
@@ -122,13 +133,23 @@ export function WeeklyMonitoringForm({
 
   return (
     <div className="space-y-6">
-      <Card>
+      <Card ref={headerRef} id="weekly-monitoring-status">
         <CardHeader>
-          <CardTitle>Weekly monitoring form</CardTitle>
-          <CardDescription>
-            Complete all four sections in one submission. Scores, MFBI, and
-            burnout prediction are computed automatically.
-          </CardDescription>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="space-y-1.5">
+              <CardTitle>Weekly monitoring form</CardTitle>
+              <CardDescription>
+                Complete all four sections in one submission. Scores, MFBI, and
+                burnout prediction are computed automatically.
+              </CardDescription>
+            </div>
+            {alreadySubmitted ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-900">
+                <CheckCircle2Icon className="size-3.5" />
+                Already submitted
+              </span>
+            ) : null}
+          </div>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="rounded-lg border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
@@ -141,13 +162,19 @@ export function WeeklyMonitoringForm({
                 </span>
                 {!monitoringEnabled
                   ? " · Closed by Guidance"
-                  : submittedThisWeek
-                    ? " · Already submitted this week"
+                  : alreadySubmitted
+                    ? " · Already submitted"
                     : " · Open for submission"}
               </p>
             ) : (
               <p>No active academic term configured.</p>
             )}
+            {alreadySubmitted && monitoringEnabled ? (
+              <p className="mt-1 text-emerald-800">
+                You have already submitted monitoring for this week. Come back
+                when the next weekly window opens.
+              </p>
+            ) : null}
             {!monitoringEnabled && term ? (
               <p className="mt-1 text-amber-800">
                 Monitoring is closed. The form unlocks when Guidance opens the
@@ -278,8 +305,8 @@ export function WeeklyMonitoringForm({
                   <Loader2 className="animate-spin" />
                   Processing assessment…
                 </>
-              ) : submittedThisWeek ? (
-                "Already submitted this week"
+              ) : alreadySubmitted ? (
+                "Already submitted"
               ) : (
                 "Submit weekly monitoring"
               )}

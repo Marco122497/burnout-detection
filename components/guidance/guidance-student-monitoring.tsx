@@ -1,12 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
 import type { Department } from "@/lib/auth/roles";
 import type { GuidanceStudentRow } from "@/lib/guidance/monitoring";
+import { useTablePagination } from "@/hooks/use-table-pagination";
 import { useNavigationPending } from "@/components/layout/navigation-pending";
+import { TablePagination } from "@/components/shared/table-pagination";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -93,6 +95,19 @@ export function GuidanceStudentMonitoring({
     });
   }, [rows, q, departmentId, course, yearLevel, section, risk]);
 
+  const {
+    page,
+    pageSize,
+    totalItems,
+    pageItems,
+    setPage,
+    setPageSize,
+  } = useTablePagination(filtered);
+
+  useEffect(() => {
+    setPage(1);
+  }, [q, departmentId, course, yearLevel, section, risk, setPage]);
+
   function applyFilters(event: React.FormEvent) {
     event.preventDefault();
     const params = new URLSearchParams();
@@ -121,9 +136,9 @@ export function GuidanceStudentMonitoring({
         <CardContent>
           <form
             onSubmit={applyFilters}
-            className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
+            className="flex flex-col gap-3 lg:flex-row lg:items-end"
           >
-            <div className="space-y-2 lg:col-span-2">
+            <div className="w-full space-y-2 lg:w-64 lg:shrink-0">
               <Label htmlFor="q">Student</Label>
               <Input
                 id="q"
@@ -132,7 +147,7 @@ export function GuidanceStudentMonitoring({
                 placeholder="Name or student number"
               />
             </div>
-            <div className="space-y-2">
+            <div className="w-full space-y-2 lg:w-56 lg:shrink-0">
               <Label htmlFor="department_id">Department</Label>
               <select
                 id="department_id"
@@ -148,16 +163,7 @@ export function GuidanceStudentMonitoring({
                 ))}
               </select>
             </div>
-            {/* <div className="space-y-2">
-              <Label htmlFor="course">Course</Label>
-              <Input
-                id="course"
-                value={course}
-                onChange={(e) => setCourse(e.target.value)}
-                placeholder="Course name"
-              />
-            </div> */}
-            <div className="space-y-2">
+            <div className="w-full space-y-2 lg:w-32 lg:shrink-0">
               <Label htmlFor="year_level">Year Level</Label>
               <select
                 id="year_level"
@@ -166,44 +172,14 @@ export function GuidanceStudentMonitoring({
                 className={selectClassName}
               >
                 <option value="">All</option>
-                {[1, 2, 3, 4, 5, 6].map((year) => (
+                {[1, 2, 3, 4].map((year) => (
                   <option key={year} value={year}>
                     {year}
                   </option>
                 ))}
               </select>
             </div>
-            {/* <div className="space-y-2">
-              <Label htmlFor="section">Section</Label>
-              <select
-                id="section"
-                value={section}
-                onChange={(e) => setSection(e.target.value)}
-                className={selectClassName}
-              >
-                <option value="">All</option>
-                {sectionOptions.map((value) => (
-                  <option key={value} value={value}>
-                    {value}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="risk">Burnout risk</Label>
-              <select
-                id="risk"
-                value={risk}
-                onChange={(e) => setRisk(e.target.value)}
-                className={selectClassName}
-              >
-                <option value="">All</option>
-                <option value="Low">Low</option>
-                <option value="Moderate">Moderate</option>
-                <option value="High">High / Severe</option>
-              </select>
-            </div> */}
-            <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-3">
+            <div className="flex shrink-0 gap-2">
               <Button type="submit">Apply filters</Button>
               <Button
                 type="button"
@@ -233,97 +209,108 @@ export function GuidanceStudentMonitoring({
             departments.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           {filtered.length === 0 ? (
             <p className="text-sm text-muted-foreground">No students found.</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1100px] text-left text-sm">
-                <thead className="border-b text-muted-foreground">
-                  <tr>
-                    <th className="px-2 py-2 font-medium">Student</th>
-                    <th className="px-2 py-2 font-medium">Department</th>
-                    <th className="px-2 py-2 font-medium">Year</th>
-                    <th className="px-2 py-2 font-medium">Stress</th>
-                    <th className="px-2 py-2 font-medium">Workload</th>
-                    <th className="px-2 py-2 font-medium">Study</th>
-                    <th className="px-2 py-2 font-medium">Sleep</th>
-                    <th className="px-2 py-2 font-medium">MFBI</th>
-                    <th className="px-2 py-2 font-medium">Risk</th>
-                    <th className="px-2 py-2 font-medium">Week</th>
-                    <th className="px-2 py-2 font-medium">History</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((row) => (
-                    <tr key={row.id} className="border-b last:border-0">
-                      <td className="px-2 py-2">
-                        <p className="font-medium">{row.full_name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {row.student_number || "—"}
-                        </p>
-                      </td>
-                      <td className="px-2 py-2">
-                        {row.department_name || "—"}
-                      </td>
-                      <td className="px-2 py-2">{row.year_level ?? "—"}</td>
-                      <td className="px-2 py-2">
-                        {row.stress_level
-                          ? `${row.stress_level} (${row.stress_score})`
-                          : "—"}
-                      </td>
-                      <td className="px-2 py-2">
-                        {row.academic_workload ?? "—"}
-                      </td>
-                      <td className="px-2 py-2">
-                        {row.study_time != null ? `${row.study_time}h` : "—"}
-                      </td>
-                      <td className="px-2 py-2">
-                        {row.sleep_hours != null
-                          ? `${row.sleep_hours}`
-                          : "—"}
-                      </td>
-                      <td className="px-2 py-2">
-                        {row.mfbi_score != null
-                          ? row.mfbi_score.toFixed(2)
-                          : "—"}
-                      </td>
-                      <td className="px-2 py-2">
-                        {row.prediction || row.burnout_level || "—"}
-                      </td>
-                      <td className="px-2 py-2">
-                        {row.submittedThisWeek ? "Submitted" : "Pending"}
-                      </td>
-                      <td className="px-2 py-2">
-                        {(() => {
-                          const viewHref = `/guidance/monitoring/${row.id}`;
-                          const viewLoading =
-                            isPending && pendingHref === viewHref;
-                          return (
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              disabled={viewLoading}
-                              onClick={() => navigate(viewHref)}
-                            >
-                              {viewLoading ? (
-                                <>
-                                  <Loader2 className="animate-spin" />
-                                  Loading…
-                                </>
-                              ) : (
-                                "View"
-                              )}
-                            </Button>
-                          );
-                        })()}
-                      </td>
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[1100px] text-left text-sm">
+                  <thead className="border-b text-muted-foreground">
+                    <tr>
+                      <th className="px-2 py-2 font-medium">Student</th>
+                      <th className="px-2 py-2 font-medium">Department</th>
+                      <th className="px-2 py-2 font-medium">Year</th>
+                      <th className="px-2 py-2 font-medium">Stress</th>
+                      <th className="px-2 py-2 font-medium">Workload</th>
+                      <th className="px-2 py-2 font-medium">Study</th>
+                      <th className="px-2 py-2 font-medium">Sleep</th>
+                      <th className="px-2 py-2 font-medium">MFBI</th>
+                      <th className="px-2 py-2 font-medium">Risk</th>
+                      <th className="px-2 py-2 font-medium">Week</th>
+                      <th className="px-2 py-2 font-medium">History</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {pageItems.map((row) => (
+                      <tr key={row.id} className="border-b last:border-0">
+                        <td className="px-2 py-2">
+                          <p className="font-medium">{row.full_name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {row.student_number || "—"}
+                          </p>
+                        </td>
+                        <td className="px-2 py-2">
+                          {row.department_name || "—"}
+                        </td>
+                        <td className="px-2 py-2">{row.year_level ?? "—"}</td>
+                        <td className="px-2 py-2">
+                          {row.stress_level
+                            ? `${row.stress_level} (${row.stress_score})`
+                            : "—"}
+                        </td>
+                        <td className="px-2 py-2">
+                          {row.academic_workload ?? "—"}
+                        </td>
+                        <td className="px-2 py-2">
+                          {row.study_time != null ? `${row.study_time}h` : "—"}
+                        </td>
+                        <td className="px-2 py-2">
+                          {row.sleep_hours != null
+                            ? `${row.sleep_hours}`
+                            : "—"}
+                        </td>
+                        <td className="px-2 py-2">
+                          {row.mfbi_score != null
+                            ? row.mfbi_score.toFixed(2)
+                            : "—"}
+                        </td>
+                        <td className="px-2 py-2">
+                          {row.prediction || row.burnout_level || "—"}
+                        </td>
+                        <td className="px-2 py-2">
+                          {row.submittedThisWeek ? "Submitted" : "Pending"}
+                        </td>
+                        <td className="px-2 py-2">
+                          {(() => {
+                            const viewHref = `/guidance/monitoring/${row.id}`;
+                            const viewLoading =
+                              isPending && pendingHref === viewHref;
+                            return (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                disabled={viewLoading}
+                                onClick={() => navigate(viewHref)}
+                              >
+                                {viewLoading ? (
+                                  <>
+                                    <Loader2 className="animate-spin" />
+                                    Loading…
+                                  </>
+                                ) : (
+                                  "View"
+                                )}
+                              </Button>
+                            );
+                          })()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <TablePagination
+                id="monitoring-rows-per-page"
+                page={page}
+                pageSize={pageSize}
+                totalItems={totalItems}
+                onPageChange={setPage}
+                onPageSizeChange={setPageSize}
+                className="justify-end gap-4 sm:justify-end"
+              />
+            </>
           )}
         </CardContent>
       </Card>

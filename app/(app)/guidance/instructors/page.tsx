@@ -3,14 +3,20 @@ import { requireRole } from "@/lib/auth/session";
 import {
   getDepartments,
   getInstructors,
+  getUserEmails,
 } from "@/lib/guidance/queries";
 
 export default async function GuidanceInstructorsPage() {
   const { supabase } = await requireRole(["Guidance Counselor"]);
-  const [instructors, departments] = await Promise.all([
+  const [instructorRows, departments, emails] = await Promise.all([
     getInstructors(supabase),
     getDepartments(supabase),
+    getUserEmails(),
   ]);
+  const instructors = instructorRows.map((instructor) => ({
+    ...instructor,
+    email: emails[instructor.id] ?? null,
+  }));
 
   return (
     <div className="space-y-6">

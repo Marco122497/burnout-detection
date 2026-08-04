@@ -1,10 +1,17 @@
 import { AdminsManager } from "@/components/guidance/admins-manager";
 import { requireRole } from "@/lib/auth/session";
-import { getUsersByRole } from "@/lib/guidance/queries";
+import { getUserEmails, getUsersByRole } from "@/lib/guidance/queries";
 
 export default async function GuidanceAdminsPage() {
   const { supabase, user } = await requireRole(["Guidance Counselor"]);
-  const admins = await getUsersByRole(supabase, "Guidance Counselor");
+  const [adminRows, emails] = await Promise.all([
+    getUsersByRole(supabase, "Guidance Counselor"),
+    getUserEmails(),
+  ]);
+  const admins = adminRows.map((admin) => ({
+    ...admin,
+    email: emails[admin.id] ?? null,
+  }));
 
   return (
     <div className="space-y-6">

@@ -1223,3 +1223,71 @@ export async function closeMonitoringWindow(
     };
   }
 }
+
+export async function sendStudentBurnoutAlert(
+  studentId: string
+): Promise<GuidanceActionState> {
+  try {
+    const { supabase, user, profile } = await requireRole([
+      "Guidance Counselor",
+    ]);
+
+    if (!studentId) {
+      return { error: "Student is required." };
+    }
+
+    const { data: student } = await supabase
+      .from("profiles")
+      .select("id, first_name, role, is_active")
+      .eq("id", studentId)
+      .eq("role", "Student")
+      .maybeSingle();
+
+    if (!student || !student.is_active) {
+      return { error: "Student not found." };
+    }
+
+    const { error } = await supabase.from("notifications").insert({
+      user_id: student.id,
+      title: "Burnout risk alert",
+      message:
+        "The guidance office has flagged your latest burnout risk as needing attention. Please review your recommendations and consider reaching out to guidance counseling.",
+      notification_type: "Burnout Alert",
+      priority: "High",
+    });
+
+    if (error) {
+      return { error: error.message };
+    }
+
+    try {
+      await supabase.from("audit_logs").insert(
+        toAuditLogRow({
+          user_id: user.id,
+          user_role: profile.role,
+          action: "SEND_BURNOUT_ALERT",
+          action_type: "CREATE",
+          table_name: "notifications",
+          record_id: student.id,
+          description: `Sent burnout alert to student ${student.first_name}`,
+          ip_address: await getIp(),
+        })
+      );
+    } catch {
+      // Audit is best-effort.
+    }
+
+    revalidatePath("/guidance/analytics");
+    revalidatePath(`/guidance/monitoring/${student.id}`);
+    revalidatePath("/student/notifications");
+
+    return { success: "Burnout alert sent to the student." };
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to send burnout alert.",
+    };
+  }
+}

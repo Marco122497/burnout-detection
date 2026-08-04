@@ -19,6 +19,8 @@ import {
   type GuidanceActionState,
 } from "@/app/actions/guidance";
 import { useActionToast } from "@/hooks/use-action-toast";
+import { useTablePagination } from "@/hooks/use-table-pagination";
+import { TablePagination } from "@/components/shared/table-pagination";
 import type { Department } from "@/lib/auth/roles";
 import type { InstructorListItem } from "@/lib/guidance/queries";
 import {
@@ -111,6 +113,15 @@ export function InstructorsManager({
   const resetDialogOpen = resetId !== null;
   const activeDepartments = departments.filter((d) => d.is_active);
 
+  const {
+    page,
+    pageSize,
+    totalItems,
+    pageItems,
+    setPage,
+    setPageSize,
+  } = useTablePagination(instructors);
+
   function closeAdd(open: boolean) {
     setAddOpen(open);
   }
@@ -138,130 +149,143 @@ export function InstructorsManager({
             Add instructor
           </Button>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           {instructors.length === 0 ? (
             <p className="text-sm text-muted-foreground">No instructors yet.</p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Employee no.</TableHead>
-                  <TableHead>Designation</TableHead>
-                  <TableHead>Department</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {instructors.map((instructor) => (
-                  <TableRow key={instructor.id}>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium">{instructor.full_name}</p>
-                        {instructor.contact_number ? (
-                          <p className="text-xs text-muted-foreground">
-                            {instructor.contact_number}
-                          </p>
-                        ) : null}
-                      </div>
-                    </TableCell>
-                    <TableCell>{instructor.employee_no || "—"}</TableCell>
-                    <TableCell>{instructor.designation || "—"}</TableCell>
-                    <TableCell>
-                      {instructor.department_code
-                        ? `${instructor.department_code} · ${instructor.department_name}`
-                        : "—"}
-                    </TableCell>
-                    <TableCell>
-                      <span
-                        className={
-                          instructor.is_active
-                            ? "text-emerald-700"
-                            : "text-muted-foreground"
-                        }
-                      >
-                        {instructor.is_active ? "Active" : "Inactive"}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap justify-end gap-1">
-                        <Tooltip>
-                          <TooltipTrigger
-                            render={
-                              <Button
-                                type="button"
-                                size="icon-sm"
-                                variant="outline"
-                                aria-label="Edit"
-                                onClick={() => setEditingId(instructor.id)}
-                              >
-                                <PencilIcon />
-                              </Button>
-                            }
-                          />
-                          <TooltipContent>Edit</TooltipContent>
-                        </Tooltip>
-                        <form action={toggleAction}>
-                          <input
-                            type="hidden"
-                            name="instructor_id"
-                            value={instructor.id}
-                          />
-                          <input
-                            type="hidden"
-                            name="is_active"
-                            value={instructor.is_active ? "0" : "1"}
-                          />
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Employee no.</TableHead>
+                    <TableHead>Designation</TableHead>
+                    <TableHead>Department</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pageItems.map((instructor) => (
+                    <TableRow key={instructor.id}>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{instructor.full_name}</p>
+                          {instructor.email ? (
+                            <p className="text-xs text-muted-foreground">
+                              {instructor.email}
+                            </p>
+                          ) : null}
+                        </div>
+                      </TableCell>
+                      <TableCell>{instructor.employee_no || "—"}</TableCell>
+                      <TableCell>{instructor.designation || "—"}</TableCell>
+                      <TableCell>
+                        {instructor.department_code
+                          ? `${instructor.department_code} · ${instructor.department_name}`
+                          : "—"}
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={
+                            instructor.is_active
+                              ? "text-emerald-700"
+                              : "text-muted-foreground"
+                          }
+                        >
+                          {instructor.is_active ? "Active" : "Inactive"}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap justify-end gap-1">
                           <Tooltip>
                             <TooltipTrigger
                               render={
                                 <Button
-                                  type="submit"
+                                  type="button"
                                   size="icon-sm"
-                                  variant="ghost"
-                                  disabled={togglePending}
-                                  aria-label={
-                                    instructor.is_active
-                                      ? "Deactivate"
-                                      : "Activate"
-                                  }
+                                  variant="outline"
+                                  aria-label="Edit"
+                                  onClick={() => setEditingId(instructor.id)}
                                 >
-                                  {instructor.is_active ? (
-                                    <UserRoundXIcon />
-                                  ) : (
-                                    <UserRoundCheckIcon />
-                                  )}
+                                  <PencilIcon />
                                 </Button>
                               }
                             />
-                            <TooltipContent>
-                              {instructor.is_active ? "Deactivate" : "Activate"}
-                            </TooltipContent>
+                            <TooltipContent>Edit</TooltipContent>
                           </Tooltip>
-                        </form>
-                        <Tooltip>
-                          <TooltipTrigger
-                            render={
-                              <Button
-                                type="button"
-                                size="icon-sm"
-                                variant="outline"
-                                aria-label="Reset password"
-                                onClick={() => setResetId(instructor.id)}
-                              >
-                                <KeyRoundIcon />
-                              </Button>
-                            }
-                          />
-                          <TooltipContent>Reset password</TooltipContent>
-                        </Tooltip>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                          <form action={toggleAction}>
+                            <input
+                              type="hidden"
+                              name="instructor_id"
+                              value={instructor.id}
+                            />
+                            <input
+                              type="hidden"
+                              name="is_active"
+                              value={instructor.is_active ? "0" : "1"}
+                            />
+                            <Tooltip>
+                              <TooltipTrigger
+                                render={
+                                  <Button
+                                    type="submit"
+                                    size="icon-sm"
+                                    variant="ghost"
+                                    disabled={togglePending}
+                                    aria-label={
+                                      instructor.is_active
+                                        ? "Deactivate"
+                                        : "Activate"
+                                    }
+                                  >
+                                    {instructor.is_active ? (
+                                      <UserRoundXIcon />
+                                    ) : (
+                                      <UserRoundCheckIcon />
+                                    )}
+                                  </Button>
+                                }
+                              />
+                              <TooltipContent>
+                                {instructor.is_active
+                                  ? "Deactivate"
+                                  : "Activate"}
+                              </TooltipContent>
+                            </Tooltip>
+                          </form>
+                          <Tooltip>
+                            <TooltipTrigger
+                              render={
+                                <Button
+                                  type="button"
+                                  size="icon-sm"
+                                  variant="outline"
+                                  aria-label="Reset password"
+                                  onClick={() => setResetId(instructor.id)}
+                                >
+                                  <KeyRoundIcon />
+                                </Button>
+                              }
+                            />
+                            <TooltipContent>Reset password</TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              <TablePagination
+                id="instructors-rows-per-page"
+                page={page}
+                pageSize={pageSize}
+                totalItems={totalItems}
+                onPageChange={setPage}
+                onPageSizeChange={setPageSize}
+                className="justify-end gap-4 sm:justify-end"
+              />
+            </>
           )}
         </CardContent>
       </Card>

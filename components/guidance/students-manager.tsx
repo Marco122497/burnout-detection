@@ -20,6 +20,8 @@ import {
   type GuidanceActionState,
 } from "@/app/actions/guidance";
 import { useActionToast } from "@/hooks/use-action-toast";
+import { useTablePagination } from "@/hooks/use-table-pagination";
+import { TablePagination } from "@/components/shared/table-pagination";
 import type { Department } from "@/lib/auth/roles";
 import type { UserListItem } from "@/lib/guidance/queries";
 import {
@@ -136,6 +138,19 @@ export function StudentsManager({
     );
   }, [students, search]);
 
+  const {
+    page,
+    pageSize,
+    totalItems,
+    pageItems,
+    setPage,
+    setPageSize,
+  } = useTablePagination(filteredStudents);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, setPage]);
+
   const editing = students.find((s) => s.id === editingId) ?? null;
   const resetting = students.find((s) => s.id === resetId) ?? null;
   const activeDepartments = departments.filter((d) => d.is_active);
@@ -185,135 +200,146 @@ export function StudentsManager({
                 : "No students match your search."}
             </p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Student no.</TableHead>
-                  <TableHead>Course</TableHead>
-                  <TableHead>Year & Section</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredStudents.map((student) => (
-                  <TableRow key={student.id}>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium">{student.full_name}</p>
-                        {student.email ? (
-                          <p className="text-xs text-muted-foreground">
-                            {student.email}
-                          </p>
-                        ) : null}
-                      </div>
-                    </TableCell>
-                    <TableCell>{student.student_number || "—"}</TableCell>
-                    <TableCell>
-                      {student.department_code
-                        ? `${student.department_code} · ${student.department_name}`
-                        : "—"}
-                    </TableCell>
-                    <TableCell>
-                      {[
-                        student.year_level
-                          ? formatYearLevel(student.year_level)
-                          : null,
-                        student.section || null,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ") || "—"}
-                    </TableCell>
-                    <TableCell>
-                      <span
-                        className={
-                          student.is_active
-                            ? "text-emerald-700"
-                            : "text-muted-foreground"
-                        }
-                      >
-                        {student.is_active ? "Active" : "Inactive"}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap justify-end gap-1">
-                        <Tooltip>
-                          <TooltipTrigger
-                            render={
-                              <Button
-                                type="button"
-                                size="icon-sm"
-                                variant="outline"
-                                aria-label="Edit"
-                                onClick={() => setEditingId(student.id)}
-                              >
-                                <PencilIcon />
-                              </Button>
-                            }
-                          />
-                          <TooltipContent>Edit</TooltipContent>
-                        </Tooltip>
-                        <form action={toggleAction}>
-                          <input
-                            type="hidden"
-                            name="user_id"
-                            value={student.id}
-                          />
-                          <input
-                            type="hidden"
-                            name="is_active"
-                            value={student.is_active ? "0" : "1"}
-                          />
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Student no.</TableHead>
+                    <TableHead>Course</TableHead>
+                    <TableHead>Year & Section</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pageItems.map((student) => (
+                    <TableRow key={student.id}>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{student.full_name}</p>
+                          {student.email ? (
+                            <p className="text-xs text-muted-foreground">
+                              {student.email}
+                            </p>
+                          ) : null}
+                        </div>
+                      </TableCell>
+                      <TableCell>{student.student_number || "—"}</TableCell>
+                      <TableCell>
+                        {student.department_code
+                          ? `${student.department_code} · ${student.department_name}`
+                          : "—"}
+                      </TableCell>
+                      <TableCell>
+                        {[
+                          student.year_level
+                            ? formatYearLevel(student.year_level)
+                            : null,
+                          student.section || null,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ") || "—"}
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={
+                            student.is_active
+                              ? "text-emerald-700"
+                              : "text-muted-foreground"
+                          }
+                        >
+                          {student.is_active ? "Active" : "Inactive"}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap justify-end gap-1">
                           <Tooltip>
                             <TooltipTrigger
                               render={
                                 <Button
-                                  type="submit"
+                                  type="button"
                                   size="icon-sm"
-                                  variant="ghost"
-                                  disabled={togglePending}
-                                  aria-label={
-                                    student.is_active
-                                      ? "Deactivate"
-                                      : "Activate"
-                                  }
+                                  variant="outline"
+                                  aria-label="Edit"
+                                  onClick={() => setEditingId(student.id)}
                                 >
-                                  {student.is_active ? (
-                                    <UserRoundXIcon />
-                                  ) : (
-                                    <UserRoundCheckIcon />
-                                  )}
+                                  <PencilIcon />
                                 </Button>
                               }
                             />
-                            <TooltipContent>
-                              {student.is_active ? "Deactivate" : "Activate"}
-                            </TooltipContent>
+                            <TooltipContent>Edit</TooltipContent>
                           </Tooltip>
-                        </form>
-                        <Tooltip>
-                          <TooltipTrigger
-                            render={
-                              <Button
-                                type="button"
-                                size="icon-sm"
-                                variant="outline"
-                                aria-label="Reset password"
-                                onClick={() => setResetId(student.id)}
-                              >
-                                <KeyRoundIcon />
-                              </Button>
-                            }
-                          />
-                          <TooltipContent>Reset password</TooltipContent>
-                        </Tooltip>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                          <form action={toggleAction}>
+                            <input
+                              type="hidden"
+                              name="user_id"
+                              value={student.id}
+                            />
+                            <input
+                              type="hidden"
+                              name="is_active"
+                              value={student.is_active ? "0" : "1"}
+                            />
+                            <Tooltip>
+                              <TooltipTrigger
+                                render={
+                                  <Button
+                                    type="submit"
+                                    size="icon-sm"
+                                    variant="ghost"
+                                    disabled={togglePending}
+                                    aria-label={
+                                      student.is_active
+                                        ? "Deactivate"
+                                        : "Activate"
+                                    }
+                                  >
+                                    {student.is_active ? (
+                                      <UserRoundXIcon />
+                                    ) : (
+                                      <UserRoundCheckIcon />
+                                    )}
+                                  </Button>
+                                }
+                              />
+                              <TooltipContent>
+                                {student.is_active ? "Deactivate" : "Activate"}
+                              </TooltipContent>
+                            </Tooltip>
+                          </form>
+                          <Tooltip>
+                            <TooltipTrigger
+                              render={
+                                <Button
+                                  type="button"
+                                  size="icon-sm"
+                                  variant="outline"
+                                  aria-label="Reset password"
+                                  onClick={() => setResetId(student.id)}
+                                >
+                                  <KeyRoundIcon />
+                                </Button>
+                              }
+                            />
+                            <TooltipContent>Reset password</TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              <TablePagination
+                id="students-rows-per-page"
+                page={page}
+                pageSize={pageSize}
+                totalItems={totalItems}
+                onPageChange={setPage}
+                onPageSizeChange={setPageSize}
+                className="justify-end gap-4 sm:justify-end"
+              />
+            </>
           )}
         </CardContent>
       </Card>

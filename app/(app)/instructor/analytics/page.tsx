@@ -19,13 +19,12 @@ export default async function InstructorAnalyticsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-sm font-medium text-primary">Instructor module</p>
         <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
-          Department Analytics
+          Instructor Burnout Analytics
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Burnout statistics, average MFBI/stress, weekly trends, and risk
-          distribution
+          Class overview, risk distribution, trends, and students needing
+          attention
           {departmentName ? ` for ${departmentName}` : ""}.
         </p>
       </div>

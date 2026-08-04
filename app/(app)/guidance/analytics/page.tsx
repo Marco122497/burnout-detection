@@ -17,12 +17,12 @@ export default async function GuidanceAnalyticsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-sm font-medium text-primary">Analytics</p>
         <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
-          University burnout analytics
+          Burnout Analytics Dashboard
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Overall risk distribution, department comparison, and weekly trends.
+          College,-wide burnout overview, trends, program comparison, and
+          students needing immediate attention.
         </p>
       </div>
       <GuidanceAnalyticsView data={data} />

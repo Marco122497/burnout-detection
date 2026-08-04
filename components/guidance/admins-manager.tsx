@@ -20,6 +20,8 @@ import {
   type GuidanceActionState,
 } from "@/app/actions/guidance";
 import { useActionToast } from "@/hooks/use-action-toast";
+import { useTablePagination } from "@/hooks/use-table-pagination";
+import { TablePagination } from "@/components/shared/table-pagination";
 import type { UserListItem } from "@/lib/guidance/queries";
 import {
   AlertDialog,
@@ -110,12 +112,30 @@ export function AdminsManager({
     const query = search.trim().toLowerCase();
     if (!query) return admins;
     return admins.filter((admin) =>
-      [admin.full_name, admin.employee_no ?? "", admin.designation ?? ""]
+      [
+        admin.full_name,
+        admin.email ?? "",
+        admin.employee_no ?? "",
+        admin.designation ?? "",
+      ]
         .join(" ")
         .toLowerCase()
         .includes(query)
     );
   }, [admins, search]);
+
+  const {
+    page,
+    pageSize,
+    totalItems,
+    pageItems,
+    setPage,
+    setPageSize,
+  } = useTablePagination(filteredAdmins);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, setPage]);
 
   const editing = admins.find((a) => a.id === editingId) ?? null;
   const resetting = admins.find((a) => a.id === resetId) ?? null;
@@ -154,7 +174,7 @@ export function AdminsManager({
             <Input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search by name, employee number, or designation…"
+              placeholder="Search by name, email, employee number, or designation…"
               className="pl-8"
             />
           </div>
@@ -166,129 +186,142 @@ export function AdminsManager({
                 : "No accounts match your search."}
             </p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Employee no.</TableHead>
-                  <TableHead>Designation</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredAdmins.map((admin) => (
-                  <TableRow key={admin.id}>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium">
-                          {admin.full_name}
-                          {admin.id === currentUserId ? (
-                            <span className="ml-1.5 text-xs text-muted-foreground">
-                              (you)
-                            </span>
-                          ) : null}
-                        </p>
-                        {admin.contact_number ? (
-                          <p className="text-xs text-muted-foreground">
-                            {admin.contact_number}
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Employee no.</TableHead>
+                    <TableHead>Designation</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pageItems.map((admin) => (
+                    <TableRow key={admin.id}>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">
+                            {admin.full_name}
+                            {admin.id === currentUserId ? (
+                              <span className="ml-1.5 text-xs text-muted-foreground">
+                                (you)
+                              </span>
+                            ) : null}
                           </p>
-                        ) : null}
-                      </div>
-                    </TableCell>
-                    <TableCell>{admin.employee_no || "—"}</TableCell>
-                    <TableCell>{admin.designation || "—"}</TableCell>
-                    <TableCell>
-                      <span
-                        className={
-                          admin.is_active
-                            ? "text-emerald-700"
-                            : "text-muted-foreground"
-                        }
-                      >
-                        {admin.is_active ? "Active" : "Inactive"}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap justify-end gap-1">
-                        <Tooltip>
-                          <TooltipTrigger
-                            render={
-                              <Button
-                                type="button"
-                                size="icon-sm"
-                                variant="outline"
-                                aria-label="Edit"
-                                onClick={() => setEditingId(admin.id)}
-                              >
-                                <PencilIcon />
-                              </Button>
-                            }
-                          />
-                          <TooltipContent>Edit</TooltipContent>
-                        </Tooltip>
-                        <form action={toggleAction}>
-                          <input
-                            type="hidden"
-                            name="user_id"
-                            value={admin.id}
-                          />
-                          <input
-                            type="hidden"
-                            name="is_active"
-                            value={admin.is_active ? "0" : "1"}
-                          />
+                          {admin.email ? (
+                            <p className="text-xs text-muted-foreground">
+                              {admin.email}
+                            </p>
+                          ) : null}
+                        </div>
+                      </TableCell>
+                      <TableCell>{admin.employee_no || "—"}</TableCell>
+                      <TableCell>{admin.designation || "—"}</TableCell>
+                      <TableCell>
+                        <span
+                          className={
+                            admin.is_active
+                              ? "text-emerald-700"
+                              : "text-muted-foreground"
+                          }
+                        >
+                          {admin.is_active ? "Active" : "Inactive"}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap justify-end gap-1">
                           <Tooltip>
                             <TooltipTrigger
                               render={
                                 <Button
-                                  type="submit"
+                                  type="button"
                                   size="icon-sm"
-                                  variant="ghost"
-                                  disabled={
-                                    togglePending ||
-                                    (admin.id === currentUserId &&
-                                      admin.is_active)
-                                  }
-                                  aria-label={
-                                    admin.is_active ? "Deactivate" : "Activate"
-                                  }
+                                  variant="outline"
+                                  aria-label="Edit"
+                                  onClick={() => setEditingId(admin.id)}
                                 >
-                                  {admin.is_active ? (
-                                    <UserRoundXIcon />
-                                  ) : (
-                                    <UserRoundCheckIcon />
-                                  )}
+                                  <PencilIcon />
                                 </Button>
                               }
                             />
-                            <TooltipContent>
-                              {admin.is_active ? "Deactivate" : "Activate"}
-                            </TooltipContent>
+                            <TooltipContent>Edit</TooltipContent>
                           </Tooltip>
-                        </form>
-                        <Tooltip>
-                          <TooltipTrigger
-                            render={
-                              <Button
-                                type="button"
-                                size="icon-sm"
-                                variant="outline"
-                                aria-label="Reset password"
-                                onClick={() => setResetId(admin.id)}
-                              >
-                                <KeyRoundIcon />
-                              </Button>
-                            }
-                          />
-                          <TooltipContent>Reset password</TooltipContent>
-                        </Tooltip>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                          <form action={toggleAction}>
+                            <input
+                              type="hidden"
+                              name="user_id"
+                              value={admin.id}
+                            />
+                            <input
+                              type="hidden"
+                              name="is_active"
+                              value={admin.is_active ? "0" : "1"}
+                            />
+                            <Tooltip>
+                              <TooltipTrigger
+                                render={
+                                  <Button
+                                    type="submit"
+                                    size="icon-sm"
+                                    variant="ghost"
+                                    disabled={
+                                      togglePending ||
+                                      (admin.id === currentUserId &&
+                                        admin.is_active)
+                                    }
+                                    aria-label={
+                                      admin.is_active
+                                        ? "Deactivate"
+                                        : "Activate"
+                                    }
+                                  >
+                                    {admin.is_active ? (
+                                      <UserRoundXIcon />
+                                    ) : (
+                                      <UserRoundCheckIcon />
+                                    )}
+                                  </Button>
+                                }
+                              />
+                              <TooltipContent>
+                                {admin.is_active ? "Deactivate" : "Activate"}
+                              </TooltipContent>
+                            </Tooltip>
+                          </form>
+                          <Tooltip>
+                            <TooltipTrigger
+                              render={
+                                <Button
+                                  type="button"
+                                  size="icon-sm"
+                                  variant="outline"
+                                  aria-label="Reset password"
+                                  onClick={() => setResetId(admin.id)}
+                                >
+                                  <KeyRoundIcon />
+                                </Button>
+                              }
+                            />
+                            <TooltipContent>Reset password</TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              <TablePagination
+                id="admins-rows-per-page"
+                page={page}
+                pageSize={pageSize}
+                totalItems={totalItems}
+                onPageChange={setPage}
+                onPageSizeChange={setPageSize}
+                className="justify-end gap-4 sm:justify-end"
+              />
+            </>
           )}
         </CardContent>
       </Card>

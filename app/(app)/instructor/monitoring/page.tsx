@@ -2,6 +2,7 @@ import { Suspense } from "react";
 
 import { StudentMonitoringTable } from "@/components/instructor/student-monitoring-table";
 import { requireRole } from "@/lib/auth/session";
+import { getUserEmails } from "@/lib/guidance/queries";
 import {
   getDepartmentName,
   getInstructorStudentRows,
@@ -9,10 +10,15 @@ import {
 
 export default async function InstructorMonitoringPage() {
   const { supabase, profile } = await requireRole(["Instructor"]);
-  const [rows, departmentName] = await Promise.all([
+  const [studentRows, departmentName, emails] = await Promise.all([
     getInstructorStudentRows(supabase, profile.department_id),
     getDepartmentName(supabase, profile.department_id),
+    getUserEmails(),
   ]);
+  const rows = studentRows.map((row) => ({
+    ...row,
+    email: emails[row.id] ?? null,
+  }));
 
   return (
     <div className="space-y-6">

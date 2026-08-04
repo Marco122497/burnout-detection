@@ -329,6 +329,18 @@ export async function getUniversityWeeklySeries(supabase: SupabaseClient) {
     }));
 }
 
+function riskBucket(level: string | null | undefined): "Low" | "Moderate" | "High" | null {
+  if (!level) return null;
+  if (level === "Low") return "Low";
+  if (level === "Moderate") return "Moderate";
+  if (level === "High" || level === "Severe") return "High";
+  return null;
+}
+
+function round2(value: number) {
+  return Math.round(value * 100) / 100;
+}
+
 export function getGuidanceAnalytics(
   rows: GuidanceStudentRow[],
   weeklyTrends: { week: number; average: number; count: number }[] = []
@@ -360,6 +372,28 @@ export function getGuidanceAnalytics(
       .filter(Boolean) as string[]
   );
 
+  const classified = rows
+    .map((r) => ({
+      row: r,
+      bucket: riskBucket(r.prediction || r.burnout_level),
+    }))
+    .filter(
+      (item): item is { row: GuidanceStudentRow; bucket: "Low" | "Moderate" | "High" } =>
+        item.bucket != null
+    );
+
+  const classifiedTotal = classified.length || 1;
+  const riskOverview = (
+    ["Low", "Moderate", "High"] as const
+  ).map((label) => {
+    const count = classified.filter((item) => item.bucket === label).length;
+    return {
+      label,
+      count,
+      percent: Math.round((count / classifiedTotal) * 1000) / 10,
+    };
+  });
+
   const deptMap = new Map<string, number[]>();
   for (const row of rows) {
     if (row.mfbi_score == null) continue;
@@ -377,17 +411,245 @@ export function getGuidanceAnalytics(
       count: scores.length,
     }));
 
+  const yearMap = new Map<
+    number,
+    { scores: number[]; highRisk: number; total: number }
+  >();
+  for (const row of rows) {
+    if (row.year_level == null) continue;
+    const entry = yearMap.get(row.year_level) ?? {
+      scores: [],
+      highRisk: 0,
+      total: 0,
+    };
+    entry.total += 1;
+    if (row.mfbi_score != null) entry.scores.push(row.mfbi_score);
+    const bucket = riskBucket(row.prediction || row.burnout_level);
+    if (bucket === "High") entry.highRisk += 1;
+    yearMap.set(row.year_level, entry);
+  }
+
+  const byYearLevel = [...yearMap.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([year, entry]) => ({
+      label: `${year}${year === 1 ? "st" : year === 2 ? "nd" : year === 3 ? "rd" : "th"} Year`,
+      year,
+      average: entry.scores.length ? avg(entry.scores)! : 0,
+      highRiskCount: entry.highRisk,
+      count: entry.total,
+    }));
+
+  const courseMap = new Map<
+    string,
+    { scores: number[]; low: number; moderate: number; high: number; total: number }
+  >();
+  for (const row of rows) {
+    const label = (row.course || "").trim() || "Unassigned";
+    const entry = courseMap.get(label) ?? {
+      scores: [],
+      low: 0,
+      moderate: 0,
+      high: 0,
+      total: 0,
+    };
+    entry.total += 1;
+    if (row.mfbi_score != null) entry.scores.push(row.mfbi_score);
+    const bucket = riskBucket(row.prediction || row.burnout_level);
+    if (bucket === "Low") entry.low += 1;
+    else if (bucket === "Moderate") entry.moderate += 1;
+    else if (bucket === "High") entry.high += 1;
+    courseMap.set(label, entry);
+  }
+
+  const byCourse = [...courseMap.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([label, entry]) => ({
+      label,
+      average: entry.scores.length ? avg(entry.scores)! : 0,
+      count: entry.total,
+      low: entry.low,
+      moderate: entry.moderate,
+      high: entry.high,
+    }));
+
+  const averageStress = avg(stressValues);
+  const averageWorkload = avg(workloadValues);
+  const averageStudy = avg(studyValues);
+  const averageSleep = avg(sleepValues);
+
+  const normalized = {
+    stress: averageStress != null ? Math.min(1, averageStress / 40) : null,
+    sleep: averageSleep != null ? Math.min(1, averageSleep / 100) : null,
+    studyTime: averageStudy != null ? Math.min(1, averageStudy / 12) : null,
+    workload: averageWorkload != null ? Math.min(1, averageWorkload / 10) : null,
+  };
+
+  const contributionSum =
+    (normalized.stress ?? 0) +
+    (normalized.sleep ?? 0) +
+    (normalized.studyTime ?? 0) +
+    (normalized.workload ?? 0);
+
+  const variableContribution = [
+    {
+      key: "stress",
+      label: "Stress Level",
+      normalized: normalized.stress,
+      percent:
+        contributionSum > 0 && normalized.stress != null
+          ? Math.round((normalized.stress / contributionSum) * 1000) / 10
+          : null,
+    },
+    {
+      key: "sleep",
+      label: "Sleep Risk",
+      normalized: normalized.sleep,
+      percent:
+        contributionSum > 0 && normalized.sleep != null
+          ? Math.round((normalized.sleep / contributionSum) * 1000) / 10
+          : null,
+    },
+    {
+      key: "workload",
+      label: "Academic Workload",
+      normalized: normalized.workload,
+      percent:
+        contributionSum > 0 && normalized.workload != null
+          ? Math.round((normalized.workload / contributionSum) * 1000) / 10
+          : null,
+    },
+    {
+      key: "studyTime",
+      label: "Study Time",
+      normalized: normalized.studyTime,
+      percent:
+        contributionSum > 0 && normalized.studyTime != null
+          ? Math.round((normalized.studyTime / contributionSum) * 1000) / 10
+          : null,
+    },
+  ].sort((a, b) => (b.percent ?? 0) - (a.percent ?? 0));
+
+  const averageScores = [
+    {
+      label: "Stress Level",
+      average: averageStress != null ? round2(averageStress) : null,
+      scale: "0–40 (PSS)",
+    },
+    {
+      label: "Sleep Risk",
+      average: averageSleep != null ? round2(averageSleep) : null,
+      scale: "0–100",
+    },
+    {
+      label: "Study Time",
+      average: averageStudy != null ? round2(averageStudy) : null,
+      scale: "hours / day",
+    },
+    {
+      label: "Academic Workload",
+      average: averageWorkload != null ? round2(averageWorkload) : null,
+      scale: "0–10",
+    },
+  ];
+
+  const highRiskStudents = rows
+    .filter((r) => riskBucket(r.prediction || r.burnout_level) === "High")
+    .sort((a, b) => (b.mfbi_score ?? 0) - (a.mfbi_score ?? 0))
+    .slice(0, 15)
+    .map((r) => ({
+      id: r.id,
+      student_number: r.student_number,
+      full_name: r.full_name,
+      course: r.course,
+      year_level: r.year_level,
+      mfbi_score: r.mfbi_score,
+      risk: (r.prediction || r.burnout_level || "High") as string,
+      status: "Immediate" as const,
+    }));
+
+  const previousTrend =
+    weeklyTrends.length >= 2 ? weeklyTrends[weeklyTrends.length - 2] : null;
+  const latestTrend =
+    weeklyTrends.length >= 1 ? weeklyTrends[weeklyTrends.length - 1] : null;
+
+  const topContribution = variableContribution[0];
+  const highestYear = [...byYearLevel].sort(
+    (a, b) => b.average - a.average
+  )[0];
+  const highestCourse = [...byCourse].sort(
+    (a, b) => b.average - a.average
+  )[0];
+
+  const insights: string[] = [];
+  if (topContribution?.percent != null) {
+    insights.push(
+      `${topContribution.label} is the strongest contributor to burnout this week (${topContribution.percent}%).`
+    );
+  }
+  if (
+    previousTrend &&
+    latestTrend &&
+    latestTrend.average < previousTrend.average - 0.01
+  ) {
+    insights.push(
+      `Average burnout score decreased from ${previousTrend.average.toFixed(2)} (Week ${previousTrend.week}) to ${latestTrend.average.toFixed(2)} (Week ${latestTrend.week}).`
+    );
+  } else if (
+    previousTrend &&
+    latestTrend &&
+    latestTrend.average > previousTrend.average + 0.01
+  ) {
+    insights.push(
+      `Average burnout score increased from ${previousTrend.average.toFixed(2)} (Week ${previousTrend.week}) to ${latestTrend.average.toFixed(2)} (Week ${latestTrend.week}).`
+    );
+  }
+  if (highestYear && highestYear.average > 0) {
+    insights.push(
+      `${highestYear.label} students show the highest average burnout risk (MFBI ${highestYear.average.toFixed(2)}).`
+    );
+  }
+  if (highestCourse && highestCourse.average > 0) {
+    insights.push(
+      `${highestCourse.label} has the highest program-level burnout risk (avg MFBI ${highestCourse.average.toFixed(2)}).`
+    );
+  }
+  if (highRiskStudents.length > 0) {
+    insights.push(
+      `Recommend notifying guidance counseling for ${highRiskStudents.length} student${highRiskStudents.length === 1 ? "" : "s"} classified as High Risk.`
+    );
+  }
+  if (!insights.length) {
+    insights.push(
+      "Submit weekly monitoring across departments to generate actionable burnout insights."
+    );
+  }
+
+  const submittedCount = rows.filter((r) => r.submittedThisWeek).length;
+  const completionPercent =
+    rows.length > 0
+      ? Math.round((submittedCount / rows.length) * 1000) / 10
+      : 0;
+
   return {
     totalStudents: rows.length,
-    submittedCount: rows.filter((r) => r.submittedThisWeek).length,
+    classifiedCount: classified.length,
+    submittedCount,
+    completionPercent,
     averageMfbi: avg(mfbiValues),
-    averageStress: avg(stressValues),
-    averageWorkload: avg(workloadValues),
-    averageStudy: avg(studyValues),
-    averageSleep: avg(sleepValues),
+    averageStress,
+    averageWorkload,
+    averageStudy,
+    averageSleep,
+    riskOverview,
     burnoutDistribution,
     departmentComparison,
     weeklyTrends,
+    byYearLevel,
+    byCourse,
+    variableContribution,
+    averageScores,
+    highRiskStudents,
+    insights,
   };
 }
 

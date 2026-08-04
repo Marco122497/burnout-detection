@@ -11,6 +11,7 @@ import {
   type GuidanceActionState,
 } from "@/app/actions/guidance";
 import { useActionToast } from "@/hooks/use-action-toast";
+import { useTablePagination } from "@/hooks/use-table-pagination";
 import type { DepartmentWithCounts } from "@/lib/guidance/queries";
 import {
   AlertDialog,
@@ -33,6 +34,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { TablePagination } from "@/components/shared/table-pagination";
 
 const initialState: GuidanceActionState = {};
 const selectClassName =
@@ -143,6 +145,15 @@ export function DepartmentsManager({
   const editDialogOpen = editingId != null;
   const deleteDialogOpen = deletingId != null;
 
+  const {
+    page,
+    pageSize,
+    totalItems,
+    pageItems,
+    setPage,
+    setPageSize,
+  } = useTablePagination(departments);
+
   useEffect(() => {
     if (createState.success) {
       setAddOpen(false);
@@ -201,88 +212,99 @@ export function DepartmentsManager({
             Add Department
           </Button>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           {departments.length === 0 ? (
             <p className="text-sm text-muted-foreground">No departments yet.</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] text-left text-sm">
-                <thead className="border-b text-muted-foreground">
-                  <tr>
-                    <th className="px-2 py-2 font-medium">Code</th>
-                    <th className="px-2 py-2 font-medium">Name</th>
-                    <th className="px-2 py-2 font-medium">Students</th>
-                    <th className="px-2 py-2 font-medium">Instructors</th>
-                    <th className="px-2 py-2 font-medium">Status</th>
-                    <th className="px-2 py-2 font-medium">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {departments.map((dept) => (
-                    <tr
-                      key={dept.department_id}
-                      className="border-b last:border-0"
-                    >
-                      <td className="px-2 py-2 font-medium">
-                        {dept.department_code}
-                      </td>
-                      <td className="px-2 py-2">{dept.department_name}</td>
-                      <td className="px-2 py-2">{dept.student_count}</td>
-                      <td className="px-2 py-2">{dept.instructor_count}</td>
-                      <td className="px-2 py-2">
-                        {dept.is_active ? "Active" : "Inactive"}
-                      </td>
-                      <td className="px-2 py-2">
-                        <div className="flex flex-wrap gap-2">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() =>
-                              openEditDepartment(dept.department_id)
-                            }
-                          >
-                            <PencilIcon className="size-3.5" />
-                            Edit
-                          </Button>
-                          <form action={toggleAction}>
-                            <input
-                              type="hidden"
-                              name="department_id"
-                              value={dept.department_id}
-                            />
-                            <input
-                              type="hidden"
-                              name="is_active"
-                              value={dept.is_active ? "0" : "1"}
-                            />
-                            <Button
-                              type="submit"
-                              size="sm"
-                              variant="secondary"
-                              disabled={togglePending}
-                            >
-                              {dept.is_active ? "Deactivate" : "Activate"}
-                            </Button>
-                          </form>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="destructive"
-                            onClick={() =>
-                              openDeleteDepartment(dept.department_id)
-                            }
-                          >
-                            <Trash2Icon className="size-3.5" />
-                            Delete
-                          </Button>
-                        </div>
-                      </td>
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[720px] text-left text-sm">
+                  <thead className="border-b text-muted-foreground">
+                    <tr>
+                      <th className="px-2 py-2 font-medium">Code</th>
+                      <th className="px-2 py-2 font-medium">Name</th>
+                      <th className="px-2 py-2 font-medium">Students</th>
+                      <th className="px-2 py-2 font-medium">Instructors</th>
+                      <th className="px-2 py-2 font-medium">Status</th>
+                      <th className="px-2 py-2 font-medium">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {pageItems.map((dept) => (
+                      <tr
+                        key={dept.department_id}
+                        className="border-b last:border-0"
+                      >
+                        <td className="px-2 py-2 font-medium">
+                          {dept.department_code}
+                        </td>
+                        <td className="px-2 py-2">{dept.department_name}</td>
+                        <td className="px-2 py-2">{dept.student_count}</td>
+                        <td className="px-2 py-2">{dept.instructor_count}</td>
+                        <td className="px-2 py-2">
+                          {dept.is_active ? "Active" : "Inactive"}
+                        </td>
+                        <td className="px-2 py-2">
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() =>
+                                openEditDepartment(dept.department_id)
+                              }
+                            >
+                              <PencilIcon className="size-3.5" />
+                              Edit
+                            </Button>
+                            <form action={toggleAction}>
+                              <input
+                                type="hidden"
+                                name="department_id"
+                                value={dept.department_id}
+                              />
+                              <input
+                                type="hidden"
+                                name="is_active"
+                                value={dept.is_active ? "0" : "1"}
+                              />
+                              <Button
+                                type="submit"
+                                size="sm"
+                                variant="secondary"
+                                disabled={togglePending}
+                              >
+                                {dept.is_active ? "Deactivate" : "Activate"}
+                              </Button>
+                            </form>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="destructive"
+                              onClick={() =>
+                                openDeleteDepartment(dept.department_id)
+                              }
+                            >
+                              <Trash2Icon className="size-3.5" />
+                              Delete
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <TablePagination
+                id="departments-rows-per-page"
+                page={page}
+                pageSize={pageSize}
+                totalItems={totalItems}
+                onPageChange={setPage}
+                onPageSizeChange={setPageSize}
+                className="justify-end gap-4 sm:justify-end"
+              />
+            </>
           )}
         </CardContent>
       </Card>
