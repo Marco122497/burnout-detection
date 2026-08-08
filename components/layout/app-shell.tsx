@@ -59,7 +59,7 @@ function AppShellContent({
             <NavUser profile={profile} />
           </div>
         </header>
-        <div className="flex flex-1 flex-col gap-4 p-4 md:p-6">
+        <div className="flex min-w-0 flex-1 flex-col gap-4 overflow-x-hidden p-4 md:p-6">
           {isPending ? <AppPageSkeleton /> : children}
         </div>
       </SidebarInset>

@@ -10,5 +10,5 @@ export default async function InstructorDashboardPage() {
     profile.department_id
   );
 
-  return <InstructorDashboard firstName={profile.first_name} data={data} />;
+  return <InstructorDashboard data={data} />;
 }

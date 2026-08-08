@@ -13,6 +13,7 @@ import {
 import { useActionToast } from "@/hooks/use-action-toast";
 import { formatDateTime } from "@/lib/auth/roles";
 import type { AnnouncementRow } from "@/lib/instructor/queries";
+import { formatYearLevel } from "@/lib/utils";
 import {
   DeleteConfirmDialog,
   DeleteIconButton,
@@ -35,7 +36,7 @@ const selectClassName =
 function targetLabel(item: AnnouncementRow) {
   const parts = [
     item.course ? `Course: ${item.course}` : null,
-    item.year_level != null ? `Year ${item.year_level}` : null,
+    item.year_level != null ? formatYearLevel(item.year_level) : null,
     item.section ? `Section ${item.section}` : null,
   ].filter(Boolean);
   return parts.length ? parts.join(" · ") : "Entire assigned department";

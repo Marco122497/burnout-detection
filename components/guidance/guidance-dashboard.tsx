@@ -39,7 +39,7 @@ import {
 import { formatDateTime } from "@/lib/auth/roles";
 import { MODEL_EVALUATION } from "@/lib/guidance/model-metrics";
 import type { getGuidanceAnalytics } from "@/lib/guidance/monitoring";
-import { cn } from "@/lib/utils";
+import { cn, formatYearLevel } from "@/lib/utils";
 
 type Analytics = ReturnType<typeof getGuidanceAnalytics>;
 
@@ -349,7 +349,7 @@ export function GuidanceDashboard({
                         <td className="px-2 py-1.5">
                           {student.course || "—"}
                           {student.year_level != null
-                            ? ` · Y${student.year_level}`
+                            ? ` · ${formatYearLevel(student.year_level)}`
                             : ""}
                         </td>
                         <td className="px-2 py-1.5">

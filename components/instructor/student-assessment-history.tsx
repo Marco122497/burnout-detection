@@ -24,7 +24,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
+import { cn, formatYearLevel } from "@/lib/utils";
 
 function AnswersPanel({ answers }: { answers: MonitoringAnswer[] }) {
   if (!answers.length) {
@@ -130,7 +130,9 @@ export function StudentAssessmentHistoryView({
             {[
               student.student_number,
               student.department_name || student.course,
-              student.year_level != null ? `Year ${student.year_level}` : null,
+              student.year_level != null
+                ? formatYearLevel(student.year_level)
+                : null,
               student.section ? `Section ${student.section}` : null,
             ]
               .filter(Boolean)

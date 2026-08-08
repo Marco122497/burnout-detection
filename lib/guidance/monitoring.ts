@@ -5,6 +5,7 @@ import type {
   StudentHistoryRow,
   StudentMonitorRow,
 } from "@/lib/instructor/queries";
+import { formatYearLevel } from "@/lib/utils";
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -157,15 +158,14 @@ export async function getGuidanceStudentRows(
       prediction: mfbi?.mfbi_id
         ? predictionByMfbi.get(mfbi.mfbi_id) ?? null
         : null,
+      previous_mfbi_score: null,
+      previous_burnout_level: null,
       monitoring_date: monitoring?.submitted_at ?? null,
       submittedThisWeek: submittedThisWeek.has(student.id),
       department_id: student.department_id,
       department_code: dept?.department_code ?? null,
       department_name:
-        dept?.description ||
-        (dept
-          ? `${dept.department_code} — ${dept.department_name}`
-          : null),
+        dept?.department_name || dept?.description || null,
     };
   });
 }
@@ -252,6 +252,7 @@ export async function getGuidanceStudentHistory(
   });
 
   const latest = history[0] ?? null;
+  const previous = history[1] ?? null;
   const deptRaw = profile.departments as
     | {
         department_code: string;
@@ -283,15 +284,14 @@ export async function getGuidanceStudentHistory(
       mfbi_score: latest?.mfbi_score ?? null,
       burnout_level: latest?.burnout_level ?? null,
       prediction: latest?.prediction ?? null,
+      previous_mfbi_score: previous?.mfbi_score ?? null,
+      previous_burnout_level: previous?.burnout_level ?? null,
       monitoring_date: latest?.submitted_at ?? null,
       submittedThisWeek: false,
       department_id: profile.department_id,
       department_code: dept?.department_code ?? null,
       department_name:
-        dept?.description ||
-        (dept
-          ? `${dept.department_code} — ${dept.department_name}`
-          : null),
+        dept?.department_name || dept?.description || null,
     },
     history,
   };
@@ -463,7 +463,7 @@ export function getGuidanceAnalytics(
   const byYearLevel = [...yearMap.entries()]
     .sort(([a], [b]) => a - b)
     .map(([year, entry]) => ({
-      label: `${year}${year === 1 ? "st" : year === 2 ? "nd" : year === 3 ? "rd" : "th"} Year`,
+      label: formatYearLevel(year),
       year,
       average: entry.scores.length ? avg(entry.scores)! : 0,
       highRiskCount: entry.highRisk,
@@ -739,10 +739,7 @@ export async function getInstructorMonitoringRows(
       full_name: buildFullName(instructor),
       email: null,
       department_name:
-        dept?.description ||
-        (dept
-          ? `${dept.department_code} — ${dept.department_name}`
-          : null),
+        dept?.department_name || dept?.description || null,
       is_active: instructor.is_active,
       student_count: deptStudents.length,
       submitted_count: deptStudents.filter((s) => s.submittedThisWeek).length,

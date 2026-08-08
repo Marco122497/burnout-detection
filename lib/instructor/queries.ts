@@ -22,6 +22,8 @@ export type StudentMonitorRow = {
   mfbi_score: number | null;
   burnout_level: string | null;
   prediction: string | null;
+  previous_mfbi_score: number | null;
+  previous_burnout_level: string | null;
   monitoring_date: string | null;
   submittedThisWeek: boolean;
 };
@@ -45,14 +47,64 @@ export type StudentHistoryRow = {
 
 export type InstructorDashboardData = {
   totalStudents: number;
+  monitoredCount: number;
   submittedCount: number;
   pendingCount: number;
-  averageMfbi: number | null;
+  completionPercent: number;
+  lowRiskCount: number;
+  moderateRiskCount: number;
   highRiskCount: number;
+  lowRiskPercent: number;
+  moderateRiskPercent: number;
+  highRiskPercent: number;
   currentWeek: number | null;
   departmentName: string | null;
-  highRiskStudents: StudentMonitorRow[];
-  burnoutDistribution: { label: string; count: number }[];
+  academicYear: string | null;
+  semester: string | null;
+  yearStats: {
+    year_level: number;
+    total: number;
+    monitored: number;
+    submitted: number;
+    low: number;
+    moderate: number;
+    high: number;
+  }[];
+  riskByClass: {
+    label: string;
+    year_level: number | null;
+    low: number;
+    moderate: number;
+    high: number;
+    elevated: number;
+  }[];
+  weeklyTrends: {
+    week: number;
+    average: number;
+    count: number;
+    lowCount: number;
+    moderateCount: number;
+    highCount: number;
+  }[];
+  attentionStudents: {
+    id: string;
+    full_name: string;
+    student_number: string | null;
+    classLabel: string;
+    year_level: number | null;
+    risk: string;
+    mfbi_score: number | null;
+    mainConcern: string;
+    monitoring_date: string | null;
+  }[];
+  riskFactors: { label: string; count: number }[];
+  pendingStudents: {
+    id: string;
+    full_name: string;
+    student_number: string | null;
+    classLabel: string;
+  }[];
+  recentAlerts: { tone: "high" | "moderate" | "low" | "info"; text: string; meta: string }[];
   notifications: {
     notification_id: number;
     title: string;
@@ -90,16 +142,6 @@ function stressLevelFromScore(score: number | null | undefined) {
   if (value <= 13) return "Low";
   if (value <= 26) return "Moderate";
   return "High";
-}
-
-function countBy(values: string[]) {
-  const map = new Map<string, number>();
-  for (const value of values) {
-    map.set(value, (map.get(value) ?? 0) + 1);
-  }
-  return [...map.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([label, count]) => ({ label, count }));
 }
 
 function matchFilters(row: StudentMonitorRow, filters: StudentSearchFilters) {
@@ -140,10 +182,7 @@ export async function getDepartmentName(
     .eq("department_id", departmentId)
     .maybeSingle();
   if (!data) return null;
-  return (
-    data.description ||
-    `${data.department_code} — ${data.department_name}`
-  );
+  return data.department_name || data.description || null;
 }
 
 export async function getInstructorStudentRows(
@@ -185,11 +224,21 @@ export async function getInstructorStudentRows(
 
   const monitoringList = monitoringRows ?? [];
   const latestMonitoring = new Map<string, (typeof monitoringList)[number]>();
+  const previousMonitoring = new Map<string, (typeof monitoringList)[number]>();
   const submittedThisWeek = new Set<string>();
 
   for (const row of monitoringList) {
     if (!latestMonitoring.has(row.student_id)) {
       latestMonitoring.set(row.student_id, row);
+    } else if (!previousMonitoring.has(row.student_id)) {
+      const latest = latestMonitoring.get(row.student_id);
+      if (
+        latest &&
+        (row.week_number !== latest.week_number ||
+          row.monitoring_id !== latest.monitoring_id)
+      ) {
+        previousMonitoring.set(row.student_id, row);
+      }
     }
     if (
       term &&
@@ -203,8 +252,13 @@ export async function getInstructorStudentRows(
 
   return students.map((student) => {
     const monitoring = latestMonitoring.get(student.id) ?? null;
+    const previous = previousMonitoring.get(student.id) ?? null;
     const mfbiRaw = monitoring?.mfbi_results;
     const mfbi = Array.isArray(mfbiRaw) ? mfbiRaw[0] : mfbiRaw;
+    const previousMfbiRaw = previous?.mfbi_results;
+    const previousMfbi = Array.isArray(previousMfbiRaw)
+      ? previousMfbiRaw[0]
+      : previousMfbiRaw;
     const predictionRaw = mfbi?.ml_predictions;
     const prediction = Array.isArray(predictionRaw)
       ? predictionRaw[0]
@@ -238,6 +292,11 @@ export async function getInstructorStudentRows(
       mfbi_score: mfbi?.mfbi_score != null ? Number(mfbi.mfbi_score) : null,
       burnout_level: mfbi?.burnout_risk_level ?? null,
       prediction: prediction?.final_prediction ?? null,
+      previous_mfbi_score:
+        previousMfbi?.mfbi_score != null
+          ? Number(previousMfbi.mfbi_score)
+          : null,
+      previous_burnout_level: previousMfbi?.burnout_risk_level ?? null,
       monitoring_date: monitoring?.submitted_at ?? null,
       submittedThisWeek: submittedThisWeek.has(student.id),
     };
@@ -330,6 +389,7 @@ export async function getStudentAssessmentHistory(
   });
 
   const latest = history[0] ?? null;
+  const previous = history[1] ?? null;
 
   return {
     student: {
@@ -348,6 +408,8 @@ export async function getStudentAssessmentHistory(
       mfbi_score: latest?.mfbi_score ?? null,
       burnout_level: latest?.burnout_level ?? null,
       prediction: latest?.prediction ?? null,
+      previous_mfbi_score: previous?.mfbi_score ?? null,
+      previous_burnout_level: previous?.burnout_level ?? null,
       monitoring_date: latest?.submitted_at ?? null,
       submittedThisWeek: false,
     },
@@ -359,7 +421,16 @@ export async function getDepartmentWeeklySeries(
   supabase: SupabaseClient,
   departmentId: number | null
 ) {
-  if (!departmentId) return [] as { week: number; average: number; count: number }[];
+  if (!departmentId) {
+    return [] as {
+      week: number;
+      average: number;
+      count: number;
+      lowCount: number;
+      moderateCount: number;
+      highCount: number;
+    }[];
+  }
 
   const { data: students } = await supabase
     .from("profiles")
@@ -373,27 +444,102 @@ export async function getDepartmentWeeklySeries(
 
   const { data } = await supabase
     .from("weekly_monitoring")
-    .select("week_number, mfbi_results(mfbi_score)")
+    .select("week_number, mfbi_results(mfbi_score, burnout_risk_level)")
     .in("student_id", ids);
 
-  const weeklyMap = new Map<number, number[]>();
+  const weeklyMap = new Map<
+    number,
+    { scores: number[]; low: number; moderate: number; high: number }
+  >();
+
   for (const row of data ?? []) {
     const mfbi = Array.isArray(row.mfbi_results)
       ? row.mfbi_results[0]
       : row.mfbi_results;
-    if (row.week_number == null || mfbi?.mfbi_score == null) continue;
-    const list = weeklyMap.get(row.week_number) ?? [];
-    list.push(Number(mfbi.mfbi_score));
-    weeklyMap.set(row.week_number, list);
+    if (row.week_number == null) continue;
+
+    const entry = weeklyMap.get(row.week_number) ?? {
+      scores: [],
+      low: 0,
+      moderate: 0,
+      high: 0,
+    };
+
+    if (mfbi?.mfbi_score != null) {
+      entry.scores.push(Number(mfbi.mfbi_score));
+    }
+
+    const level = mfbi?.burnout_risk_level as string | undefined;
+    if (level === "Low") entry.low += 1;
+    else if (level === "Moderate") entry.moderate += 1;
+    else if (level === "High" || level === "Severe") entry.high += 1;
+
+    weeklyMap.set(row.week_number, entry);
   }
 
   return [...weeklyMap.entries()]
     .sort(([a], [b]) => a - b)
-    .map(([week, scores]) => ({
+    .map(([week, entry]) => ({
       week,
-      average: scores.reduce((a, b) => a + b, 0) / scores.length,
-      count: scores.length,
+      average: entry.scores.length
+        ? entry.scores.reduce((a, b) => a + b, 0) / entry.scores.length
+        : 0,
+      count: entry.scores.length,
+      lowCount: entry.low,
+      moderateCount: entry.moderate,
+      highCount: entry.high,
     }));
+}
+
+function classLabel(row: StudentMonitorRow) {
+  const year = row.year_level != null ? String(row.year_level) : "";
+  const section = row.section?.trim() ?? "";
+  const course = row.course?.trim() ?? "";
+  if (course && year && section) return `${course} ${year}${section}`;
+  if (course && year) return `${course} ${year}`;
+  if (year && section) return `${year}${section}`;
+  return course || "Unassigned";
+}
+
+function riskBucket(
+  level: string | null | undefined
+): "Low" | "Moderate" | "High" | null {
+  if (!level) return null;
+  if (level === "Low") return "Low";
+  if (level === "Moderate") return "Moderate";
+  if (level === "High" || level === "Severe") return "High";
+  return null;
+}
+
+function mainConcern(row: StudentMonitorRow) {
+  const candidates = [
+    {
+      label: "High Stress",
+      score: row.stress_score != null ? row.stress_score / 40 : 0,
+    },
+    {
+      label: "Heavy Workload",
+      score:
+        row.academic_workload != null ? row.academic_workload / 10 : 0,
+    },
+    {
+      label: "Insufficient Sleep",
+      score: row.sleep_hours != null ? row.sleep_hours / 100 : 0,
+    },
+    {
+      label: "Excessive Study Time",
+      score: row.study_time != null ? row.study_time / 12 : 0,
+    },
+  ].sort((a, b) => b.score - a.score);
+
+  const top = candidates[0];
+  return top && top.score > 0.15 ? top.label : "—";
+}
+
+function formatDepartmentScope(name: string | null) {
+  if (!name) return null;
+  if (/^department\b/i.test(name)) return name;
+  return `Department of ${name}`;
 }
 
 export async function getInstructorDashboardData(
@@ -401,86 +547,30 @@ export async function getInstructorDashboardData(
   instructorId: string,
   departmentId: number | null
 ): Promise<InstructorDashboardData> {
-  const [term, rows, departmentName, notificationResult] = await Promise.all([
-    getActiveTerm(supabase),
-    getInstructorStudentRows(supabase, departmentId),
-    getDepartmentName(supabase, departmentId),
-    supabase
-      .from("notifications")
-      .select("notification_id, title, message, is_read, created_at")
-      .eq("user_id", instructorId)
-      .order("created_at", { ascending: false })
-      .limit(8),
-  ]);
+  const [term, rows, departmentName, weeklyTrends, notificationResult] =
+    await Promise.all([
+      getActiveTerm(supabase),
+      getInstructorStudentRows(supabase, departmentId),
+      getDepartmentName(supabase, departmentId),
+      getDepartmentWeeklySeries(supabase, departmentId),
+      supabase
+        .from("notifications")
+        .select("notification_id, title, message, is_read, created_at")
+        .eq("user_id", instructorId)
+        .order("created_at", { ascending: false })
+        .limit(8),
+    ]);
 
   const currentWeek = term ? getCurrentWeekNumber(term) : null;
-
+  const totalStudents = rows.length;
   const submittedCount = rows.filter((r) => r.submittedThisWeek).length;
-  const mfbiValues = rows
-    .map((r) => r.mfbi_score)
-    .filter((n): n is number => n != null);
-  const averageMfbi =
-    mfbiValues.length > 0
-      ? mfbiValues.reduce((a, b) => a + b, 0) / mfbiValues.length
-      : null;
+  const pendingCount = Math.max(totalStudents - submittedCount, 0);
+  const completionPercent =
+    totalStudents > 0
+      ? Math.round((submittedCount / totalStudents) * 1000) / 10
+      : 0;
 
-  const highRiskStudents = rows.filter(
-    (r) =>
-      r.burnout_level === "High" ||
-      r.burnout_level === "Severe" ||
-      r.prediction === "High" ||
-      r.prediction === "Severe"
-  );
-
-  const burnoutDistribution = countBy(
-    rows
-      .map((r) => r.prediction || r.burnout_level)
-      .filter(Boolean) as string[]
-  );
-
-  return {
-    totalStudents: rows.length,
-    submittedCount,
-    pendingCount: Math.max(rows.length - submittedCount, 0),
-    averageMfbi,
-    highRiskCount: highRiskStudents.length,
-    currentWeek,
-    departmentName,
-    highRiskStudents: highRiskStudents.slice(0, 5),
-    burnoutDistribution,
-    notifications: notificationResult.data ?? [],
-  };
-}
-
-export function filterStudentRows(
-  rows: StudentMonitorRow[],
-  filters: StudentSearchFilters
-) {
-  return rows.filter((row) => matchFilters(row, filters));
-}
-
-export function getInstructorAnalytics(
-  rows: StudentMonitorRow[],
-  weeklyTrends: { week: number; average: number; count: number }[] = []
-) {
-  const avg = (values: number[]) =>
-    values.length
-      ? values.reduce((a, b) => a + b, 0) / values.length
-      : null;
-
-  const round2 = (value: number) => Math.round(value * 100) / 100;
-
-  const riskBucket = (
-    level: string | null | undefined
-  ): "Low" | "Moderate" | "High" | null => {
-    if (!level) return null;
-    if (level === "Low") return "Low";
-    if (level === "Moderate") return "Moderate";
-    if (level === "High" || level === "Severe") return "High";
-    return null;
-  };
-
-  const assessedCount = rows.filter(
+  const monitoredCount = rows.filter(
     (r) => r.mfbi_score != null || r.prediction || r.burnout_level
   ).length;
 
@@ -498,15 +588,314 @@ export function getInstructorAnalytics(
       } => item.bucket != null
     );
 
-  const classifiedTotal = classified.length || 1;
+  const lowRiskCount = classified.filter((i) => i.bucket === "Low").length;
+  const moderateRiskCount = classified.filter(
+    (i) => i.bucket === "Moderate"
+  ).length;
+  const highRiskCount = classified.filter((i) => i.bucket === "High").length;
+
+  const pct = (count: number) =>
+    totalStudents > 0
+      ? Math.round((count / totalStudents) * 1000) / 10
+      : 0;
+
+  const yearStatsMap = new Map<
+    number,
+    {
+      total: number;
+      monitored: number;
+      submitted: number;
+      low: number;
+      moderate: number;
+      high: number;
+    }
+  >();
+
+  const classStatsMap = new Map<
+    string,
+    {
+      year_level: number | null;
+      low: number;
+      moderate: number;
+      high: number;
+    }
+  >();
+
+  for (const row of rows) {
+    const year = row.year_level;
+    if (year != null) {
+      const yearEntry = yearStatsMap.get(year) ?? {
+        total: 0,
+        monitored: 0,
+        submitted: 0,
+        low: 0,
+        moderate: 0,
+        high: 0,
+      };
+      yearEntry.total += 1;
+      if (row.mfbi_score != null || row.prediction || row.burnout_level) {
+        yearEntry.monitored += 1;
+      }
+      if (row.submittedThisWeek) yearEntry.submitted += 1;
+      const bucket = riskBucket(row.prediction || row.burnout_level);
+      if (bucket === "Low") yearEntry.low += 1;
+      else if (bucket === "Moderate") yearEntry.moderate += 1;
+      else if (bucket === "High") yearEntry.high += 1;
+      yearStatsMap.set(year, yearEntry);
+    }
+
+    const label = classLabel(row);
+    const classEntry = classStatsMap.get(label) ?? {
+      year_level: row.year_level,
+      low: 0,
+      moderate: 0,
+      high: 0,
+    };
+    const bucket = riskBucket(row.prediction || row.burnout_level);
+    if (bucket === "Low") classEntry.low += 1;
+    else if (bucket === "Moderate") classEntry.moderate += 1;
+    else if (bucket === "High") classEntry.high += 1;
+    classStatsMap.set(label, classEntry);
+  }
+
+  const yearStats = [...yearStatsMap.entries()]
+    .map(([year_level, stats]) => ({ year_level, ...stats }))
+    .sort((a, b) => a.year_level - b.year_level);
+
+  const riskByClass = [...classStatsMap.entries()]
+    .map(([label, stats]) => ({
+      label,
+      year_level: stats.year_level,
+      low: stats.low,
+      moderate: stats.moderate,
+      high: stats.high,
+      elevated: stats.moderate + stats.high,
+    }))
+    .sort((a, b) => b.elevated - a.elevated || a.label.localeCompare(b.label));
+
+  const attentionStudents = classified
+    .filter((i) => i.bucket === "High" || i.bucket === "Moderate")
+    .sort((a, b) => {
+      const rank = (b: "Low" | "Moderate" | "High") =>
+        b === "High" ? 2 : b === "Moderate" ? 1 : 0;
+      const riskDiff = rank(b.bucket) - rank(a.bucket);
+      if (riskDiff !== 0) return riskDiff;
+      return (b.row.mfbi_score ?? 0) - (a.row.mfbi_score ?? 0);
+    })
+    .slice(0, 12)
+    .map(({ row, bucket }) => ({
+      id: row.id,
+      full_name: row.full_name,
+      student_number: row.student_number,
+      classLabel: classLabel(row),
+      year_level: row.year_level,
+      risk: (row.prediction || row.burnout_level || bucket) as string,
+      mfbi_score: row.mfbi_score,
+      mainConcern: mainConcern(row),
+      monitoring_date: row.monitoring_date,
+    }));
+
+  const assessed = rows.filter(
+    (r) =>
+      r.stress_score != null ||
+      r.academic_workload != null ||
+      r.sleep_hours != null ||
+      r.study_time != null
+  );
+
+  const riskFactors = [
+    {
+      label: "High Stress",
+      count: assessed.filter(
+        (r) =>
+          (r.stress_score != null && r.stress_score > 26) ||
+          r.stress_level === "High"
+      ).length,
+    },
+    {
+      label: "Heavy Workload",
+      count: assessed.filter(
+        (r) => r.academic_workload != null && r.academic_workload >= 7
+      ).length,
+    },
+    {
+      label: "Insufficient Sleep",
+      count: assessed.filter(
+        (r) => r.sleep_hours != null && r.sleep_hours >= 50
+      ).length,
+    },
+    {
+      label: "Excessive Study Time",
+      count: assessed.filter(
+        (r) => r.study_time != null && r.study_time >= 8
+      ).length,
+    },
+  ].sort((a, b) => b.count - a.count);
+
+  const pendingStudents = rows
+    .filter((r) => !r.submittedThisWeek)
+    .slice(0, 20)
+    .map((r) => ({
+      id: r.id,
+      full_name: r.full_name,
+      student_number: r.student_number,
+      classLabel: classLabel(r),
+    }));
+
+  const previousTrend =
+    weeklyTrends.length >= 2 ? weeklyTrends[weeklyTrends.length - 2] : null;
+  const latestTrend =
+    weeklyTrends.length >= 1 ? weeklyTrends[weeklyTrends.length - 1] : null;
+
+  const recentAlerts: InstructorDashboardData["recentAlerts"] = [];
+
+  if (latestTrend && previousTrend) {
+    const highDelta = latestTrend.highCount - previousTrend.highCount;
+    const modDelta = latestTrend.moderateCount - previousTrend.moderateCount;
+    const lowDelta = latestTrend.lowCount - previousTrend.lowCount;
+
+    if (highDelta > 0) {
+      recentAlerts.push({
+        tone: "high",
+        text: `${highDelta} student${highDelta === 1 ? "" : "s"} moved into High Risk`,
+        meta: `Week ${latestTrend.week}`,
+      });
+    }
+    if (modDelta > 0) {
+      recentAlerts.push({
+        tone: "moderate",
+        text: `${modDelta} student${modDelta === 1 ? "" : "s"} showed increasing moderate risk`,
+        meta: `Week ${latestTrend.week}`,
+      });
+    }
+    if (lowDelta > 0 && (highDelta < 0 || modDelta < 0)) {
+      recentAlerts.push({
+        tone: "low",
+        text: `${lowDelta} student${lowDelta === 1 ? "" : "s"} improved toward Low Risk`,
+        meta: `Week ${latestTrend.week}`,
+      });
+    }
+  }
+
+  if (highRiskCount > 0) {
+    recentAlerts.push({
+      tone: "high",
+      text: `${highRiskCount} student${highRiskCount === 1 ? "" : "s"} currently at High Risk`,
+      meta: "Latest snapshot",
+    });
+  }
+  if (pendingCount > 0) {
+    recentAlerts.push({
+      tone: "moderate",
+      text: `${pendingCount} student${pendingCount === 1 ? "" : "s"} have incomplete monitoring`,
+      meta: currentWeek ? `Week ${currentWeek}` : "This week",
+    });
+  }
+  if (!recentAlerts.length) {
+    recentAlerts.push({
+      tone: "info",
+      text: "No early warnings in the current monitoring window",
+      meta: "Up to date",
+    });
+  }
+
+  return {
+    totalStudents,
+    monitoredCount,
+    submittedCount,
+    pendingCount,
+    completionPercent,
+    lowRiskCount,
+    moderateRiskCount,
+    highRiskCount,
+    lowRiskPercent: pct(lowRiskCount),
+    moderateRiskPercent: pct(moderateRiskCount),
+    highRiskPercent: pct(highRiskCount),
+    currentWeek,
+    departmentName: formatDepartmentScope(departmentName),
+    academicYear: term?.academic_year ?? null,
+    semester: term?.semester ?? null,
+    yearStats,
+    riskByClass,
+    weeklyTrends,
+    attentionStudents,
+    riskFactors,
+    pendingStudents,
+    recentAlerts: recentAlerts.slice(0, 6),
+    notifications: notificationResult.data ?? [],
+  };
+}
+
+export function filterStudentRows(
+  rows: StudentMonitorRow[],
+  filters: StudentSearchFilters
+) {
+  return rows.filter((row) => matchFilters(row, filters));
+}
+
+function mainRiskFactor(row: StudentMonitorRow) {
+  const concern = mainConcern(row);
+  if (concern === "High Stress") return "Stress";
+  if (concern === "Heavy Workload") return "Workload";
+  if (concern === "Insufficient Sleep") return "Sleep";
+  if (concern === "Excessive Study Time") return "Study Time";
+  return concern;
+}
+
+function riskTrend(row: StudentMonitorRow): "up" | "down" | "stable" {
+  const rank = (level: string | null | undefined) => {
+    const bucket = riskBucket(level);
+    if (bucket === "High") return 3;
+    if (bucket === "Moderate") return 2;
+    if (bucket === "Low") return 1;
+    return 0;
+  };
+
+  const currentRank = rank(row.prediction || row.burnout_level);
+  const previousRank = rank(row.previous_burnout_level);
+
+  if (currentRank && previousRank) {
+    if (currentRank > previousRank) return "up";
+    if (currentRank < previousRank) return "down";
+  }
+
+  if (row.mfbi_score != null && row.previous_mfbi_score != null) {
+    const delta = row.mfbi_score - row.previous_mfbi_score;
+    if (delta > 0.03) return "up";
+    if (delta < -0.03) return "down";
+  }
+
+  return "stable";
+}
+
+export function getInstructorAnalytics(
+  rows: StudentMonitorRow[],
+  weeklyTrends: {
+    week: number;
+    average: number;
+    count: number;
+    lowCount?: number;
+    moderateCount?: number;
+    highCount?: number;
+  }[] = []
+) {
   const riskOverview = (["Low", "Moderate", "High"] as const).map((label) => {
-    const count = classified.filter((item) => item.bucket === label).length;
+    const count = rows.filter(
+      (r) => riskBucket(r.prediction || r.burnout_level) === label
+    ).length;
+    const classifiedTotal =
+      rows.filter((r) => riskBucket(r.prediction || r.burnout_level) != null)
+        .length || 1;
     return {
       label,
       count,
       percent: Math.round((count / classifiedTotal) * 1000) / 10,
     };
   });
+
+  const monitoredCount = rows.filter(
+    (r) => r.mfbi_score != null || r.prediction || r.burnout_level
+  ).length;
 
   const lowRiskCount =
     riskOverview.find((r) => r.label === "Low")?.count ?? 0;
@@ -515,89 +904,146 @@ export function getInstructorAnalytics(
   const highRiskCount =
     riskOverview.find((r) => r.label === "High")?.count ?? 0;
 
-  const highRiskStudents = classified
-    .filter((item) => item.bucket === "High")
-    .sort((a, b) => (b.row.mfbi_score ?? 0) - (a.row.mfbi_score ?? 0))
-    .map(({ row, bucket }) => ({
-      id: row.id,
-      student_number: row.student_number,
-      full_name: row.full_name,
-      mfbi_score: row.mfbi_score,
-      risk: (row.prediction || row.burnout_level || bucket) as string,
-      status: "Needs Attention" as const,
-    }));
-
-  const stressValues = rows
-    .map((r) => r.stress_score)
-    .filter((n): n is number => n != null);
-  const sleepValues = rows
-    .map((r) => r.sleep_hours)
-    .filter((n): n is number => n != null);
-  const studyValues = rows
-    .map((r) => r.study_time)
-    .filter((n): n is number => n != null);
-  const workloadValues = rows
-    .map((r) => r.academic_workload)
-    .filter((n): n is number => n != null);
-
-  const averageStress = avg(stressValues);
-  const averageSleep = avg(sleepValues);
-  const averageStudy = avg(studyValues);
-  const averageWorkload = avg(workloadValues);
-
-  /** Max values used to scale progress bars (aligned with monitoring score ranges). */
-  const factorMax = {
-    stress: 40,
-    sleep: 100,
-    study: 12,
-    workload: 10,
-  } as const;
-
-  const factorSummary = [
+  const yearStatsMap = new Map<
+    number,
     {
-      key: "stress",
+      total: number;
+      monitored: number;
+      submitted: number;
+      low: number;
+      moderate: number;
+      high: number;
+    }
+  >();
+
+  const classStatsMap = new Map<
+    string,
+    {
+      year_level: number | null;
+      total: number;
+      low: number;
+      moderate: number;
+      high: number;
+    }
+  >();
+
+  for (const row of rows) {
+    if (row.year_level != null) {
+      const yearEntry = yearStatsMap.get(row.year_level) ?? {
+        total: 0,
+        monitored: 0,
+        submitted: 0,
+        low: 0,
+        moderate: 0,
+        high: 0,
+      };
+      yearEntry.total += 1;
+      if (row.mfbi_score != null || row.prediction || row.burnout_level) {
+        yearEntry.monitored += 1;
+      }
+      if (row.submittedThisWeek) yearEntry.submitted += 1;
+      const bucket = riskBucket(row.prediction || row.burnout_level);
+      if (bucket === "Low") yearEntry.low += 1;
+      else if (bucket === "Moderate") yearEntry.moderate += 1;
+      else if (bucket === "High") yearEntry.high += 1;
+      yearStatsMap.set(row.year_level, yearEntry);
+    }
+
+    const label = classLabel(row);
+    const classEntry = classStatsMap.get(label) ?? {
+      year_level: row.year_level,
+      total: 0,
+      low: 0,
+      moderate: 0,
+      high: 0,
+    };
+    classEntry.total += 1;
+    const bucket = riskBucket(row.prediction || row.burnout_level);
+    if (bucket === "Low") classEntry.low += 1;
+    else if (bucket === "Moderate") classEntry.moderate += 1;
+    else if (bucket === "High") classEntry.high += 1;
+    classStatsMap.set(label, classEntry);
+  }
+
+  const yearStats = [...yearStatsMap.entries()]
+    .map(([year_level, stats]) => ({ year_level, ...stats }))
+    .sort((a, b) => a.year_level - b.year_level);
+
+  const riskByClass = [...classStatsMap.entries()]
+    .map(([label, stats]) => ({
+      label,
+      year_level: stats.year_level,
+      total: stats.total,
+      low: stats.low,
+      moderate: stats.moderate,
+      high: stats.high,
+      elevated: stats.moderate + stats.high,
+    }))
+    .sort((a, b) => b.elevated - a.elevated || a.label.localeCompare(b.label));
+
+  const classOptions = riskByClass
+    .map((item) => item.label)
+    .filter((label) => label !== "Unassigned");
+
+  const attentionStudents = rows
+    .map((row) => {
+      const bucket = riskBucket(row.prediction || row.burnout_level);
+      if (bucket !== "High" && bucket !== "Moderate") return null;
+      return {
+        id: row.id,
+        full_name: row.full_name,
+        student_number: row.student_number,
+        classLabel: classLabel(row),
+        year_level: row.year_level,
+        risk: (row.prediction || row.burnout_level || bucket) as string,
+        mfbi_score: row.mfbi_score,
+        mainFactor: mainRiskFactor(row),
+        trend: riskTrend(row),
+      };
+    })
+    .filter((item): item is NonNullable<typeof item> => item != null)
+    .sort((a, b) => {
+      const rank = (risk: string) =>
+        risk === "High" || risk === "Severe" ? 2 : risk === "Moderate" ? 1 : 0;
+      const riskDiff = rank(b.risk) - rank(a.risk);
+      if (riskDiff !== 0) return riskDiff;
+      return (b.mfbi_score ?? 0) - (a.mfbi_score ?? 0);
+    });
+
+  const assessed = rows.filter(
+    (r) =>
+      r.stress_score != null ||
+      r.academic_workload != null ||
+      r.sleep_hours != null ||
+      r.study_time != null
+  );
+
+  const riskFactors = [
+    {
       label: "Stress Level",
-      average: averageStress != null ? round2(averageStress) : null,
-      max: factorMax.stress,
-      percent:
-        averageStress != null
-          ? Math.min(100, Math.round((averageStress / factorMax.stress) * 1000) / 10)
-          : null,
+      count: assessed.filter(
+        (r) =>
+          (r.stress_score != null && r.stress_score > 26) ||
+          r.stress_level === "High"
+      ).length,
     },
     {
-      key: "sleep",
-      label: "Sleep Hours",
-      average: averageSleep != null ? round2(averageSleep) : null,
-      max: factorMax.sleep,
-      percent:
-        averageSleep != null
-          ? Math.min(100, Math.round((averageSleep / factorMax.sleep) * 1000) / 10)
-          : null,
-    },
-    {
-      key: "study",
-      label: "Study Time",
-      average: averageStudy != null ? round2(averageStudy) : null,
-      max: factorMax.study,
-      percent:
-        averageStudy != null
-          ? Math.min(100, Math.round((averageStudy / factorMax.study) * 1000) / 10)
-          : null,
-    },
-    {
-      key: "workload",
       label: "Academic Workload",
-      average: averageWorkload != null ? round2(averageWorkload) : null,
-      max: factorMax.workload,
-      percent:
-        averageWorkload != null
-          ? Math.min(
-              100,
-              Math.round((averageWorkload / factorMax.workload) * 1000) / 10
-            )
-          : null,
+      count: assessed.filter(
+        (r) => r.academic_workload != null && r.academic_workload >= 7
+      ).length,
     },
-  ];
+    {
+      label: "Study Time",
+      count: assessed.filter((r) => r.study_time != null && r.study_time >= 8)
+        .length,
+    },
+    {
+      label: "Sleep Hours",
+      count: assessed.filter((r) => r.sleep_hours != null && r.sleep_hours >= 50)
+        .length,
+    },
+  ].sort((a, b) => b.count - a.count);
 
   const submittedCount = rows.filter((r) => r.submittedThisWeek).length;
   const pendingCount = Math.max(rows.length - submittedCount, 0);
@@ -611,57 +1057,90 @@ export function getInstructorAnalytics(
   const latestTrend =
     weeklyTrends.length >= 1 ? weeklyTrends[weeklyTrends.length - 1] : null;
 
-  const insights: string[] = [];
-  if (highRiskCount > 0) {
-    insights.push(
-      `Follow up with ${highRiskCount} student${highRiskCount === 1 ? "" : "s"} classified as High Risk.`
-    );
+  const recentChanges: {
+    tone: "high" | "moderate" | "low" | "info";
+    text: string;
+  }[] = [];
+
+  const movedToHigh = attentionStudents.filter(
+    (s) =>
+      (s.risk === "High" || s.risk === "Severe") && s.trend === "up"
+  ).length;
+  const improving = attentionStudents.filter((s) => s.trend === "down").length;
+  const risingStress = assessed.filter(
+    (r) =>
+      (r.stress_score != null && r.stress_score > 26) &&
+      riskTrend(r) === "up"
+  ).length;
+  const risingWorkload = assessed.filter(
+    (r) =>
+      r.academic_workload != null &&
+      r.academic_workload >= 7 &&
+      riskTrend(r) === "up"
+  ).length;
+
+  if (movedToHigh > 0) {
+    recentChanges.push({
+      tone: "high",
+      text: `${movedToHigh} student${movedToHigh === 1 ? "" : "s"} moved toward High Risk`,
+    });
   }
-  if (averageSleep != null && averageSleep >= 50) {
-    insights.push("Encourage students to improve sleep habits.");
+  if (risingStress > 0) {
+    recentChanges.push({
+      tone: "high",
+      text: `${risingStress} student${risingStress === 1 ? "" : "s"} showed increasing stress`,
+    });
+  }
+  if (risingWorkload > 0) {
+    recentChanges.push({
+      tone: "moderate",
+      text: `${risingWorkload} student${risingWorkload === 1 ? "" : "s"} showed increasing workload`,
+    });
+  }
+  if (improving > 0) {
+    recentChanges.push({
+      tone: "low",
+      text: `${improving} student${improving === 1 ? "" : "s"} improved in risk trend`,
+    });
   }
   if (
-    previousTrend &&
     latestTrend &&
-    latestTrend.average > previousTrend.average + 0.01
+    previousTrend &&
+    (latestTrend.highCount ?? 0) < (previousTrend.highCount ?? 0)
   ) {
-    insights.push(
-      "Monitor students with increasing burnout scores — class average rose compared with last week."
-    );
+    const delta =
+      (previousTrend.highCount ?? 0) - (latestTrend.highCount ?? 0);
+    recentChanges.push({
+      tone: "low",
+      text: `${delta} fewer High Risk student${delta === 1 ? "" : "s"} vs last week`,
+    });
   }
-  if (highRiskCount > 0) {
-    insights.push(
-      "Refer high-risk students to the Guidance Office when necessary."
-    );
-  }
-  if (topWorkloadInsight(averageWorkload)) {
-    insights.push(
-      "Academic workload appears elevated — consider pacing assignments if feasible."
-    );
-  }
-  if (!insights.length) {
-    insights.push(
-      "Encourage weekly monitoring submissions to keep class analytics up to date."
-    );
+  if (!recentChanges.length) {
+    recentChanges.push({
+      tone: "info",
+      text: "No notable risk changes in the latest monitoring window",
+    });
   }
 
   return {
     totalStudents: rows.length,
-    assessedCount,
+    monitoredCount,
+    assessedCount: monitoredCount,
     lowRiskCount,
     moderateRiskCount,
     highRiskCount,
     riskOverview,
+    yearStats,
+    riskByClass,
+    classOptions,
     weeklyTrends,
-    highRiskStudents,
-    factorSummary,
+    attentionStudents,
+    riskFactors,
     submittedCount,
     pendingCount,
     completionPercent,
-    insights,
+    recentChanges: recentChanges.slice(0, 6),
   };
 }
 
-function topWorkloadInsight(averageWorkload: number | null) {
-  return averageWorkload != null && averageWorkload >= 7;
-}
+

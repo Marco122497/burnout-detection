@@ -40,7 +40,7 @@ import {
 import { openPrintReport } from "@/lib/instructor/export";
 import type { getGuidanceAnalytics } from "@/lib/guidance/monitoring";
 import { MODEL_EVALUATION } from "@/lib/guidance/model-metrics";
-import { cn } from "@/lib/utils";
+import { cn, formatYearLevel } from "@/lib/utils";
 
 type Analytics = ReturnType<typeof getGuidanceAnalytics>;
 
@@ -175,7 +175,7 @@ export function GuidanceAnalyticsView({ data }: { data: Analytics }) {
           <tr><td>Student</td><td>${student.full_name}</td></tr>
           <tr><td>Student ID</td><td>${student.student_number || "—"}</td></tr>
           <tr><td>Course</td><td>${student.course || "—"}</td></tr>
-          <tr><td>Year Level</td><td>${student.year_level ?? "—"}</td></tr>
+          <tr><td>Year Level</td><td>${student.year_level != null ? formatYearLevel(student.year_level) : "—"}</td></tr>
           <tr><td>Burnout Score (MFBI)</td><td>${student.mfbi_score != null ? student.mfbi_score.toFixed(2) : "—"}</td></tr>
           <tr><td>Risk</td><td>${student.risk}</td></tr>
           <tr><td>Status</td><td>${student.status}</td></tr>
@@ -637,7 +637,7 @@ export function GuidanceAnalyticsView({ data }: { data: Analytics }) {
                           <td className="px-2 py-1.5">
                             <p className="font-medium">{student.full_name}</p>
                             <p className="text-xs text-muted-foreground">
-                              {[student.course, student.year_level != null ? `Year ${student.year_level}` : null]
+                              {[student.course, student.year_level != null ? formatYearLevel(student.year_level) : null]
                                 .filter(Boolean)
                                 .join(" · ") || "—"}
                             </p>

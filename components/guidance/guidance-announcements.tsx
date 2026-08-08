@@ -14,6 +14,7 @@ import { useActionToast } from "@/hooks/use-action-toast";
 import type { Department } from "@/lib/auth/roles";
 import { formatDateTime } from "@/lib/auth/roles";
 import type { AnnouncementRow } from "@/lib/instructor/queries";
+import { formatYearLevel } from "@/lib/utils";
 import {
   DeleteConfirmDialog,
   DeleteIconButton,
@@ -51,7 +52,7 @@ function targetLabel(item: AnnouncementRow, departments: Department[]) {
         ? `Department #${item.department_id}`
         : null,
     item.course ? `Course: ${item.course}` : null,
-    item.year_level != null ? `Year ${item.year_level}` : null,
+    item.year_level != null ? formatYearLevel(item.year_level) : null,
     item.section ? `Section ${item.section}` : null,
   ].filter(Boolean);
 

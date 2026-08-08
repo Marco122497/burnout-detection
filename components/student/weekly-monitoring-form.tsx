@@ -30,7 +30,7 @@ import { cn } from "@/lib/utils";
 const initialState: StudentActionState = {};
 
 const sectionTitles: Record<string, string> = {
-  pss: "Section 1 — Perceived Stress Scale (PSS)",
+  pss: "Section 1 — Stress Level",
   workload: "Section 2 — Academic Workload",
   study: "Section 3 — Study Time",
   sleep: "Section 4 — Sleep Hours",
@@ -243,7 +243,10 @@ export function WeeklyMonitoringForm({
                       </legend>
                       <div className="grid gap-2 sm:grid-cols-5">
                         {options.map((option) => {
-                          const classicScore = option.value - 1;
+                          const displayScore =
+                            section.key === "pss"
+                              ? option.value - 1
+                              : option.value;
                           return (
                             <label
                               key={`${question.question_id}-${option.value}`}
@@ -263,27 +266,10 @@ export function WeeklyMonitoringForm({
                                     )
                                   );
                                 }}
-                                aria-label={
-                                  section.key === "pss"
-                                    ? `${classicScore} ${option.label}`
-                                    : `${option.value} ${option.label}`
-                                }
+                                aria-label={`${displayScore} ${option.label}`}
                               />
-                              <span>
-                                {section.key === "pss" ? (
-                                  <span className="font-medium leading-snug">
-                                    {classicScore} — {option.label}
-                                  </span>
-                                ) : (
-                                  <>
-                                    <span className="font-medium">
-                                      {option.value}
-                                    </span>
-                                    <span className="block text-xs text-muted-foreground">
-                                      {option.label}
-                                    </span>
-                                  </>
-                                )}
+                              <span className="font-medium leading-snug">
+                                {displayScore} — {option.label}
                               </span>
                             </label>
                           );

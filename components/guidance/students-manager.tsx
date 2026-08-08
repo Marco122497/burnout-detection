@@ -60,21 +60,12 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { formatYearLevel } from "@/lib/utils";
 
 const initialState: GuidanceActionState = {};
 
 function nameInitials(firstName: string, lastName: string) {
   return `${firstName?.[0] || ""}${lastName?.[0] || ""}`.toUpperCase() || "?";
-}
-
-function formatYearLevel(year: number) {
-  const ordinals: Record<number, string> = {
-    1: "1st",
-    2: "2nd",
-    3: "3rd",
-    4: "4th",
-  };
-  return `${ordinals[year] ?? `${year}th`} Year`;
 }
 
 const selectClassName =

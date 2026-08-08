@@ -10,7 +10,6 @@ import {
   toggleQuestionStatus,
   toggleQuestionnaireStatus,
   updateQuestion,
-  updateQuestionnaireSettings,
   type QuestionnaireActionState,
 } from "@/app/actions/questionnaires";
 import { useActionToast } from "@/hooks/use-action-toast";
@@ -52,21 +51,15 @@ const selectClassName =
 const textareaClassName =
   "min-h-20 w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
-function toDatetimeLocal(value: string | null) {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
 function QuestionFields({
   question,
   includeActive,
+  includeResponseType = true,
   idPrefix = "",
 }: {
   question?: QuestionRow | null;
   includeActive?: boolean;
+  includeResponseType?: boolean;
   idPrefix?: string;
 }) {
   const id = (name: string) => `${idPrefix}${name}`;
@@ -84,20 +77,28 @@ function QuestionFields({
           className={textareaClassName}
         />
       </div>
-      <div className="space-y-2">
-        <Label htmlFor={id("response_type")}>Response type</Label>
-        <select
-          id={id("response_type")}
+      {includeResponseType ? (
+        <div className="space-y-2">
+          <Label htmlFor={id("response_type")}>Response type</Label>
+          <select
+            id={id("response_type")}
+            name="response_type"
+            defaultValue={question?.response_type ?? "Likert Scale"}
+            className={selectClassName}
+          >
+            <option value="Likert Scale">Likert Scale</option>
+            <option value="Number">Number</option>
+            <option value="Hours">Hours</option>
+            <option value="Yes/No">Yes/No</option>
+          </select>
+        </div>
+      ) : (
+        <input
+          type="hidden"
           name="response_type"
-          defaultValue={question?.response_type ?? "Likert Scale"}
-          className={selectClassName}
-        >
-          <option value="Likert Scale">Likert Scale</option>
-          <option value="Number">Number</option>
-          <option value="Hours">Hours</option>
-          <option value="Yes/No">Yes/No</option>
-        </select>
-      </div>
+          value={question?.response_type ?? "Likert Scale"}
+        />
+      )}
       <div className="space-y-2">
         <Label htmlFor={id("question_order")}>Order</Label>
         <Input
@@ -258,10 +259,6 @@ export function QuestionnaireDetailManager({
   const [addOpen, setAddOpen] = useState(false);
   const [preview, setPreview] = useState(false);
 
-  const [settingsState, settingsAction, settingsPending] = useActionState(
-    updateQuestionnaireSettings,
-    initialState
-  );
   const [createState, createAction, createPending] = useActionState(
     createQuestion,
     initialState
@@ -283,7 +280,6 @@ export function QuestionnaireDetailManager({
     initialState
   );
 
-  useActionToast(settingsState);
   useActionToast(createState);
   useActionToast(updateState);
   useActionToast(toggleState);
@@ -392,73 +388,6 @@ export function QuestionnaireDetailManager({
           </Button>
         </div>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Questionnaire settings</CardTitle>
-          <CardDescription>
-            Enable or disable this form and configure availability schedule.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form action={settingsAction} className="grid gap-4 sm:grid-cols-2">
-            <input
-              type="hidden"
-              name="questionnaire_id"
-              value={questionnaire.questionnaire_id}
-            />
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="description">Description</Label>
-              <textarea
-                id="description"
-                name="description"
-                rows={3}
-                defaultValue={questionnaire.description ?? ""}
-                className={textareaClassName}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="available_from">Available from</Label>
-              <Input
-                id="available_from"
-                name="available_from"
-                type="datetime-local"
-                defaultValue={toDatetimeLocal(questionnaire.available_from)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="available_until">Available until</Label>
-              <Input
-                id="available_until"
-                name="available_until"
-                type="datetime-local"
-                defaultValue={toDatetimeLocal(questionnaire.available_until)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="is_active">Status</Label>
-              <select
-                id="is_active"
-                name="is_active"
-                defaultValue={questionnaire.is_active ? "1" : "0"}
-                className={selectClassName}
-              >
-                <option value="1">Enabled</option>
-                <option value="0">Disabled</option>
-              </select>
-            </div>
-            <div className="flex items-end">
-              <Button type="submit" disabled={settingsPending}>
-                {settingsPending ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  "Save settings"
-                )}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
 
       {preview ? (
         <Card>
@@ -844,6 +773,7 @@ export function QuestionnaireDetailManager({
               <QuestionFields
                 question={editing}
                 includeActive
+                includeResponseType={false}
                 idPrefix="edit-"
               />
             </form>
