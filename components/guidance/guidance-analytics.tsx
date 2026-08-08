@@ -505,34 +505,40 @@ export function GuidanceAnalyticsView({ data }: { data: Analytics }) {
             <CardHeader>
               <CardTitle className="text-lg">Variable Contribution</CardTitle>
               <CardDescription>
-                Relative contribution of each monitoring factor to the current
-                average burnout score (MFBI factors).
+                Contribution of each monitoring factor to the current
+                average MFBI factors.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent>
               {data.variableContribution.every((item) => item.percent == null) ? (
                 <p className="text-sm text-muted-foreground">
                   No factor averages yet.
                 </p>
               ) : (
-                data.variableContribution.map((item) => (
-                  <div key={item.key} className="space-y-1.5">
-                    <div className="flex items-center justify-between text-sm">
-                      <span>{item.label}</span>
-                      <span className="font-medium tabular-nums">
-                        {item.percent != null ? `${item.percent}%` : "—"}
-                      </span>
-                    </div>
-                    <div className="h-2.5 overflow-hidden rounded-full bg-muted">
-                      <div
-                        className="h-full rounded-full bg-primary/80 transition-all"
-                        style={{
-                          width: `${Math.max(item.percent ?? 0, item.percent ? 2 : 0)}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                ))
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead className="border-b text-muted-foreground">
+                      <tr>
+                        <th className="px-2 py-1.5 font-medium">Variable</th>
+                        <th className="px-2 py-1.5 font-medium">Contribution</th>
+                        <th className="px-2 py-1.5 font-medium">Scale</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.variableContribution.map((item) => (
+                        <tr key={item.key} className="border-b last:border-0">
+                          <td className="px-2 py-1.5 font-medium">{item.label}</td>
+                          <td className="px-2 py-1.5 tabular-nums">
+                            {item.percent != null ? `${item.percent}%` : "—"}
+                          </td>
+                          <td className="px-2 py-1.5 text-muted-foreground">
+                            {item.scale}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -555,19 +561,19 @@ export function GuidanceAnalyticsView({ data }: { data: Analytics }) {
                 <table className="w-full text-left text-sm">
                   <thead className="border-b text-muted-foreground">
                     <tr>
-                      <th className="px-2 py-2 font-medium">Variable</th>
-                      <th className="px-2 py-2 font-medium">Average</th>
-                      <th className="px-2 py-2 font-medium">Scale</th>
+                      <th className="px-2 py-1.5 font-medium">Variable</th>
+                      <th className="px-2 py-1.5 font-medium">Average</th>
+                      <th className="px-2 py-1.5 font-medium">Scale</th>
                     </tr>
                   </thead>
                   <tbody>
                     {data.averageScores.map((item) => (
                       <tr key={item.label} className="border-b last:border-0">
-                        <td className="px-2 py-2 font-medium">{item.label}</td>
-                        <td className="px-2 py-2 tabular-nums">
+                        <td className="px-2 py-1.5 font-medium">{item.label}</td>
+                        <td className="px-2 py-1.5 tabular-nums">
                           {item.average != null ? item.average.toFixed(2) : "—"}
                         </td>
-                        <td className="px-2 py-2 text-muted-foreground">
+                        <td className="px-2 py-1.5 text-muted-foreground">
                           {item.scale}
                         </td>
                       </tr>
@@ -608,12 +614,12 @@ export function GuidanceAnalyticsView({ data }: { data: Analytics }) {
                 <table className="w-full min-w-[720px] text-left text-sm">
                   <thead className="border-b text-muted-foreground">
                     <tr>
-                      <th className="px-2 py-2 font-medium">Student ID</th>
-                      <th className="px-2 py-2 font-medium">Student</th>
-                      <th className="px-2 py-2 font-medium">Burnout Score</th>
-                      <th className="px-2 py-2 font-medium">Risk</th>
-                      <th className="px-2 py-2 font-medium">Status</th>
-                      <th className="px-2 py-2 font-medium">Actions</th>
+                      <th className="px-2 py-1.5 font-medium">Student ID</th>
+                      <th className="px-2 py-1.5 font-medium">Student</th>
+                      <th className="px-2 py-1.5 font-medium">Burnout Score</th>
+                      <th className="px-2 py-1.5 font-medium">Risk</th>
+                      <th className="px-2 py-1.5 font-medium">Status</th>
+                      <th className="px-2 py-1.5 font-medium">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -625,10 +631,10 @@ export function GuidanceAnalyticsView({ data }: { data: Analytics }) {
                         isAlertPending && alertPendingId === student.id;
                       return (
                         <tr key={student.id} className="border-b last:border-0">
-                          <td className="px-2 py-2 tabular-nums">
+                          <td className="px-2 py-1.5 tabular-nums">
                             {student.student_number || "—"}
                           </td>
-                          <td className="px-2 py-2">
+                          <td className="px-2 py-1.5">
                             <p className="font-medium">{student.full_name}</p>
                             <p className="text-xs text-muted-foreground">
                               {[student.course, student.year_level != null ? `Year ${student.year_level}` : null]
@@ -636,18 +642,18 @@ export function GuidanceAnalyticsView({ data }: { data: Analytics }) {
                                 .join(" · ") || "—"}
                             </p>
                           </td>
-                          <td className="px-2 py-2 tabular-nums">
+                          <td className="px-2 py-1.5 tabular-nums">
                             {student.mfbi_score != null
                               ? student.mfbi_score.toFixed(2)
                               : "—"}
                           </td>
-                          <td className="px-2 py-2">{student.risk}</td>
-                          <td className="px-2 py-2">
+                          <td className="px-2 py-1.5">{student.risk}</td>
+                          <td className="px-2 py-1.5">
                             <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-900">
                               {student.status}
                             </span>
                           </td>
-                          <td className="px-2 py-2">
+                          <td className="px-2 py-1.5">
                             <div className="flex flex-wrap gap-1.5">
                               <Button
                                 type="button"
@@ -748,20 +754,20 @@ export function GuidanceAnalyticsView({ data }: { data: Analytics }) {
               <table className="w-full text-left text-sm">
                 <thead className="border-b text-muted-foreground">
                   <tr>
-                    <th className="px-2 py-2 font-medium">Model</th>
-                    <th className="px-2 py-2 font-medium">Accuracy</th>
+                    <th className="px-2 py-1.5 font-medium">Model</th>
+                    <th className="px-2 py-1.5 font-medium">Accuracy</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr className="border-b">
-                    <td className="px-2 py-2">Decision Tree</td>
-                    <td className="px-2 py-2 tabular-nums">
+                    <td className="px-2 py-1.5">Decision Tree</td>
+                    <td className="px-2 py-1.5 tabular-nums">
                       {Math.round(MODEL_EVALUATION.decisionTree.accuracy * 100)}%
                     </td>
                   </tr>
                   <tr>
-                    <td className="px-2 py-2">Random Forest</td>
-                    <td className="px-2 py-2 tabular-nums">
+                    <td className="px-2 py-1.5">Random Forest</td>
+                    <td className="px-2 py-1.5 tabular-nums">
                       {Math.round(MODEL_EVALUATION.randomForest.accuracy * 100)}%
                     </td>
                   </tr>
@@ -792,33 +798,33 @@ export function GuidanceAnalyticsView({ data }: { data: Analytics }) {
                 <table className="w-full min-w-[480px] text-left text-sm">
                   <thead className="border-b text-muted-foreground">
                     <tr>
-                      <th className="px-2 py-2 font-medium">Program</th>
-                      <th className="px-2 py-2 font-medium">Low</th>
-                      <th className="px-2 py-2 font-medium">Moderate</th>
-                      <th className="px-2 py-2 font-medium">High</th>
-                      <th className="px-2 py-2 font-medium">Total</th>
+                      <th className="px-2 py-1.5 font-medium">Program</th>
+                      <th className="px-2 py-1.5 font-medium">Low</th>
+                      <th className="px-2 py-1.5 font-medium">Moderate</th>
+                      <th className="px-2 py-1.5 font-medium">High</th>
+                      <th className="px-2 py-1.5 font-medium">Total</th>
                     </tr>
                   </thead>
                   <tbody>
                     {data.byCourse.map((row) => (
                       <tr key={row.label} className="border-b last:border-0">
-                        <td className="px-2 py-2 font-medium">{row.label}</td>
-                        <td className="px-2 py-2">
+                        <td className="px-2 py-1.5 font-medium">{row.label}</td>
+                        <td className="px-2 py-1.5">
                           <span className="rounded-md bg-emerald-100 px-2 py-0.5 text-emerald-900 tabular-nums">
                             {row.low}
                           </span>
                         </td>
-                        <td className="px-2 py-2">
+                        <td className="px-2 py-1.5">
                           <span className="rounded-md bg-amber-100 px-2 py-0.5 text-amber-900 tabular-nums">
                             {row.moderate}
                           </span>
                         </td>
-                        <td className="px-2 py-2">
+                        <td className="px-2 py-1.5">
                           <span className="rounded-md bg-orange-100 px-2 py-0.5 text-orange-900 tabular-nums">
                             {row.high}
                           </span>
                         </td>
-                        <td className="px-2 py-2 tabular-nums">{row.count}</td>
+                        <td className="px-2 py-1.5 tabular-nums">{row.count}</td>
                       </tr>
                     ))}
                   </tbody>

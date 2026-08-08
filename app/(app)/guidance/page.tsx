@@ -1,6 +1,5 @@
 import { GuidanceDashboard } from "@/components/guidance/guidance-dashboard";
 import { requireRole } from "@/lib/auth/session";
-import { getGuidanceDashboardStats } from "@/lib/guidance/queries";
 import {
   getGuidanceAnalytics,
   getGuidanceStudentRows,
@@ -9,23 +8,12 @@ import {
 
 export default async function GuidanceDashboardPage() {
   const { supabase, profile } = await requireRole(["Guidance Counselor"]);
-  const [stats, studentRows, weeklySeries] = await Promise.all([
-    getGuidanceDashboardStats(supabase),
+  const [studentRows, weeklySeries] = await Promise.all([
     getGuidanceStudentRows(supabase),
     getUniversityWeeklySeries(supabase),
   ]);
 
-  const analytics = getGuidanceAnalytics(studentRows, weeklySeries);
+  const data = getGuidanceAnalytics(studentRows, weeklySeries);
 
-  return (
-    <GuidanceDashboard
-      firstName={profile.first_name}
-      stats={stats}
-      charts={{
-        burnoutDistribution: analytics.burnoutDistribution,
-        departmentComparison: analytics.departmentComparison,
-        weeklyTrends: analytics.weeklyTrends,
-      }}
-    />
-  );
+  return <GuidanceDashboard firstName={profile.first_name} data={data} />;
 }

@@ -1,4 +1,7 @@
+import { UsersIcon } from "lucide-react";
+
 import { StudentsManager } from "@/components/guidance/students-manager";
+import { PageHeading } from "@/components/layout/page-heading";
 import { requireRole } from "@/lib/auth/session";
 import {
   getDepartments,
@@ -20,15 +23,11 @@ export default async function GuidanceStudentsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-sm font-medium text-primary">Guidance module</p>
-        <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
-          Student Management
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Create student accounts, update course details, and reset passwords.
-        </p>
-      </div>
+      <PageHeading
+        title="Student Management"
+        description="Create student accounts, update course details, and reset passwords."
+        icon={UsersIcon}
+      />
       <StudentsManager students={students} departments={departments} />
     </div>
   );

@@ -36,6 +36,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Card,
   CardContent,
@@ -45,6 +46,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 import {
   Table,
   TableBody,
@@ -60,6 +62,10 @@ import {
 } from "@/components/ui/tooltip";
 
 const initialState: GuidanceActionState = {};
+
+function nameInitials(firstName: string, lastName: string) {
+  return `${firstName?.[0] || ""}${lastName?.[0] || ""}`.toUpperCase() || "?";
+}
 
 function formatYearLevel(year: number) {
   const ordinals: Record<number, string> = {
@@ -216,20 +222,34 @@ export function StudentsManager({
                   {pageItems.map((student) => (
                     <TableRow key={student.id}>
                       <TableCell>
-                        <div>
-                          <p className="font-medium">{student.full_name}</p>
-                          {student.email ? (
-                            <p className="text-xs text-muted-foreground">
-                              {student.email}
-                            </p>
-                          ) : null}
+                        <div className="flex items-start gap-2.5">
+                          <Avatar className="size-8 shrink-0">
+                            {student.profile_picture ? (
+                              <AvatarImage
+                                src={student.profile_picture}
+                                alt={student.full_name}
+                              />
+                            ) : null}
+                            <AvatarFallback className="text-xs">
+                              {nameInitials(
+                                student.first_name,
+                                student.last_name
+                              )}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0">
+                            <p className="font-medium">{student.full_name}</p>
+                            {student.email ? (
+                              <p className="truncate text-xs text-muted-foreground">
+                                {student.email}
+                              </p>
+                            ) : null}
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell>{student.student_number || "—"}</TableCell>
                       <TableCell>
-                        {student.department_code
-                          ? `${student.department_code} · ${student.department_name}`
-                          : "—"}
+                        {student.department_name || "—"}
                       </TableCell>
                       <TableCell>
                         {[
@@ -260,7 +280,7 @@ export function StudentsManager({
                                 <Button
                                   type="button"
                                   size="icon-sm"
-                                  variant="outline"
+                                  variant="ghost"
                                   aria-label="Edit"
                                   onClick={() => setEditingId(student.id)}
                                 >
@@ -314,7 +334,7 @@ export function StudentsManager({
                                 <Button
                                   type="button"
                                   size="icon-sm"
-                                  variant="outline"
+                                  variant="ghost"
                                   aria-label="Reset password"
                                   onClick={() => setResetId(student.id)}
                                 >
@@ -377,10 +397,9 @@ export function StudentsManager({
                 <Label htmlFor="student-create-password">
                   Temporary password
                 </Label>
-                <Input
+                <PasswordInput
                   id="student-create-password"
                   name="password"
-                  type="password"
                   minLength={8}
                   required
                 />
@@ -667,10 +686,9 @@ export function StudentsManager({
                 <Label htmlFor="student-reset-new_password">
                   New password
                 </Label>
-                <Input
+                <PasswordInput
                   id="student-reset-new_password"
                   name="new_password"
-                  type="password"
                   minLength={8}
                   required
                 />

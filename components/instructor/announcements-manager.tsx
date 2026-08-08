@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
-import { Loader2, PencilIcon, TrashIcon } from "lucide-react";
+import { useActionState, useEffect, useMemo, useState } from "react";
+import { Loader2, PencilIcon } from "lucide-react";
 
 import {
   createAnnouncement,
@@ -13,6 +13,10 @@ import {
 import { useActionToast } from "@/hooks/use-action-toast";
 import { formatDateTime } from "@/lib/auth/roles";
 import type { AnnouncementRow } from "@/lib/instructor/queries";
+import {
+  DeleteConfirmDialog,
+  DeleteIconButton,
+} from "@/components/shared/delete-confirm-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -49,6 +53,7 @@ export function AnnouncementsManager({
   sectionOptions: string[];
 }) {
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const [createState, createAction, createPending] = useActionState(
     createAnnouncement,
     initialState
@@ -71,9 +76,15 @@ export function AnnouncementsManager({
   useActionToast(deleteState);
   useActionToast(publishState);
 
+  useEffect(() => {
+    if (deleteState.success) setDeletingId(null);
+  }, [deleteState.success]);
+
   const editing = announcements.find((a) => a.announcement_id === editingId);
+  const deleting = announcements.find((a) => a.announcement_id === deletingId);
   const courses = useMemo(() => courseOptions, [courseOptions]);
   const sections = useMemo(() => sectionOptions, [sectionOptions]);
+  const deleteFormId = `delete-announcement-${deletingId ?? "none"}`;
 
   return (
     <div className="space-y-6">
@@ -269,22 +280,11 @@ export function AnnouncementsManager({
                         </Button>
                       </form>
                     ) : null}
-                    <form action={deleteAction}>
-                      <input
-                        type="hidden"
-                        name="announcement_id"
-                        value={item.announcement_id}
-                      />
-                      <Button
-                        type="submit"
-                        size="sm"
-                        variant="destructive"
-                        disabled={deletePending}
-                      >
-                        <TrashIcon />
-                        Delete
-                      </Button>
-                    </form>
+                    <DeleteIconButton
+                      label="Delete announcement"
+                      disabled={deletePending}
+                      onClick={() => setDeletingId(item.announcement_id)}
+                    />
                   </div>
                 </div>
               </div>
@@ -292,6 +292,30 @@ export function AnnouncementsManager({
           )}
         </CardContent>
       </Card>
+
+      <DeleteConfirmDialog
+        open={deletingId != null}
+        onOpenChange={(open) => {
+          if (!open) setDeletingId(null);
+        }}
+        pending={deletePending}
+        title="Delete announcement?"
+        description={
+          deleting
+            ? `This will permanently remove “${deleting.title}”. This cannot be undone.`
+            : "This will permanently remove the announcement."
+        }
+        formId={deleteFormId}
+        formAction={deleteAction}
+      >
+        {deleting ? (
+          <input
+            type="hidden"
+            name="announcement_id"
+            value={deleting.announcement_id}
+          />
+        ) : null}
+      </DeleteConfirmDialog>
     </div>
   );
 }

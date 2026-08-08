@@ -1,4 +1,7 @@
+import { FileBarChartIcon } from "lucide-react";
+
 import { InstructorReportsPanel } from "@/components/instructor/instructor-reports";
+import { PageHeading } from "@/components/layout/page-heading";
 import { requireRole } from "@/lib/auth/session";
 import {
   getDepartmentName,
@@ -17,16 +20,11 @@ export default async function InstructorReportsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-sm font-medium text-primary">Instructor module</p>
-        <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
-          Reports
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Generate department burnout, weekly monitoring, and student assessment
-          reports. Export as PDF or Excel (CSV).
-        </p>
-      </div>
+      <PageHeading
+        title="Reports"
+        description="Generate department burnout, weekly monitoring, and student assessment reports. Export as PDF or Excel (CSV)."
+        icon={FileBarChartIcon}
+      />
       <InstructorReportsPanel
         rows={rows}
         currentWeek={currentWeek}

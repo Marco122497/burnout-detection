@@ -1,4 +1,7 @@
+import { ShieldIcon } from "lucide-react";
+
 import { AdminsManager } from "@/components/guidance/admins-manager";
+import { PageHeading } from "@/components/layout/page-heading";
 import { requireRole } from "@/lib/auth/session";
 import { getUserEmails, getUsersByRole } from "@/lib/guidance/queries";
 
@@ -15,15 +18,11 @@ export default async function GuidanceAdminsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-sm font-medium text-primary">Guidance module</p>
-        <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
-          Admin Management
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Manage guidance counselor accounts with admin access to the system.
-        </p>
-      </div>
+      <PageHeading
+        title="Admin Management"
+        description="Manage guidance counselor accounts with admin access to the system."
+        icon={ShieldIcon}
+      />
       <AdminsManager admins={admins} currentUserId={user.id} />
     </div>
   );

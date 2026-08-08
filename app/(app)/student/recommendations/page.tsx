@@ -1,4 +1,7 @@
+import { LightbulbIcon } from "lucide-react";
+
 import { RecommendationsView } from "@/components/student/recommendations-view";
+import { PageHeading } from "@/components/layout/page-heading";
 import { requireRole } from "@/lib/auth/session";
 import type { BurnoutLevel } from "@/lib/student/mfbi";
 import { getLatestBurnoutSnapshot } from "@/lib/student/queries";
@@ -39,15 +42,11 @@ export default async function StudentRecommendationsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-sm font-medium text-primary">Student module</p>
-        <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
-          Recommendations
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Counseling guidance matched to your burnout risk level.
-        </p>
-      </div>
+      <PageHeading
+        title="Recommendations"
+        description="Counseling guidance matched to your burnout risk level."
+        icon={LightbulbIcon}
+      />
       <RecommendationsView burnoutLevel={burnoutLevel} guidance={guidance} />
     </div>
   );

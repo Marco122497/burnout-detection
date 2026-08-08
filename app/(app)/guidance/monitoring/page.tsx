@@ -1,7 +1,9 @@
 import { Suspense } from "react";
+import { ActivityIcon } from "lucide-react";
 
 import { GuidanceStudentMonitoring } from "@/components/guidance/guidance-student-monitoring";
 import { MonitoringWeekControls } from "@/components/guidance/monitoring-week-controls";
+import { PageHeading } from "@/components/layout/page-heading";
 import { requireRole } from "@/lib/auth/session";
 import { getDepartments } from "@/lib/guidance/queries";
 import { getGuidanceStudentRows } from "@/lib/guidance/monitoring";
@@ -17,15 +19,11 @@ export default async function GuidanceMonitoringPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
-          Student Monitoring
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Open weekly monitoring for students and review results across all
-          departments.
-        </p>
-      </div>
+      <PageHeading
+        title="Student Monitoring"
+        description="Open weekly monitoring for students and review results across all departments."
+        icon={ActivityIcon}
+      />
       <MonitoringWeekControls term={term} />
       <Suspense fallback={<p className="text-sm text-muted-foreground">Loading…</p>}>
         <GuidanceStudentMonitoring rows={rows} departments={departments} />

@@ -1,4 +1,7 @@
+import { MegaphoneIcon } from "lucide-react";
+
 import { AnnouncementsManager } from "@/components/instructor/announcements-manager";
+import { PageHeading } from "@/components/layout/page-heading";
 import { requireRole } from "@/lib/auth/session";
 import type { AnnouncementRow } from "@/lib/instructor/queries";
 import {
@@ -30,16 +33,11 @@ export default async function InstructorAnnouncementsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-sm font-medium text-primary">Instructor module</p>
-        <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
-          Announcements
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Create, edit, and delete announcements for your assigned department,
-          course, year level, or section.
-        </p>
-      </div>
+      <PageHeading
+        title="Announcements"
+        description="Create, edit, and delete announcements for your assigned department, course, year level, or section."
+        icon={MegaphoneIcon}
+      />
       <AnnouncementsManager
         announcements={(data ?? []) as AnnouncementRow[]}
         departmentName={departmentName}

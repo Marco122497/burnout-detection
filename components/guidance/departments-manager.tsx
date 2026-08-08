@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
-import { Building2Icon, Loader2, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { Building2Icon, Loader2, PencilIcon, PlusIcon, PowerIcon, Trash2Icon } from "lucide-react";
 
 import {
   createDepartment,
@@ -35,6 +35,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TablePagination } from "@/components/shared/table-pagination";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const initialState: GuidanceActionState = {};
 const selectClassName =
@@ -221,12 +226,12 @@ export function DepartmentsManager({
                 <table className="w-full min-w-[720px] text-left text-sm">
                   <thead className="border-b text-muted-foreground">
                     <tr>
-                      <th className="px-2 py-2 font-medium">Code</th>
-                      <th className="px-2 py-2 font-medium">Name</th>
-                      <th className="px-2 py-2 font-medium">Students</th>
-                      <th className="px-2 py-2 font-medium">Instructors</th>
-                      <th className="px-2 py-2 font-medium">Status</th>
-                      <th className="px-2 py-2 font-medium">Actions</th>
+                      <th className="px-2 py-1.5 font-medium">Code</th>
+                      <th className="px-2 py-1.5 font-medium">Name</th>
+                      <th className="px-2 py-1.5 font-medium">Students</th>
+                      <th className="px-2 py-1.5 font-medium">Instructors</th>
+                      <th className="px-2 py-1.5 font-medium">Status</th>
+                      <th className="px-2 py-1.5 font-medium">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -235,28 +240,35 @@ export function DepartmentsManager({
                         key={dept.department_id}
                         className="border-b last:border-0"
                       >
-                        <td className="px-2 py-2 font-medium">
+                        <td className="px-2 py-1.5 font-medium">
                           {dept.department_code}
                         </td>
-                        <td className="px-2 py-2">{dept.department_name}</td>
-                        <td className="px-2 py-2">{dept.student_count}</td>
-                        <td className="px-2 py-2">{dept.instructor_count}</td>
-                        <td className="px-2 py-2">
+                        <td className="px-2 py-1.5">{dept.department_name}</td>
+                        <td className="px-2 py-1.5">{dept.student_count}</td>
+                        <td className="px-2 py-1.5">{dept.instructor_count}</td>
+                        <td className="px-2 py-1.5">
                           {dept.is_active ? "Active" : "Inactive"}
                         </td>
-                        <td className="px-2 py-2">
-                          <div className="flex flex-wrap gap-2">
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              onClick={() =>
-                                openEditDepartment(dept.department_id)
-                              }
-                            >
-                              <PencilIcon className="size-3.5" />
-                              Edit
-                            </Button>
+                        <td className="px-2 py-1.5">
+                          <div className="flex flex-wrap justify-end gap-1">
+                            <Tooltip>
+                              <TooltipTrigger
+                                render={
+                                  <Button
+                                    type="button"
+                                    size="icon-sm"
+                                    variant="ghost"
+                                    aria-label="Edit department"
+                                    onClick={() =>
+                                      openEditDepartment(dept.department_id)
+                                    }
+                                  >
+                                    <PencilIcon />
+                                  </Button>
+                                }
+                              />
+                              <TooltipContent>Edit</TooltipContent>
+                            </Tooltip>
                             <form action={toggleAction}>
                               <input
                                 type="hidden"
@@ -268,32 +280,53 @@ export function DepartmentsManager({
                                 name="is_active"
                                 value={dept.is_active ? "0" : "1"}
                               />
-                              <Button
-                                type="submit"
-                                size="sm"
-                                variant="secondary"
-                                disabled={togglePending}
-                              >
-                                {dept.is_active ? "Deactivate" : "Activate"}
-                              </Button>
+                              <Tooltip>
+                                <TooltipTrigger
+                                  render={
+                                    <Button
+                                      type="submit"
+                                      size="icon-sm"
+                                      variant="ghost"
+                                      disabled={togglePending}
+                                      aria-label={
+                                        dept.is_active
+                                          ? "Deactivate department"
+                                          : "Activate department"
+                                      }
+                                    >
+                                      <PowerIcon />
+                                    </Button>
+                                  }
+                                />
+                                <TooltipContent>
+                                  {dept.is_active ? "Deactivate" : "Activate"}
+                                </TooltipContent>
+                              </Tooltip>
                             </form>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="destructive"
-                              onClick={() =>
-                                openDeleteDepartment(dept.department_id)
-                              }
-                            >
-                              <Trash2Icon className="size-3.5" />
-                              Delete
-                            </Button>
+                            <Tooltip>
+                              <TooltipTrigger
+                                render={
+                                  <Button
+                                    type="button"
+                                    size="icon-sm"
+                                    variant="ghost"
+                                    aria-label="Delete department"
+                                    onClick={() =>
+                                      openDeleteDepartment(dept.department_id)
+                                    }
+                                  >
+                                    <Trash2Icon />
+                                  </Button>
+                                }
+                              />
+                              <TooltipContent>Delete</TooltipContent>
+                            </Tooltip>
                           </div>
                         </td>
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </table>  
               </div>
               <TablePagination
                 id="departments-rows-per-page"
@@ -399,8 +432,14 @@ export function DepartmentsManager({
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={deleteDialogOpen} onOpenChange={closeDeleteDepartment}>
-        <AlertDialogContent>
+      <AlertDialog
+        open={deleteDialogOpen}
+        onOpenChange={(next) => {
+          if (deletePending) return;
+          closeDeleteDepartment(next);
+        }}
+      >
+        <AlertDialogContent size="sm">
           <AlertDialogHeader>
             <AlertDialogMedia className="bg-destructive/10 text-destructive">
               <Trash2Icon />
@@ -432,9 +471,15 @@ export function DepartmentsManager({
               disabled={deletePending || !deleting}
             >
               {deletePending ? (
-                <Loader2 className="size-4 animate-spin" />
+                <>
+                  <Loader2 className="animate-spin" />
+                  Deleting…
+                </>
               ) : (
-                "Delete department"
+                <>
+                  <Trash2Icon />
+                  Delete
+                </>
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

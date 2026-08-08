@@ -35,6 +35,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Card,
   CardContent,
@@ -44,6 +45,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 import {
   Table,
   TableBody,
@@ -61,6 +63,10 @@ import {
 const initialState: GuidanceActionState = {};
 const selectClassName =
   "h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+
+function nameInitials(firstName: string, lastName: string) {
+  return `${firstName?.[0] || ""}${lastName?.[0] || ""}`.toUpperCase() || "?";
+}
 
 export function InstructorsManager({
   instructors,
@@ -169,21 +175,35 @@ export function InstructorsManager({
                   {pageItems.map((instructor) => (
                     <TableRow key={instructor.id}>
                       <TableCell>
-                        <div>
-                          <p className="font-medium">{instructor.full_name}</p>
-                          {instructor.email ? (
-                            <p className="text-xs text-muted-foreground">
-                              {instructor.email}
-                            </p>
-                          ) : null}
+                        <div className="flex items-start gap-2.5">
+                          <Avatar className="size-8 shrink-0">
+                            {instructor.profile_picture ? (
+                              <AvatarImage
+                                src={instructor.profile_picture}
+                                alt={instructor.full_name}
+                              />
+                            ) : null}
+                            <AvatarFallback className="text-xs">
+                              {nameInitials(
+                                instructor.first_name,
+                                instructor.last_name
+                              )}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0">
+                            <p className="font-medium">{instructor.full_name}</p>
+                            {instructor.email ? (
+                              <p className="truncate text-xs text-muted-foreground">
+                                {instructor.email}
+                              </p>
+                            ) : null}
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell>{instructor.employee_no || "—"}</TableCell>
                       <TableCell>{instructor.designation || "—"}</TableCell>
                       <TableCell>
-                        {instructor.department_code
-                          ? `${instructor.department_code} · ${instructor.department_name}`
-                          : "—"}
+                        {instructor.department_name || "—"}
                       </TableCell>
                       <TableCell>
                         <span
@@ -204,7 +224,7 @@ export function InstructorsManager({
                                 <Button
                                   type="button"
                                   size="icon-sm"
-                                  variant="outline"
+                                  variant="ghost"
                                   aria-label="Edit"
                                   onClick={() => setEditingId(instructor.id)}
                                 >
@@ -260,7 +280,7 @@ export function InstructorsManager({
                                 <Button
                                   type="button"
                                   size="icon-sm"
-                                  variant="outline"
+                                  variant="ghost"
                                   aria-label="Reset password"
                                   onClick={() => setResetId(instructor.id)}
                                 >
@@ -315,10 +335,9 @@ export function InstructorsManager({
               </div>
               <div className="space-y-1.5 sm:col-span-2">
                 <Label htmlFor="create-password">Temporary password</Label>
-                <Input
+                <PasswordInput
                   id="create-password"
                   name="password"
-                  type="password"
                   minLength={8}
                   required
                 />
@@ -550,10 +569,9 @@ export function InstructorsManager({
               />
               <div className="space-y-2">
                 <Label htmlFor="reset-new_password">New password</Label>
-                <Input
+                <PasswordInput
                   id="reset-new_password"
                   name="new_password"
-                  type="password"
                   minLength={8}
                   required
                 />

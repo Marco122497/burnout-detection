@@ -218,60 +218,60 @@ export function GuidanceStudentMonitoring({
                 <table className="w-full min-w-[1100px] text-left text-sm">
                   <thead className="border-b text-muted-foreground">
                     <tr>
-                      <th className="px-2 py-2 font-medium">Student</th>
-                      <th className="px-2 py-2 font-medium">Department</th>
-                      <th className="px-2 py-2 font-medium">Year</th>
-                      <th className="px-2 py-2 font-medium">Stress</th>
-                      <th className="px-2 py-2 font-medium">Workload</th>
-                      <th className="px-2 py-2 font-medium">Study</th>
-                      <th className="px-2 py-2 font-medium">Sleep</th>
-                      <th className="px-2 py-2 font-medium">MFBI</th>
-                      <th className="px-2 py-2 font-medium">Risk</th>
-                      <th className="px-2 py-2 font-medium">Week</th>
-                      <th className="px-2 py-2 font-medium">History</th>
+                      <th className="px-2 py-1.5 font-medium">Student</th>
+                      <th className="px-2 py-1.5 font-medium">Department</th>
+                      <th className="px-2 py-1.5 font-medium">Year</th>
+                      <th className="px-2 py-1.5 font-medium">Stress</th>
+                      <th className="px-2 py-1.5 font-medium">Workload</th>
+                      <th className="px-2 py-1.5 font-medium">Study</th>
+                      <th className="px-2 py-1.5 font-medium">Sleep</th>
+                      <th className="px-2 py-1.5 font-medium">MFBI</th>
+                      <th className="px-2 py-1.5 font-medium">Risk</th>
+                      <th className="px-2 py-1.5 font-medium">Week</th>
+                      <th className="px-2 py-1.5 font-medium">History</th>
                     </tr>
                   </thead>
                   <tbody>
                     {pageItems.map((row) => (
                       <tr key={row.id} className="border-b last:border-0">
-                        <td className="px-2 py-2">
+                        <td className="px-2 py-1.5">
                           <p className="font-medium">{row.full_name}</p>
                           <p className="text-xs text-muted-foreground">
                             {row.student_number || "—"}
                           </p>
                         </td>
-                        <td className="px-2 py-2">
+                        <td className="px-2 py-1.5">
                           {row.department_name || "—"}
                         </td>
-                        <td className="px-2 py-2">{row.year_level ?? "—"}</td>
-                        <td className="px-2 py-2">
+                        <td className="px-2 py-1.5">{row.year_level ?? "—"}</td>
+                        <td className="px-2 py-1.5">
                           {row.stress_level
                             ? `${row.stress_level} (${row.stress_score})`
                             : "—"}
                         </td>
-                        <td className="px-2 py-2">
+                        <td className="px-2 py-1.5">
                           {row.academic_workload ?? "—"}
                         </td>
-                        <td className="px-2 py-2">
+                        <td className="px-2 py-1.5">
                           {row.study_time != null ? `${row.study_time}h` : "—"}
                         </td>
-                        <td className="px-2 py-2">
+                        <td className="px-2 py-1.5">
                           {row.sleep_hours != null
                             ? `${row.sleep_hours}`
                             : "—"}
                         </td>
-                        <td className="px-2 py-2">
+                        <td className="px-2 py-1.5">
                           {row.mfbi_score != null
                             ? row.mfbi_score.toFixed(2)
                             : "—"}
                         </td>
-                        <td className="px-2 py-2">
+                        <td className="px-2 py-1.5">
                           {row.prediction || row.burnout_level || "—"}
                         </td>
-                        <td className="px-2 py-2">
+                        <td className="px-2 py-1.5">
                           {row.submittedThisWeek ? "Submitted" : "Pending"}
                         </td>
-                        <td className="px-2 py-2">
+                        <td className="px-2 py-1.5">
                           {(() => {
                             const viewHref = `/guidance/monitoring/${row.id}`;
                             const viewLoading =

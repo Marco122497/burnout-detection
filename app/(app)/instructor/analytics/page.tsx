@@ -1,4 +1,7 @@
+import { ChartPieIcon } from "lucide-react";
+
 import { InstructorAnalyticsView } from "@/components/instructor/instructor-analytics";
+import { PageHeading } from "@/components/layout/page-heading";
 import { requireRole } from "@/lib/auth/session";
 import {
   getDepartmentName,
@@ -18,16 +21,11 @@ export default async function InstructorAnalyticsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
-          Instructor Burnout Analytics
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Class overview, risk distribution, trends, and students needing
-          attention
-          {departmentName ? ` for ${departmentName}` : ""}.
-        </p>
-      </div>
+      <PageHeading
+        title="Instructor Burnout Analytics"
+        description={`Class overview, risk distribution, trends, and students needing attention${departmentName ? ` for ${departmentName}` : ""}.`}
+        icon={ChartPieIcon}
+      />
       <InstructorAnalyticsView data={data} departmentName={departmentName} />
     </div>
   );

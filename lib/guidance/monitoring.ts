@@ -301,7 +301,7 @@ export async function getUniversityWeeklySeries(supabase: SupabaseClient) {
   const term = await getActiveTerm(supabase);
   let query = supabase
     .from("weekly_monitoring")
-    .select("week_number, mfbi_results(mfbi_score)");
+    .select("week_number, mfbi_results(mfbi_score, burnout_risk_level)");
 
   if (term?.term_id) {
     query = query.eq("term_id", term.term_id);
@@ -309,23 +309,47 @@ export async function getUniversityWeeklySeries(supabase: SupabaseClient) {
 
   const { data } = await query;
 
-  const weeklyMap = new Map<number, number[]>();
+  const weeklyMap = new Map<
+    number,
+    { scores: number[]; low: number; moderate: number; high: number }
+  >();
+
   for (const row of data ?? []) {
     const mfbi = Array.isArray(row.mfbi_results)
       ? row.mfbi_results[0]
       : row.mfbi_results;
-    if (row.week_number == null || mfbi?.mfbi_score == null) continue;
-    const list = weeklyMap.get(row.week_number) ?? [];
-    list.push(Number(mfbi.mfbi_score));
-    weeklyMap.set(row.week_number, list);
+    if (row.week_number == null) continue;
+
+    const entry = weeklyMap.get(row.week_number) ?? {
+      scores: [],
+      low: 0,
+      moderate: 0,
+      high: 0,
+    };
+
+    if (mfbi?.mfbi_score != null) {
+      entry.scores.push(Number(mfbi.mfbi_score));
+    }
+
+    const bucket = riskBucket(mfbi?.burnout_risk_level ?? null);
+    if (bucket === "Low") entry.low += 1;
+    else if (bucket === "Moderate") entry.moderate += 1;
+    else if (bucket === "High") entry.high += 1;
+
+    weeklyMap.set(row.week_number, entry);
   }
 
   return [...weeklyMap.entries()]
     .sort(([a], [b]) => a - b)
-    .map(([week, scores]) => ({
+    .map(([week, entry]) => ({
       week,
-      average: scores.reduce((a, b) => a + b, 0) / scores.length,
-      count: scores.length,
+      average: entry.scores.length
+        ? entry.scores.reduce((a, b) => a + b, 0) / entry.scores.length
+        : 0,
+      count: entry.scores.length,
+      lowCount: entry.low,
+      moderateCount: entry.moderate,
+      highCount: entry.high,
     }));
 }
 
@@ -343,7 +367,14 @@ function round2(value: number) {
 
 export function getGuidanceAnalytics(
   rows: GuidanceStudentRow[],
-  weeklyTrends: { week: number; average: number; count: number }[] = []
+  weeklyTrends: {
+    week: number;
+    average: number;
+    count: number;
+    lowCount?: number;
+    moderateCount?: number;
+    highCount?: number;
+  }[] = []
 ) {
   const avg = (values: number[]) =>
     values.length
@@ -494,6 +525,7 @@ export function getGuidanceAnalytics(
     {
       key: "stress",
       label: "Stress Level",
+      scale: "0–40 (PSS)",
       normalized: normalized.stress,
       percent:
         contributionSum > 0 && normalized.stress != null
@@ -503,6 +535,7 @@ export function getGuidanceAnalytics(
     {
       key: "sleep",
       label: "Sleep Risk",
+      scale: "0–100",
       normalized: normalized.sleep,
       percent:
         contributionSum > 0 && normalized.sleep != null
@@ -512,6 +545,7 @@ export function getGuidanceAnalytics(
     {
       key: "workload",
       label: "Academic Workload",
+      scale: "0–10",
       normalized: normalized.workload,
       percent:
         contributionSum > 0 && normalized.workload != null
@@ -521,6 +555,7 @@ export function getGuidanceAnalytics(
     {
       key: "studyTime",
       label: "Study Time",
+      scale: "hours / day",
       normalized: normalized.studyTime,
       percent:
         contributionSum > 0 && normalized.studyTime != null
@@ -565,6 +600,7 @@ export function getGuidanceAnalytics(
       mfbi_score: r.mfbi_score,
       risk: (r.prediction || r.burnout_level || "High") as string,
       status: "Immediate" as const,
+      monitoring_date: r.monitoring_date,
     }));
 
   const previousTrend =

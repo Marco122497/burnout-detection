@@ -37,10 +37,15 @@ function initials(profile: Profile) {
   return `${profile.first_name?.[0] || ""}${profile.last_name?.[0] || ""}`.toUpperCase();
 }
 
+function displayName(profile: Profile) {
+  return [profile.first_name, profile.last_name].filter(Boolean).join(" ");
+}
+
 export function NavUser({ profile }: { profile: Profile }) {
   const [pending, startTransition] = useTransition();
   const [logoutOpen, setLogoutOpen] = useState(false);
   const { navigate } = useNavigationPending();
+  const name = displayName(profile);
 
   return (
     <>
@@ -48,7 +53,7 @@ export function NavUser({ profile }: { profile: Profile }) {
         <DropdownMenuTrigger className="flex items-center gap-2 rounded-md outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring/50 data-popup-open:opacity-90">
           <div className="hidden max-w-36 text-right sm:grid">
             <span className="truncate text-sm font-medium leading-none">
-              {profile.full_name}
+              {name}
             </span>
             <span className="mt-0.5 truncate text-xs text-muted-foreground">
               {profile.role}
@@ -58,7 +63,7 @@ export function NavUser({ profile }: { profile: Profile }) {
             {profile.profile_picture ? (
               <AvatarImage
                 src={profile.profile_picture}
-                alt={profile.full_name}
+                alt={name}
               />
             ) : null}
             <AvatarFallback className="rounded-lg text-xs">
@@ -76,7 +81,7 @@ export function NavUser({ profile }: { profile: Profile }) {
                   {profile.profile_picture ? (
                     <AvatarImage
                       src={profile.profile_picture}
-                      alt={profile.full_name}
+                      alt={name}
                     />
                   ) : null}
                   <AvatarFallback className="rounded-lg">
@@ -84,7 +89,7 @@ export function NavUser({ profile }: { profile: Profile }) {
                   </AvatarFallback>
                 </Avatar>
                 <div className="grid min-w-0 flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">{profile.full_name}</span>
+                  <span className="truncate font-medium">{name}</span>
                   <span className="truncate text-xs text-muted-foreground">
                     {profile.student_number ||
                       profile.employee_no ||

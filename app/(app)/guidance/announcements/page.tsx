@@ -1,4 +1,7 @@
+import { MegaphoneIcon } from "lucide-react";
+
 import { GuidanceAnnouncementsManager } from "@/components/guidance/guidance-announcements";
+import { PageHeading } from "@/components/layout/page-heading";
 import { requireRole } from "@/lib/auth/session";
 import { getDepartments } from "@/lib/guidance/queries";
 import type { AnnouncementRow } from "@/lib/instructor/queries";
@@ -40,16 +43,11 @@ export default async function GuidanceAnnouncementsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-sm font-medium text-primary">Announcements</p>
-        <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
-          School announcements
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Create announcements for the entire department or target by
-          department, year level, or section.
-        </p>
-      </div>
+      <PageHeading
+        title="School announcements"
+        description="Create announcements for the entire department or target by department, year level, or section."
+        icon={MegaphoneIcon}
+      />
       <GuidanceAnnouncementsManager
         announcements={(data ?? []) as AnnouncementRow[]}
         departments={departments}

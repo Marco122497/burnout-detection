@@ -372,14 +372,14 @@ export function InstructorAnalyticsView({
                 <table className="w-full min-w-[560px] text-left text-sm">
                   <thead className="border-b text-muted-foreground">
                     <tr>
-                      <th className="px-2 py-2 font-medium">Student ID</th>
-                      <th className="px-2 py-2 font-medium">Student Name</th>
-                      <th className="px-2 py-2 font-medium">Burnout Score</th>
-                      <th className="px-2 py-2 font-medium">
+                      <th className="px-2 py-1.5 font-medium">Student ID</th>
+                      <th className="px-2 py-1.5 font-medium">Student Name</th>
+                      <th className="px-2 py-1.5 font-medium">Burnout Score</th>
+                      <th className="px-2 py-1.5 font-medium">
                         Burnout Risk Level
                       </th>
-                      <th className="px-2 py-2 font-medium">Status</th>
-                      <th className="px-2 py-2 font-medium">Action</th>
+                      <th className="px-2 py-1.5 font-medium">Status</th>
+                      <th className="px-2 py-1.5 font-medium">Action</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -391,24 +391,24 @@ export function InstructorAnalyticsView({
                           key={student.id}
                           className="border-b last:border-0"
                         >
-                          <td className="px-2 py-2 tabular-nums text-muted-foreground">
+                          <td className="px-2 py-1.5 tabular-nums text-muted-foreground">
                             {student.student_number || "—"}
                           </td>
-                          <td className="px-2 py-2 font-medium">
+                          <td className="px-2 py-1.5 font-medium">
                             {student.full_name}
                           </td>
-                          <td className="px-2 py-2 tabular-nums">
+                          <td className="px-2 py-1.5 tabular-nums">
                             {student.mfbi_score != null
                               ? student.mfbi_score.toFixed(2)
                               : "—"}
                           </td>
-                          <td className="px-2 py-2">{student.risk}</td>
-                          <td className="px-2 py-2">
+                          <td className="px-2 py-1.5">{student.risk}</td>
+                          <td className="px-2 py-1.5">
                             <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-900">
                               {student.status}
                             </span>
                           </td>
-                          <td className="px-2 py-2">
+                          <td className="px-2 py-1.5">
                             <Button
                               type="button"
                               variant="outline"

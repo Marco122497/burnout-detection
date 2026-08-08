@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { EyeIcon, EyeOffIcon, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { login, type AuthActionState } from "@/app/actions/auth";
@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 import { cn } from "@/lib/utils";
 
 const initialState: AuthActionState = {};
@@ -26,7 +27,6 @@ const initialState: AuthActionState = {};
 export function LoginForm() {
   const searchParams = useSearchParams();
   const [state, formAction, pending] = useActionState(login, initialState);
-  const [showPassword, setShowPassword] = useState(false);
   useActionToast(state);
 
   const queryError = searchParams.get("error");
@@ -90,26 +90,12 @@ export function LoginForm() {
               </Link>
             </div>
             <div className="relative">
-              <Input
+              <PasswordInput
                 id="password"
                 name="password"
-                type={showPassword ? "text" : "password"}
                 autoComplete="current-password"
-                className="pr-9"
                 required
               />
-              <button
-                type="button"
-                onClick={() => setShowPassword((prev) => !prev)}
-                className="absolute top-1/2 right-2 flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground"
-                aria-label={showPassword ? "Hide password" : "Show password"}
-              >
-                {showPassword ? (
-                  <EyeOffIcon className="size-4" />
-                ) : (
-                  <EyeIcon className="size-4" />
-                )}
-              </button>
             </div>
           </div>
         </CardContent>

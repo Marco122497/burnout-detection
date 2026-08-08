@@ -1,4 +1,7 @@
+import { ClipboardCheckIcon } from "lucide-react";
+
 import { WeeklyMonitoringForm } from "@/components/student/weekly-monitoring-form";
+import { PageHeading } from "@/components/layout/page-heading";
 import { requireRole } from "@/lib/auth/session";
 import { getWeeklyMonitoringSections } from "@/lib/student/questionnaires";
 import { getLatestBurnoutSnapshot } from "@/lib/student/queries";
@@ -12,16 +15,11 @@ export default async function StudentMonitoringPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-sm font-medium text-primary">Student module</p>
-        <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
-          Weekly Monitoring
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          One consolidated form: PSS, Academic Workload, Study Time, and Sleep
-          Hours. Results are scored, normalized, and predicted automatically.
-        </p>
-      </div>
+      <PageHeading
+        title="Weekly Monitoring"
+        description="One consolidated form: PSS, Academic Workload, Study Time, and Sleep Hours. Results are scored, normalized, and predicted automatically."
+        icon={ClipboardCheckIcon}
+      />
       <WeeklyMonitoringForm
         term={snapshot.term}
         currentWeek={snapshot.currentWeek}

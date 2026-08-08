@@ -240,16 +240,16 @@ export function BurnoutHistoryView({
               <table className="w-full min-w-[860px] text-left text-sm">
                 <thead className="border-b text-muted-foreground">
                   <tr>
-                    <th className="px-2 py-2 font-medium">Week</th>
-                    <th className="px-2 py-2 font-medium">Submitted</th>
-                    <th className="px-2 py-2 font-medium">PSS</th>
-                    <th className="px-2 py-2 font-medium">Workload</th>
-                    <th className="px-2 py-2 font-medium">Study</th>
-                    <th className="px-2 py-2 font-medium">Sleep Risk</th>
-                    <th className="px-2 py-2 font-medium">MFBI</th>
-                    <th className="px-2 py-2 font-medium">Risk</th>
-                    <th className="px-2 py-2 font-medium">Prediction</th>
-                    <th className="px-2 py-2 text-right font-medium">
+                    <th className="px-2 py-1.5 font-medium">Week</th>
+                    <th className="px-2 py-1.5 font-medium">Submitted</th>
+                    <th className="px-2 py-1.5 font-medium">PSS</th>
+                    <th className="px-2 py-1.5 font-medium">Workload</th>
+                    <th className="px-2 py-1.5 font-medium">Study</th>
+                    <th className="px-2 py-1.5 font-medium">Sleep Risk</th>
+                    <th className="px-2 py-1.5 font-medium">MFBI</th>
+                    <th className="px-2 py-1.5 font-medium">Risk</th>
+                    <th className="px-2 py-1.5 font-medium">Prediction</th>
+                    <th className="px-2 py-1.5 text-right font-medium">
                       Answers
                     </th>
                   </tr>
@@ -261,26 +261,26 @@ export function BurnoutHistoryView({
                     return (
                       <Fragment key={row.monitoring_id}>
                         <tr className="border-b last:border-0">
-                          <td className="px-2 py-2">W{row.week_number}</td>
-                          <td className="px-2 py-2">
+                          <td className="px-2 py-1.5">W{row.week_number}</td>
+                          <td className="px-2 py-1.5">
                             {row.monitoring_date
                               ? new Date(row.monitoring_date).toLocaleString()
                               : "—"}
                           </td>
-                          <td className="px-2 py-2">{row.stress_score}</td>
-                          <td className="px-2 py-2">{row.academic_workload}</td>
-                          <td className="px-2 py-2">{row.study_time}</td>
-                          <td className="px-2 py-2">{row.sleep_hours}</td>
-                          <td className="px-2 py-2">
+                          <td className="px-2 py-1.5">{row.stress_score}</td>
+                          <td className="px-2 py-1.5">{row.academic_workload}</td>
+                          <td className="px-2 py-1.5">{row.study_time}</td>
+                          <td className="px-2 py-1.5">{row.sleep_hours}</td>
+                          <td className="px-2 py-1.5">
                             {result ? result.mfbi_score.toFixed(2) : "—"}
                           </td>
-                          <td className="px-2 py-2">
+                          <td className="px-2 py-1.5">
                             {result?.burnout_level ?? "—"}
                           </td>
-                          <td className="px-2 py-2">
+                          <td className="px-2 py-1.5">
                             {row.prediction?.final_prediction ?? "—"}
                           </td>
-                          <td className="px-2 py-2 text-right">
+                          <td className="px-2 py-1.5 text-right">
                             <Button
                               type="button"
                               size="sm"

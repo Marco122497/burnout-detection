@@ -1,4 +1,5 @@
 import { AppShell } from "@/components/layout/app-shell";
+import type { NavNotification } from "@/components/layout/nav-notifications";
 import { requireUser } from "@/lib/auth/session";
 
 export default async function AppLayout({
@@ -6,7 +7,26 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { profile } = await requireUser();
+  const { supabase, user, profile } = await requireUser();
 
-  return <AppShell profile={profile}>{children}</AppShell>;
+  const { data: rows } = await supabase
+    .from("notifications")
+    .select("notification_id, title, message, is_read, created_at")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(8);
+
+  const notifications: NavNotification[] = (rows ?? []).map((row) => ({
+    id: row.notification_id,
+    title: row.title,
+    content: row.message,
+    date: row.created_at,
+    isRead: Boolean(row.is_read),
+  }));
+
+  return (
+    <AppShell profile={profile} notifications={notifications}>
+      {children}
+    </AppShell>
+  );
 }

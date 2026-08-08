@@ -1,7 +1,7 @@
 "use client";
 
 import type { Profile } from "@/lib/auth/roles";
-import { getDashboardPath } from "@/lib/auth/roles";
+import { getDashboardPath, isStudentRole } from "@/lib/auth/roles";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppBreadcrumb } from "@/components/layout/app-breadcrumb";
 import { AppPageSkeleton } from "@/components/layout/app-page-skeleton";
@@ -9,7 +9,12 @@ import {
   NavigationPendingProvider,
   useNavigationPending,
 } from "@/components/layout/navigation-pending";
+import {
+  NavNotifications,
+  type NavNotification,
+} from "@/components/layout/nav-notifications";
 import { NavUser } from "@/components/layout/nav-user";
+import { ModeToggle } from "@/components/mode-toggle";
 import { Separator } from "@/components/ui/separator";
 import {
   SidebarInset,
@@ -19,13 +24,18 @@ import {
 
 function AppShellContent({
   profile,
+  notifications,
   children,
 }: {
   profile: Profile;
+  notifications: NavNotification[];
   children: React.ReactNode;
 }) {
   const dashboardHref = getDashboardPath(profile.role);
   const { isPending } = useNavigationPending();
+  const viewAllHref = isStudentRole(profile.role)
+    ? "/student/notifications"
+    : null;
 
   return (
     <>
@@ -40,7 +50,14 @@ function AppShellContent({
             />
             <AppBreadcrumb dashboardHref={dashboardHref} />
           </div>
-          <NavUser profile={profile} />
+          <div className="flex items-center gap-2">
+            <ModeToggle />
+            <NavNotifications
+              notifications={notifications}
+              viewAllHref={viewAllHref}
+            />
+            <NavUser profile={profile} />
+          </div>
         </header>
         <div className="flex flex-1 flex-col gap-4 p-4 md:p-6">
           {isPending ? <AppPageSkeleton /> : children}
@@ -52,15 +69,19 @@ function AppShellContent({
 
 export function AppShell({
   profile,
+  notifications = [],
   children,
 }: {
   profile: Profile;
+  notifications?: NavNotification[];
   children: React.ReactNode;
 }) {
   return (
     <SidebarProvider>
       <NavigationPendingProvider>
-        <AppShellContent profile={profile}>{children}</AppShellContent>
+        <AppShellContent profile={profile} notifications={notifications}>
+          {children}
+        </AppShellContent>
       </NavigationPendingProvider>
     </SidebarProvider>
   );

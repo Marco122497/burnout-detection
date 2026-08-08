@@ -19,6 +19,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 
 const initialState: AuthActionState = {};
@@ -49,10 +50,9 @@ export function PasswordForm({ mode }: PasswordFormProps) {
           {mode === "change" && (
             <div className="space-y-2">
               <Label htmlFor="current_password">Current password</Label>
-              <Input
+              <PasswordInput
                 id="current_password"
                 name="current_password"
-                type="password"
                 autoComplete="current-password"
                 required
               />
@@ -60,10 +60,9 @@ export function PasswordForm({ mode }: PasswordFormProps) {
           )}
           <div className="space-y-2">
             <Label htmlFor="new_password">New password</Label>
-            <Input
+            <PasswordInput
               id="new_password"
               name="new_password"
-              type="password"
               autoComplete="new-password"
               minLength={8}
               required
@@ -71,10 +70,9 @@ export function PasswordForm({ mode }: PasswordFormProps) {
           </div>
           <div className="space-y-2">
             <Label htmlFor="confirm_password">Confirm new password</Label>
-            <Input
+            <PasswordInput
               id="confirm_password"
               name="confirm_password"
-              type="password"
               autoComplete="new-password"
               minLength={8}
               required

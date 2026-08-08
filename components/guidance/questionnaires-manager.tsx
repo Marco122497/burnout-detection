@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
-import { ArrowDownIcon, ArrowUpIcon, Loader2, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { ArrowDownIcon, ArrowUpIcon, Loader2, PencilIcon, PlusIcon, PowerIcon, Trash2Icon } from "lucide-react";
 
 import {
   createQuestion,
@@ -38,6 +38,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -623,7 +628,7 @@ export function QuestionnaireDetailManager({
                     {question.is_active ? "Active" : "Inactive"}
                   </p>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap justify-end gap-1">
                   <form action={moveAction}>
                     <input
                       type="hidden"
@@ -636,15 +641,22 @@ export function QuestionnaireDetailManager({
                       value={questionnaire.questionnaire_id}
                     />
                     <input type="hidden" name="direction" value="up" />
-                    <Button
-                      type="submit"
-                      size="icon-sm"
-                      variant="outline"
-                      disabled={movePending || index === 0}
-                      aria-label="Move up"
-                    >
-                      <ArrowUpIcon className="size-3.5" />
-                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger
+                        render={
+                          <Button
+                            type="submit"
+                            size="icon-sm"
+                            variant="outline"
+                            disabled={movePending || index === 0}
+                            aria-label="Move up"
+                          >
+                            <ArrowUpIcon />
+                          </Button>
+                        }
+                      />
+                      <TooltipContent>Move up</TooltipContent>
+                    </Tooltip>
                   </form>
                   <form action={moveAction}>
                     <input
@@ -658,25 +670,41 @@ export function QuestionnaireDetailManager({
                       value={questionnaire.questionnaire_id}
                     />
                     <input type="hidden" name="direction" value="down" />
-                    <Button
-                      type="submit"
-                      size="icon-sm"
-                      variant="outline"
-                      disabled={movePending || index === questions.length - 1}
-                      aria-label="Move down"
-                    >
-                      <ArrowDownIcon className="size-3.5" />
-                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger
+                        render={
+                          <Button
+                            type="submit"
+                            size="icon-sm"
+                            variant="outline"
+                            disabled={
+                              movePending || index === questions.length - 1
+                            }
+                            aria-label="Move down"
+                          >
+                            <ArrowDownIcon />
+                          </Button>
+                        }
+                      />
+                      <TooltipContent>Move down</TooltipContent>
+                    </Tooltip>
                   </form>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => openEditQuestion(question.question_id)}
-                  >
-                    <PencilIcon className="size-3.5" />
-                    Edit
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon-sm"
+                          aria-label="Edit question"
+                          onClick={() => openEditQuestion(question.question_id)}
+                        >
+                          <PencilIcon />
+                        </Button>
+                      }
+                    />
+                    <TooltipContent>Edit</TooltipContent>
+                  </Tooltip>
                   <form action={toggleAction}>
                     <input
                       type="hidden"
@@ -693,24 +721,45 @@ export function QuestionnaireDetailManager({
                       name="is_active"
                       value={question.is_active ? "0" : "1"}
                     />
-                    <Button
-                      type="submit"
-                      size="sm"
-                      variant="secondary"
-                      disabled={togglePending}
-                    >
-                      {question.is_active ? "Deactivate" : "Activate"}
-                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger
+                        render={
+                          <Button
+                            type="submit"
+                            size="icon-sm"
+                            variant="ghost"
+                            disabled={togglePending}
+                            aria-label={
+                              question.is_active ? "Deactivate" : "Activate"
+                            }
+                          >
+                            <PowerIcon />
+                          </Button>
+                        }
+                      />
+                      <TooltipContent>
+                        {question.is_active ? "Deactivate" : "Activate"}
+                      </TooltipContent>
+                    </Tooltip>
                   </form>
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => openDeleteQuestion(question.question_id)}
-                  >
-                    <Trash2Icon className="size-3.5" />
-                    Delete
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label="Delete question"
+                          onClick={() =>
+                            openDeleteQuestion(question.question_id)
+                          }
+                        >
+                          <Trash2Icon />
+                        </Button>
+                      }
+                    />
+                    <TooltipContent>Delete</TooltipContent>
+                  </Tooltip>
                 </div>
               </div>
             ))
@@ -817,8 +866,14 @@ export function QuestionnaireDetailManager({
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={deleteDialogOpen} onOpenChange={closeDeleteQuestion}>
-        <AlertDialogContent>
+      <AlertDialog
+        open={deleteDialogOpen}
+        onOpenChange={(next) => {
+          if (deletePending) return;
+          closeDeleteQuestion(next);
+        }}
+      >
+        <AlertDialogContent size="sm">
           <AlertDialogHeader>
             <AlertDialogMedia className="bg-destructive/10 text-destructive">
               <Trash2Icon />
@@ -855,9 +910,15 @@ export function QuestionnaireDetailManager({
               disabled={deletePending || !deleting}
             >
               {deletePending ? (
-                <Loader2 className="size-4 animate-spin" />
+                <>
+                  <Loader2 className="animate-spin" />
+                  Deleting…
+                </>
               ) : (
-                "Delete question"
+                <>
+                  <Trash2Icon />
+                  Delete
+                </>
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

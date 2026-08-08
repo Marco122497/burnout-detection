@@ -35,6 +35,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Card,
   CardContent,
@@ -44,6 +45,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 import {
   Table,
   TableBody,
@@ -61,6 +63,10 @@ import {
 const initialState: GuidanceActionState = {};
 const selectClassName =
   "h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+
+function nameInitials(firstName: string, lastName: string) {
+  return `${firstName?.[0] || ""}${lastName?.[0] || ""}`.toUpperCase() || "?";
+}
 
 export function AdminsManager({
   admins,
@@ -201,20 +207,33 @@ export function AdminsManager({
                   {pageItems.map((admin) => (
                     <TableRow key={admin.id}>
                       <TableCell>
-                        <div>
-                          <p className="font-medium">
-                            {admin.full_name}
-                            {admin.id === currentUserId ? (
-                              <span className="ml-1.5 text-xs text-muted-foreground">
-                                (you)
-                              </span>
+                        <div className="flex items-start gap-2.5">
+                          <Avatar className="size-8 shrink-0">
+                            {admin.profile_picture ? (
+                              <AvatarImage
+                                src={admin.profile_picture}
+                                alt={admin.full_name}
+                              />
                             ) : null}
-                          </p>
-                          {admin.email ? (
-                            <p className="text-xs text-muted-foreground">
-                              {admin.email}
+                            <AvatarFallback className="text-xs">
+                              {nameInitials(admin.first_name, admin.last_name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0">
+                            <p className="font-medium">
+                              {admin.full_name}
+                              {admin.id === currentUserId ? (
+                                <span className="ml-1.5 text-xs text-muted-foreground">
+                                  (you)
+                                </span>
+                              ) : null}
                             </p>
-                          ) : null}
+                            {admin.email ? (
+                              <p className="truncate text-xs text-muted-foreground">
+                                {admin.email}
+                              </p>
+                            ) : null}
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell>{admin.employee_no || "—"}</TableCell>
@@ -238,7 +257,7 @@ export function AdminsManager({
                                 <Button
                                   type="button"
                                   size="icon-sm"
-                                  variant="outline"
+                                  variant="ghost"
                                   aria-label="Edit"
                                   onClick={() => setEditingId(admin.id)}
                                 >
@@ -296,7 +315,7 @@ export function AdminsManager({
                                 <Button
                                   type="button"
                                   size="icon-sm"
-                                  variant="outline"
+                                  variant="ghost"
                                   aria-label="Reset password"
                                   onClick={() => setResetId(admin.id)}
                                 >
@@ -358,10 +377,9 @@ export function AdminsManager({
                 <Label htmlFor="admin-create-password">
                   Temporary password
                 </Label>
-                <Input
+                <PasswordInput
                   id="admin-create-password"
                   name="password"
-                  type="password"
                   minLength={8}
                   required
                 />
@@ -566,10 +584,9 @@ export function AdminsManager({
               <input type="hidden" name="user_id" value={resetting.id} />
               <div className="space-y-2">
                 <Label htmlFor="admin-reset-new_password">New password</Label>
-                <Input
+                <PasswordInput
                   id="admin-reset-new_password"
                   name="new_password"
-                  type="password"
                   minLength={8}
                   required
                 />
