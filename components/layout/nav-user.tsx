@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
+import Link from "next/link";
 import {
   ChevronsUpDownIcon,
   KeyRoundIcon,
@@ -10,7 +11,6 @@ import {
 
 import { logout } from "@/app/actions/auth";
 import type { Profile } from "@/lib/auth/roles";
-import { useNavigationPending } from "@/components/layout/navigation-pending";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,10 +42,21 @@ function displayName(profile: Profile) {
 }
 
 export function NavUser({ profile }: { profile: Profile }) {
-  const [pending, startTransition] = useTransition();
   const [logoutOpen, setLogoutOpen] = useState(false);
-  const { navigate } = useNavigationPending();
+  const [pending, setPending] = useState(false);
   const name = displayName(profile);
+
+  async function handleLogout() {
+    if (pending) return;
+    setPending(true);
+    try {
+      await logout();
+    } catch {
+      // Session may already be cleared; still leave the app.
+    }
+    // Hard navigation avoids RSC "unexpected response" after auth cookies clear.
+    window.location.assign("/login");
+  }
 
   return (
     <>
@@ -61,10 +72,7 @@ export function NavUser({ profile }: { profile: Profile }) {
           </div>
           <Avatar className="size-8 rounded-lg">
             {profile.profile_picture ? (
-              <AvatarImage
-                src={profile.profile_picture}
-                alt={name}
-              />
+              <AvatarImage src={profile.profile_picture} alt={name} />
             ) : null}
             <AvatarFallback className="rounded-lg text-xs">
               {initials(profile) || <UserRoundIcon className="size-4" />}
@@ -79,10 +87,7 @@ export function NavUser({ profile }: { profile: Profile }) {
               <div className="flex items-center gap-2 py-1">
                 <Avatar className="size-8 rounded-lg">
                   {profile.profile_picture ? (
-                    <AvatarImage
-                      src={profile.profile_picture}
-                      alt={name}
-                    />
+                    <AvatarImage src={profile.profile_picture} alt={name} />
                   ) : null}
                   <AvatarFallback className="rounded-lg">
                     {initials(profile) || <UserRoundIcon className="size-4" />}
@@ -103,11 +108,17 @@ export function NavUser({ profile }: { profile: Profile }) {
           <DropdownMenuSeparator />
 
           <DropdownMenuGroup>
-            <DropdownMenuItem onClick={() => navigate("/profile")}>
+            <DropdownMenuItem
+              render={<Link href="/profile" />}
+              className="cursor-pointer"
+            >
               <UserRoundIcon />
               Profile
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate("/change-password")}>
+            <DropdownMenuItem
+              render={<Link href="/change-password" />}
+              className="cursor-pointer"
+            >
               <KeyRoundIcon />
               Change password
             </DropdownMenuItem>
@@ -117,6 +128,7 @@ export function NavUser({ profile }: { profile: Profile }) {
 
           <DropdownMenuItem
             variant="destructive"
+            className="cursor-pointer"
             onClick={() => setLogoutOpen(true)}
           >
             <LogOutIcon />
@@ -142,13 +154,9 @@ export function NavUser({ profile }: { profile: Profile }) {
             <AlertDialogAction
               variant="destructive"
               disabled={pending}
-              onClick={() => {
-                startTransition(async () => {
-                  await logout();
-                  // Hard navigation avoids RSC "unexpected response" when a
-                  // server-action redirect races the cleared auth session.
-                  window.location.assign("/login");
-                });
+              onClick={(event) => {
+                event.preventDefault();
+                void handleLogout();
               }}
             >
               {pending ? "Signing out…" : "Logout"}
