@@ -1,14 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+import { useEffect } from "react";
 
-import {
-  markNotificationRead,
-  type StudentActionState,
-} from "@/app/actions/student";
-import { useActionToast } from "@/hooks/use-action-toast";
-import { formatDateTime } from "@/lib/auth/roles";
-import { Button } from "@/components/ui/button";
+import { TablePagination } from "@/components/shared/table-pagination";
 import {
   Card,
   CardContent,
@@ -16,8 +10,17 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-
-const initialState: StudentActionState = {};
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { useTablePagination } from "@/hooks/use-table-pagination";
+import { formatDateTime } from "@/lib/auth/roles";
+import { cn } from "@/lib/utils";
 
 export type StudentNotification = {
   notification_id: number;
@@ -34,11 +37,18 @@ export function NotificationsList({
 }: {
   notifications: StudentNotification[];
 }) {
-  const [state, formAction, pending] = useActionState(
-    markNotificationRead,
-    initialState
-  );
-  useActionToast(state);
+  const {
+    page,
+    pageSize,
+    totalItems,
+    pageItems,
+    setPage,
+    setPageSize,
+  } = useTablePagination(notifications, 10);
+
+  useEffect(() => {
+    setPage(1);
+  }, [notifications, setPage]);
 
   return (
     <Card>
@@ -52,44 +62,65 @@ export function NotificationsList({
         {notifications.length === 0 ? (
           <p className="text-sm text-muted-foreground">No notifications yet.</p>
         ) : (
-          notifications.map((item) => (
-            <div
-              key={item.notification_id}
-              className="rounded-lg border p-4 space-y-2"
-            >
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="font-medium">{item.title}</p>
-                <span className="rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                  {item.notification_type}
-                </span>
-                {!item.is_read ? (
-                  <span className="rounded-md bg-primary/10 px-2 py-0.5 text-xs text-primary">
-                    Unread
-                  </span>
-                ) : null}
-              </div>
-              <p className="text-sm text-muted-foreground whitespace-pre-line">
-                {item.message}
-              </p>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-xs text-muted-foreground">
-                  {formatDateTime(item.created_at)}
-                </p>
-                {!item.is_read ? (
-                  <form action={formAction}>
-                    <input
-                      type="hidden"
-                      name="notification_id"
-                      value={item.notification_id}
-                    />
-                    <Button type="submit" size="sm" variant="outline" disabled={pending}>
-                      Mark as read
-                    </Button>
-                  </form>
-                ) : null}
-              </div>
+          <>
+            <div className="overflow-x-auto rounded-lg border">
+              <Table className="min-w-[640px]">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Title</TableHead>
+                    <TableHead>Message</TableHead>
+                    <TableHead>Priority</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Date</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pageItems.map((item) => (
+                    <TableRow
+                      key={item.notification_id}
+                      className={cn(!item.is_read && "bg-primary/5")}
+                    >
+                      <TableCell className="max-w-[12rem] font-medium">
+                        <span className="line-clamp-2">{item.title}</span>
+                      </TableCell>
+                      <TableCell className="max-w-[18rem] text-muted-foreground">
+                        <span className="line-clamp-2 whitespace-pre-line">
+                          {item.message}
+                        </span>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {item.priority}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        <span
+                          className={cn(
+                            "text-xs font-medium",
+                            item.is_read
+                              ? "text-muted-foreground"
+                              : "text-primary"
+                          )}
+                        >
+                          {item.is_read ? "Read" : "Unread"}
+                        </span>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-muted-foreground">
+                        {formatDateTime(item.created_at)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
-          ))
+            <TablePagination
+              page={page}
+              pageSize={pageSize}
+              totalItems={totalItems}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+              pageSizeOptions={[10]}
+              id="notifications-rows"
+            />
+          </>
         )}
       </CardContent>
     </Card>

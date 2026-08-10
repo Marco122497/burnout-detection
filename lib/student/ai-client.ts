@@ -17,6 +17,8 @@ export type EarlyWarningPayload = {
   trend: string;
   next_week_risk: BurnoutLevel | null;
   next_week_confidence: number | null;
+  /** ML weighted risk score in [0, 1], when available. */
+  next_week_score?: number | null;
   week2_risk: BurnoutLevel | null;
   week2_is_ml: boolean;
   warning_message: string | null;
@@ -180,6 +182,7 @@ export async function callBurnoutAiEarlyWarning(
       trend: data.early_warning?.trend ?? "insufficient_history",
       next_week_risk: next?.final_prediction ?? next?.risk_level ?? null,
       next_week_confidence: next?.random_forest_confidence ?? null,
+      next_week_score: next?.risk_score ?? null,
       week2_risk: week2?.risk_level ?? null,
       week2_is_ml: Boolean(week2?.is_ml_prediction),
       warning_message: data.early_warning?.warning_message ?? null,

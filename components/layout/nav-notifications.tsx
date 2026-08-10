@@ -1,7 +1,9 @@
 "use client";
 
-import { BellIcon } from "lucide-react";
+import { useEffect, useState, useTransition } from "react";
+import { BellIcon, CheckCheckIcon, Loader2 } from "lucide-react";
 
+import { markNotificationRead } from "@/app/actions/student";
 import { useNavigationPending } from "@/components/layout/navigation-pending";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,7 +15,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { formatDateTime } from "@/lib/auth/roles";
-import { cn } from "@/lib/utils";
 
 export type NavNotification = {
   id: number;
@@ -31,9 +32,34 @@ export function NavNotifications({
   viewAllHref?: string | null;
 }) {
   const { navigate, isPending, pendingHref } = useNavigationPending();
-  const unreadCount = notifications.filter((item) => !item.isRead).length;
-  const badgeCount = unreadCount > 0 ? unreadCount : notifications.length;
-  const showBadge = notifications.length > 0;
+  const [items, setItems] = useState(notifications);
+  const [pendingId, setPendingId] = useState<number | null>(null);
+  const [markPending, startMarkTransition] = useTransition();
+
+  useEffect(() => {
+    setItems(notifications);
+  }, [notifications]);
+
+  const visibleItems = items.filter((item) => !item.isRead);
+  const unreadCount = visibleItems.length;
+  const showBadge = unreadCount > 0;
+
+  function markAsRead(id: number) {
+    setPendingId(id);
+    startMarkTransition(async () => {
+      const formData = new FormData();
+      formData.set("notification_id", String(id));
+      const result = await markNotificationRead({}, formData);
+      if (!result.error) {
+        setItems((prev) =>
+          prev.map((item) =>
+            item.id === id ? { ...item, isRead: true } : item
+          )
+        );
+      }
+      setPendingId(null);
+    });
+  }
 
   return (
     <DropdownMenu>
@@ -45,7 +71,7 @@ export function NavNotifications({
         <BellIcon className="size-4" />
         {showBadge ? (
           <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] font-medium text-white">
-            {badgeCount > 9 ? "9+" : badgeCount}
+            {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         ) : null}
         <span className="sr-only">Notifications</span>
@@ -62,7 +88,7 @@ export function NavNotifications({
               <span className="text-xs text-muted-foreground">
                 {unreadCount > 0
                   ? `${unreadCount} unread`
-                  : `${notifications.length} item${notifications.length === 1 ? "" : "s"}`}
+                  : "All caught up"}
               </span>
             </div>
           </DropdownMenuLabel>
@@ -70,33 +96,51 @@ export function NavNotifications({
 
         <DropdownMenuSeparator />
 
-        {notifications.length === 0 ? (
+        {visibleItems.length === 0 ? (
           <div className="px-2 py-8 text-center text-sm text-muted-foreground">
-            No notifications yet.
+            No new notifications.
           </div>
         ) : (
           <div className="max-h-80 overflow-x-hidden overflow-y-auto">
-            {notifications.map((item, index) => (
-              <div key={item.id}>
-                {index > 0 ? <DropdownMenuSeparator /> : null}
-                <div
-                  className={cn(
-                    "space-y-1 px-2 py-2.5",
-                    !item.isRead && "bg-primary/5"
-                  )}
-                >
-                  <p className="break-words text-sm font-medium leading-snug">
-                    {item.title}
-                  </p>
-                  <p className="line-clamp-2 break-words text-xs text-muted-foreground">
-                    {item.content}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground">
-                    {formatDateTime(item.date)}
-                  </p>
+            {visibleItems.map((item, index) => {
+              const isMarking = markPending && pendingId === item.id;
+              return (
+                <div key={item.id}>
+                  {index > 0 ? <DropdownMenuSeparator /> : null}
+                  <button
+                    type="button"
+                    disabled={isMarking}
+                    title="Mark as read"
+                    aria-label={`Mark "${item.title}" as read`}
+                    className="flex w-full items-start gap-1 bg-primary/5 px-2 py-2.5 text-left transition-colors hover:bg-primary/10 disabled:opacity-70"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      markAsRead(item.id);
+                    }}
+                  >
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <p className="break-words text-sm font-medium leading-snug">
+                        {item.title}
+                      </p>
+                      <p className="line-clamp-2 break-words text-xs text-muted-foreground">
+                        {item.content}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {formatDateTime(item.date)}
+                      </p>
+                    </div>
+                    <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center text-muted-foreground">
+                      {isMarking ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <CheckCheckIcon className="size-4" />
+                      )}
+                    </span>
+                  </button>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 

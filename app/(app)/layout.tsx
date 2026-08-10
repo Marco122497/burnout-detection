@@ -13,6 +13,7 @@ export default async function AppLayout({
     .from("notifications")
     .select("notification_id, title, message, is_read, created_at")
     .eq("user_id", user.id)
+    .eq("is_read", false)
     .order("created_at", { ascending: false })
     .limit(8);
 

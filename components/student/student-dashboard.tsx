@@ -1,12 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import type { LucideIcon } from "lucide-react";
 import {
+  ActivityIcon,
   AlertTriangleIcon,
+  BrainCircuitIcon,
   CheckCircle2Icon,
   HeartPulseIcon,
   LightbulbIcon,
   MegaphoneIcon,
+  TrendingUpIcon,
 } from "lucide-react";
 import {
   CartesianGrid,
@@ -57,6 +61,87 @@ function riskLevelToChartScore(level: string | null | undefined) {
   if (level === "Moderate") return 0.55;
   if (level === "Low") return 0.2;
   return null;
+}
+
+function formatScore(value: number | null | undefined) {
+  return value != null ? value.toFixed(2) : "—";
+}
+
+function outlookNodeTone(level: string | null | undefined) {
+  if (level === "High" || level === "Severe") {
+    return "bg-orange-500 text-white";
+  }
+  if (level === "Moderate") {
+    return "bg-amber-400 text-white";
+  }
+  if (level === "Low") {
+    return "bg-emerald-500 text-white";
+  }
+  return "bg-muted text-muted-foreground";
+}
+
+type OutlookStep = {
+  icon: LucideIcon;
+  label: string;
+  score: number | null;
+  level: string | null;
+  hint: string;
+};
+
+function EarlyWarningOutlookStepper({ steps }: { steps: OutlookStep[] }) {
+  return (
+    <div className="relative px-2 pt-1 sm:px-8">
+      <div
+        aria-hidden
+        className="absolute top-6 right-[16.5%] left-[16.5%] h-px bg-border sm:top-7"
+      />
+      <ol className="relative grid grid-cols-3 gap-3">
+        {steps.map((step) => {
+          const Icon = step.icon;
+          const hasLevel =
+            step.level != null &&
+            ["Low", "Moderate", "High", "Severe"].includes(step.level);
+          const scoreLabel =
+            step.score != null ? formatScore(step.score) : null;
+          const statusLabel = hasLevel
+            ? step.level
+            : (step.level ?? step.hint);
+          const detail = [scoreLabel, statusLabel].filter(Boolean).join(" · ");
+
+          return (
+            <li key={step.label} className="flex flex-col items-center text-center">
+              <span
+                className={cn(
+                  "relative z-10 flex size-12 shrink-0 items-center justify-center rounded-full shadow-sm sm:size-14 [&_svg]:size-5 sm:[&_svg]:size-6",
+                  outlookNodeTone(hasLevel ? step.level : null)
+                )}
+              >
+                <Icon />
+              </span>
+              <p className="mt-3 text-sm font-semibold tracking-tight text-foreground">
+                {step.label}
+              </p>
+              <p className="mt-1 max-w-[10rem] text-xs leading-snug text-muted-foreground">
+                <span
+                  className={cn(
+                    "font-medium tabular-nums",
+                    hasLevel ? riskTone(step.level) : "text-muted-foreground"
+                  )}
+                >
+                  {detail}
+                </span>
+                {hasLevel ? (
+                  <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                    {step.hint}
+                  </span>
+                ) : null}
+              </p>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
+  );
 }
 
 function TrendChart({
@@ -135,6 +220,33 @@ function TrendChart({
 
   return (
     <div className="space-y-4">
+      {latest?.direction && latest.direction !== "insufficient_history" ? (
+        <div className="flex justify-end">
+          <p
+            className={cn(
+              "rounded-md px-2.5 py-1 text-xs font-semibold tracking-tight",
+              movementHighlight(latest.direction)
+            )}
+          >
+            Latest movement: {latest.direction}
+            {latest.delta != null ? (
+              <>
+                {" "}
+                <span
+                  className={cn(
+                    "font-bold tabular-nums",
+                    movementDeltaTone(latest.direction)
+                  )}
+                >
+                  ({latest.delta > 0 ? "+" : ""}
+                  {latest.delta.toFixed(2)} MFBI)
+                </span>
+              </>
+            ) : null}
+          </p>
+        </div>
+      ) : null}
+
       <ChartContainer config={trendChartConfig} className="h-48 w-full">
         <LineChart data={chartData} margin={{ left: 4, right: 8, top: 8 }}>
           <CartesianGrid vertical={false} strokeDasharray="3 3" />
@@ -223,20 +335,28 @@ function TrendChart({
           </div>
         ))}
       </div>
-
-      {latest?.direction && latest.direction !== "insufficient_history" ? (
-        <p className="text-xs text-muted-foreground">
-          Latest movement:{" "}
-          <span className="font-medium text-foreground">
-            {latest.direction}
-            {latest.delta != null
-              ? ` (${latest.delta > 0 ? "+" : ""}${latest.delta.toFixed(2)} MFBI)`
-              : ""}
-          </span>
-        </p>
-      ) : null}
     </div>
   );
+}
+
+function movementHighlight(direction: string | null | undefined) {
+  if (direction === "increasing") {
+    return "bg-amber-500/15 text-amber-950 dark:text-amber-100";
+  }
+  if (direction === "decreasing") {
+    return "bg-emerald-500/15 text-emerald-950 dark:text-emerald-100";
+  }
+  return "bg-muted text-foreground";
+}
+
+function movementDeltaTone(direction: string | null | undefined) {
+  if (direction === "increasing") {
+    return "text-orange-600 dark:text-orange-400";
+  }
+  if (direction === "decreasing") {
+    return "text-emerald-600 dark:text-emerald-400";
+  }
+  return "text-foreground";
 }
 
 export function StudentDashboard({
@@ -312,37 +432,39 @@ export function StudentDashboard({
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-lg border border-border/70 p-3">
-                <p className="text-xs text-muted-foreground">Current status</p>
-                <p className="mt-1 text-lg font-semibold">
-                  {data.burnoutLevel ?? "—"}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  MFBI {data.mfbiScore?.toFixed(2) ?? "—"}
-                </p>
-              </div>
-              <div className="rounded-lg border border-border/70 p-3">
-                <p className="text-xs text-muted-foreground">Next week</p>
-                <p className="mt-1 text-lg font-semibold">
-                  {data.earlyWarning.next_week_risk ?? "Need prior week"}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {data.earlyWarning.has_ml_next_week
+            <EarlyWarningOutlookStepper
+              steps={[
+                {
+                  icon: ActivityIcon,
+                  label: "Current status",
+                  score: data.mfbiScore,
+                  level: data.burnoutLevel,
+                  hint: "MFBI",
+                },
+                {
+                  icon: BrainCircuitIcon,
+                  label: "Next week",
+                  score:
+                    data.earlyWarning.next_week_score ??
+                    riskLevelToChartScore(data.earlyWarning.next_week_risk),
+                  level:
+                    data.earlyWarning.next_week_risk ??
+                    (data.earlyWarning.has_ml_next_week
+                      ? null
+                      : "Need prior week"),
+                  hint: data.earlyWarning.has_ml_next_week
                     ? "ML early detection"
-                    : "Awaiting history"}
-                </p>
-              </div>
-              <div className="rounded-lg border border-border/70 p-3">
-                <p className="text-xs text-muted-foreground">Week 2 projection</p>
-                <p className="mt-1 text-lg font-semibold">
-                  {data.earlyWarning.week2_risk ?? "—"}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Trend-based indicator
-                </p>
-              </div>
-            </div>
+                    : "Awaiting history",
+                },
+                {
+                  icon: TrendingUpIcon,
+                  label: "Week 2 projection",
+                  score: riskLevelToChartScore(data.earlyWarning.week2_risk),
+                  level: data.earlyWarning.week2_risk,
+                  hint: "Trend-based indicator",
+                },
+              ]}
+            />
             <p className="text-sm text-muted-foreground">
               Risk trend:{" "}
               <span className="font-medium text-foreground">

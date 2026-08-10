@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { isRedirectError } from "next/dist/client/components/redirect-error";
 
 import { toAuditLogRow } from "@/lib/audit";
-import { requireRole } from "@/lib/auth/session";
+import { requireRole, requireUser } from "@/lib/auth/session";
 import { computeMfbi } from "@/lib/student/mfbi";
 import { saveBurnoutTrend } from "@/lib/student/burnout-trends";
 import { predictBurnoutRiskWithAi } from "@/lib/student/predict";
@@ -332,7 +332,7 @@ export async function markNotificationRead(
   _prev: StudentActionState,
   formData: FormData
 ): Promise<StudentActionState> {
-  const { supabase, user } = await requireRole(["Student"]);
+  const { supabase, user } = await requireUser();
   const notificationId = Number(formData.get("notification_id"));
 
   if (!notificationId) {
@@ -352,6 +352,7 @@ export async function markNotificationRead(
     return { error: error.message };
   }
 
+  revalidatePath("/", "layout");
   revalidatePath("/student");
   revalidatePath("/student/notifications");
   return { success: "Notification marked as read." };
