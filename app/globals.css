@@ -130,3 +130,64 @@
     scrollbar-gutter: stable;
   }
 }
+
+@keyframes splash-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.82);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes splash-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes splash-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes splash-progress {
+  from {
+    transform: translateX(-120%);
+  }
+  to {
+    transform: translateX(280%);
+  }
+}
+
+.splash-logo-wrap {
+  animation: splash-pop 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.splash-logo {
+  animation: splash-float 1.8s ease-in-out infinite;
+}
+
+.splash-title {
+  animation: splash-fade-up 700ms ease-out 120ms both;
+}
+
+.splash-subtitle {
+  animation: splash-fade-up 700ms ease-out 220ms both;
+}
+
+.splash-bar-fill {
+  animation: splash-progress 2s linear both;
+}

@@ -5,6 +5,7 @@ import { updateSession } from "@/lib/supabase/proxy";
 
 const GUEST_ONLY_ROUTES = ["/login", "/forgot-password", "/register"];
 const PUBLIC_ROUTES = [
+  "/",
   "/login",
   "/forgot-password",
   "/register",
@@ -20,7 +21,7 @@ export async function proxy(request: NextRequest) {
     (route) => pathname === route || pathname.startsWith(`${route}/`)
   );
 
-  if (!user && !isPublic && pathname !== "/") {
+  if (!user && !isPublic) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("next", pathname);
@@ -28,11 +29,6 @@ export async function proxy(request: NextRequest) {
   }
 
   if (!user) {
-    if (pathname === "/") {
-      const url = request.nextUrl.clone();
-      url.pathname = "/login";
-      return NextResponse.redirect(url);
-    }
     return supabaseResponse;
   }
 

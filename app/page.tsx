@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import { SplashScreen } from "@/components/auth/splash-screen";
 
 export default function HomePage() {
-  redirect("/login");
+  return <SplashScreen durationMs={2000} href="/login" />;
 }
