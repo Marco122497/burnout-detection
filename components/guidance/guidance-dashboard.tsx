@@ -12,7 +12,6 @@ import {
 } from "recharts";
 import {
   AlertTriangleIcon,
-  BrainCircuitIcon,
   ClipboardCheckIcon,
   LayoutDashboardIcon,
   Loader2,
@@ -20,6 +19,11 @@ import {
 
 import { useNavigationPending } from "@/components/layout/navigation-pending";
 import { PageHeading } from "@/components/layout/page-heading";
+import {
+  AiEarlyWarningOverviewCards,
+  AiEarlyWarningStudentsCard,
+  AiModelStatusCard,
+} from "@/components/shared/ai-early-warning-panel";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -37,7 +41,7 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 import { formatDateTime } from "@/lib/auth/roles";
-import { MODEL_EVALUATION } from "@/lib/guidance/model-metrics";
+import type { ModelEvaluationSnapshot } from "@/lib/guidance/model-metrics";
 import type { getGuidanceAnalytics } from "@/lib/guidance/monitoring";
 import { cn, formatYearLevel } from "@/lib/utils";
 
@@ -100,9 +104,13 @@ function OverviewCard({
 export function GuidanceDashboard({
   firstName,
   data,
+  modelEvaluation,
+  aiHealthy,
 }: {
   firstName: string;
   data: Analytics;
+  modelEvaluation: ModelEvaluationSnapshot;
+  aiHealthy: boolean;
 }) {
   const { navigate, isPending, pendingHref } = useNavigationPending();
 
@@ -150,8 +158,6 @@ export function GuidanceDashboard({
     },
   ];
 
-  const rf = MODEL_EVALUATION.randomForest;
-
   return (
     <div className="space-y-8">
       <PageHeading
@@ -179,6 +185,13 @@ export function GuidanceDashboard({
             label="Pending Assessments"
             value={pendingCount}
             hint="Not submitted this week"
+          />
+        </div>
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <AiEarlyWarningOverviewCards
+            earlyWarningCount={data.earlyWarningCount}
+            nextWeekHighCount={data.nextWeekHighCount}
+            week2HighCount={data.week2HighCount}
           />
         </div>
       </section>
@@ -395,6 +408,21 @@ export function GuidanceDashboard({
         </CardContent>
       </Card>
 
+      <AiEarlyWarningStudentsCard
+        students={data.earlyWarningStudents.map((s) => ({
+          id: s.id,
+          full_name: s.full_name,
+          student_number: s.student_number,
+          course: s.course,
+          year_level: s.year_level,
+          mfbi_score: s.mfbi_score,
+          current_risk: s.current_risk,
+          next_week_risk: s.next_week_risk,
+          week2_risk: s.week2_risk,
+          trend: s.trend,
+        }))}
+      />
+
       <div className="grid gap-4 lg:grid-cols-3">
         <Card>
           <CardHeader>
@@ -483,57 +511,10 @@ export function GuidanceDashboard({
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <BrainCircuitIcon className="size-4" />
-              AI Model Status
-            </CardTitle>
-            <CardDescription>
-              Offline evaluation metrics for the active predictor (
-              {MODEL_EVALUATION.modelVersion}).
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-muted-foreground">Model</span>
-              <span className="font-medium">{rf.label}</span>
-            </div>
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-muted-foreground">Status</span>
-              <span className="inline-flex items-center gap-1.5 font-medium text-emerald-700 dark:text-emerald-400">
-                <span className="size-1.5 rounded-full bg-emerald-600" />
-                Active
-              </span>
-            </div>
-            <div className="grid grid-cols-2 gap-2 border-t pt-3">
-              <div>
-                <p className="text-xs text-muted-foreground">Accuracy</p>
-                <p className="font-medium tabular-nums">
-                  {(rf.accuracy * 100).toFixed(1)}%
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Precision</p>
-                <p className="font-medium tabular-nums">
-                  {(rf.precision * 100).toFixed(1)}%
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Recall</p>
-                <p className="font-medium tabular-nums">
-                  {(rf.recall * 100).toFixed(1)}%
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">F1-Score</p>
-                <p className="font-medium tabular-nums">
-                  {(rf.f1 * 100).toFixed(1)}%
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <AiModelStatusCard
+          modelEvaluation={modelEvaluation}
+          aiHealthy={aiHealthy}
+        />
       </div>
     </div>
   );

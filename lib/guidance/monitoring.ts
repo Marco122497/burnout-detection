@@ -99,14 +99,31 @@ export async function getGuidanceStudentRows(
     }
   }
 
-  const predictionByMfbi = new Map<number, string>();
+  const predictionByMfbi = new Map<
+    number,
+    {
+      final_prediction: string;
+      early_warning_attention: boolean;
+      next_week_risk: string | null;
+      week2_risk: string | null;
+      early_warning_trend: string | null;
+      has_ml_next_week: boolean;
+    }
+  >();
   if (mfbiIds.length) {
     const { data: predictions } = await supabase
       .from("ml_predictions")
-      .select("mfbi_id, final_prediction")
+      .select("mfbi_id, final_prediction, remarks")
       .in("mfbi_id", mfbiIds);
+    const { staffEarlyWarningFromRemarks } = await import(
+      "@/lib/student/early-warning-staff"
+    );
     for (const prediction of predictions ?? []) {
-      predictionByMfbi.set(prediction.mfbi_id, prediction.final_prediction);
+      const ew = staffEarlyWarningFromRemarks(prediction.remarks);
+      predictionByMfbi.set(prediction.mfbi_id, {
+        final_prediction: prediction.final_prediction,
+        ...ew,
+      });
     }
   }
 
@@ -130,6 +147,9 @@ export async function getGuidanceStudentRows(
         }[]
       | null;
     const dept = Array.isArray(deptRaw) ? deptRaw[0] : deptRaw;
+    const pred = mfbi?.mfbi_id
+      ? predictionByMfbi.get(mfbi.mfbi_id) ?? null
+      : null;
 
     return {
       id: student.id,
@@ -155,9 +175,12 @@ export async function getGuidanceStudentRows(
           : null,
       mfbi_score: mfbi?.mfbi_score != null ? Number(mfbi.mfbi_score) : null,
       burnout_level: mfbi?.burnout_risk_level ?? null,
-      prediction: mfbi?.mfbi_id
-        ? predictionByMfbi.get(mfbi.mfbi_id) ?? null
-        : null,
+      prediction: pred?.final_prediction ?? null,
+      early_warning_attention: pred?.early_warning_attention ?? false,
+      next_week_risk: pred?.next_week_risk ?? null,
+      week2_risk: pred?.week2_risk ?? null,
+      early_warning_trend: pred?.early_warning_trend ?? null,
+      has_ml_next_week: pred?.has_ml_next_week ?? false,
       previous_mfbi_score: null,
       previous_burnout_level: null,
       monitoring_date: monitoring?.submitted_at ?? null,
@@ -588,7 +611,11 @@ export function getGuidanceAnalytics(
   ];
 
   const highRiskStudents = rows
-    .filter((r) => riskBucket(r.prediction || r.burnout_level) === "High")
+    .filter(
+      (r) =>
+        riskBucket(r.prediction || r.burnout_level) === "High" ||
+        r.early_warning_attention
+    )
     .sort((a, b) => (b.mfbi_score ?? 0) - (a.mfbi_score ?? 0))
     .slice(0, 15)
     .map((r) => ({
@@ -598,10 +625,36 @@ export function getGuidanceAnalytics(
       course: r.course,
       year_level: r.year_level,
       mfbi_score: r.mfbi_score,
-      risk: (r.prediction || r.burnout_level || "High") as string,
-      status: "Immediate" as const,
-      monitoring_date: r.monitoring_date,
+      risk: r.early_warning_attention
+        ? `${r.prediction || r.burnout_level || "Elevated"} (early warning)`
+        : ((r.prediction || r.burnout_level || "High") as string),
+      next_week_risk: r.next_week_risk ?? null,
+      week2_risk: r.week2_risk ?? null,
+      early_warning_trend: r.early_warning_trend ?? null,
     }));
+
+  const earlyWarningStudents = rows
+    .filter((r) => r.early_warning_attention)
+    .sort((a, b) => (b.mfbi_score ?? 0) - (a.mfbi_score ?? 0))
+    .slice(0, 15)
+    .map((r) => ({
+      id: r.id,
+      student_number: r.student_number,
+      full_name: r.full_name,
+      course: r.course,
+      year_level: r.year_level,
+      mfbi_score: r.mfbi_score,
+      current_risk: (r.prediction || r.burnout_level || "—") as string,
+      next_week_risk: r.next_week_risk ?? null,
+      week2_risk: r.week2_risk ?? null,
+      trend: r.early_warning_trend ?? null,
+    }));
+
+  const earlyWarningCount = earlyWarningStudents.length;
+  const nextWeekHighCount = rows.filter(
+    (r) => r.next_week_risk === "High"
+  ).length;
+  const week2HighCount = rows.filter((r) => r.week2_risk === "High").length;
 
   const previousTrend =
     weeklyTrends.length >= 2 ? weeklyTrends[weeklyTrends.length - 2] : null;
@@ -649,9 +702,14 @@ export function getGuidanceAnalytics(
       `${highestCourse.label} has the highest program-level burnout risk (avg MFBI ${highestCourse.average.toFixed(2)}).`
     );
   }
+  if (earlyWarningCount > 0) {
+    insights.push(
+      `${earlyWarningCount} student${earlyWarningCount === 1 ? "" : "s"} flagged by AI early warning (${nextWeekHighCount} next-week High, ${week2HighCount} week-2 High projection).`
+    );
+  }
   if (highRiskStudents.length > 0) {
     insights.push(
-      `Recommend notifying guidance counseling for ${highRiskStudents.length} student${highRiskStudents.length === 1 ? "" : "s"} classified as High Risk.`
+      `Recommend notifying guidance counseling for ${highRiskStudents.length} student${highRiskStudents.length === 1 ? "" : "s"} classified as High Risk or early-warning elevated.`
     );
   }
   if (!insights.length) {
@@ -685,6 +743,10 @@ export function getGuidanceAnalytics(
     variableContribution,
     averageScores,
     highRiskStudents,
+    earlyWarningStudents,
+    earlyWarningCount,
+    nextWeekHighCount,
+    week2HighCount,
     insights,
   };
 }

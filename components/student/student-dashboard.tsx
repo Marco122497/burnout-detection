@@ -1,10 +1,20 @@
+"use client";
+
 import Link from "next/link";
 import {
+  AlertTriangleIcon,
   CheckCircle2Icon,
   HeartPulseIcon,
   LightbulbIcon,
   MegaphoneIcon,
 } from "lucide-react";
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 import type { Profile } from "@/lib/auth/roles";
 import { formatDateTime } from "@/lib/auth/roles";
@@ -21,43 +31,210 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart";
 import { cn } from "@/lib/utils";
 
-function TrendBars({
+const trendChartConfig = {
+  score: { label: "MFBI", color: "var(--primary)" },
+  projection: { label: "Projection", color: "oklch(0.72 0.14 55)" },
+} satisfies ChartConfig;
+
+function riskTone(level: string | null | undefined) {
+  if (level === "High" || level === "Severe") return "text-red-700 dark:text-red-400";
+  if (level === "Moderate") return "text-amber-700 dark:text-amber-400";
+  if (level === "Low") return "text-emerald-700 dark:text-emerald-400";
+  return "text-muted-foreground";
+}
+
+/** Representative MFBI for charting risk-level projections (not measured scores). */
+function riskLevelToChartScore(level: string | null | undefined) {
+  if (level === "High" || level === "Severe") return 0.85;
+  if (level === "Moderate") return 0.55;
+  if (level === "Low") return 0.2;
+  return null;
+}
+
+function TrendChart({
   data,
+  earlyWarning,
 }: {
   data: StudentDashboardData["weeklyTrend"];
+  earlyWarning: StudentDashboardData["earlyWarning"];
 }) {
   if (!data.length) {
     return (
-      <div className="flex h-40 items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground">
+      <div className="flex h-48 items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground">
         No burnout trend yet. Submit weekly monitoring to start tracking.
       </div>
     );
   }
 
-  const max = Math.max(...data.map((d) => d.score ?? 0), 0.01);
+  const latest = data[data.length - 1];
+  const recentCards = data.slice(-4);
+  const nextWeekLevel = earlyWarning?.next_week_risk ?? null;
+  const week2Level = earlyWarning?.week2_risk ?? null;
+  const nextScore = riskLevelToChartScore(nextWeekLevel);
+  const week2Score = riskLevelToChartScore(week2Level);
+  const hasProjection = nextScore != null || week2Score != null;
+
+  type ChartPoint = {
+    week: string;
+    weekNumber: number;
+    score: number | null;
+    projection: number | null;
+    level: string;
+    kind: "actual" | "next" | "week2";
+    delta: number | null;
+    direction: string | null;
+  };
+
+  const chartData: ChartPoint[] = data.map((point, index) => {
+    const isLast = index === data.length - 1;
+    return {
+      week: `W${point.week}`,
+      weekNumber: point.week,
+      score: point.score ?? 0,
+      projection: isLast && hasProjection ? (point.score ?? 0) : null,
+      level: point.level ?? "—",
+      kind: "actual" as const,
+      delta: point.delta ?? null,
+      direction: point.direction ?? null,
+    };
+  });
+
+  if (nextScore != null && nextWeekLevel) {
+    chartData.push({
+      week: "Next",
+      weekNumber: (latest?.week ?? 0) + 1,
+      score: null,
+      projection: nextScore,
+      level: nextWeekLevel,
+      kind: "next",
+      delta: null,
+      direction: null,
+    });
+  }
+
+  if (week2Score != null && week2Level) {
+    chartData.push({
+      week: "W+2",
+      weekNumber: (latest?.week ?? 0) + 2,
+      score: null,
+      projection: week2Score,
+      level: week2Level,
+      kind: "week2",
+      delta: null,
+      direction: null,
+    });
+  }
 
   return (
-    <div className="flex h-40 items-end gap-2">
-      {data.map((point) => {
-        const height = Math.max(((point.score ?? 0) / max) * 100, 8);
-        return (
-          <div
-            key={`${point.week}-${point.score}`}
-            className="flex flex-1 flex-col items-center gap-2"
-          >
-            <div
-              className="w-full rounded-t-md bg-primary/80 transition-all"
-              style={{ height: `${height}%` }}
-              title={`Week ${point.week}: ${point.score?.toFixed(2) ?? "—"} (${point.level ?? "—"})`}
+    <div className="space-y-4">
+      <ChartContainer config={trendChartConfig} className="h-48 w-full">
+        <LineChart data={chartData} margin={{ left: 4, right: 8, top: 8 }}>
+          <CartesianGrid vertical={false} strokeDasharray="3 3" />
+          <XAxis dataKey="week" tickLine={false} axisLine={false} />
+          <YAxis
+            domain={[0, 1]}
+            tickLine={false}
+            axisLine={false}
+            width={32}
+            tickFormatter={(value) => Number(value).toFixed(1)}
+          />
+          <ChartTooltip
+            content={
+              <ChartTooltipContent
+                formatter={(value, name, item) => {
+                  const level = String(item?.payload?.level ?? "—");
+                  const kind = String(item?.payload?.kind ?? "actual");
+                  if (value == null) return null;
+                  const label =
+                    kind === "next"
+                      ? "Next-week projection"
+                      : kind === "week2"
+                        ? "Week-2 projection"
+                        : name === "projection"
+                          ? "Projection link"
+                          : "MFBI";
+                  return (
+                    <div className="flex flex-col gap-0.5">
+                      <span>
+                        {label}: {Number(value).toFixed(2)}
+                      </span>
+                      <span className={cn("text-xs", riskTone(level))}>
+                        {level} risk
+                        {kind !== "actual" ? " (projected)" : ""}
+                      </span>
+                    </div>
+                  );
+                }}
+              />
+            }
+          />
+          <Line
+            type="monotone"
+            dataKey="score"
+            stroke="var(--color-score)"
+            strokeWidth={2.5}
+            dot={{ r: 4 }}
+            activeDot={{ r: 5 }}
+            connectNulls={false}
+          />
+          {hasProjection ? (
+            <Line
+              type="monotone"
+              dataKey="projection"
+              stroke="var(--color-projection)"
+              strokeWidth={2}
+              strokeDasharray="5 4"
+              dot={{ r: 4, strokeWidth: 2 }}
+              activeDot={{ r: 5 }}
+              connectNulls
             />
-            <span className="text-[10px] text-muted-foreground">
-              W{point.week}
-            </span>
+          ) : null}
+        </LineChart>
+      </ChartContainer>
+
+      {hasProjection ? (
+        <p className="text-[11px] text-muted-foreground">
+          Solid line = recorded MFBI. Dashed line = next-week ML risk and week-2
+          trend projection (mapped to risk midpoints for charting).
+        </p>
+      ) : null}
+
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {recentCards.map((point) => (
+          <div
+            key={point.week}
+            className="rounded-lg border border-border/70 px-2.5 py-2"
+          >
+            <p className="text-[11px] text-muted-foreground">Week {point.week}</p>
+            <p className="text-sm font-semibold tabular-nums">
+              {point.score != null ? point.score.toFixed(2) : "—"}
+            </p>
+            <p className={cn("text-[11px] font-medium", riskTone(point.level))}>
+              {point.level ?? "—"}
+            </p>
           </div>
-        );
-      })}
+        ))}
+      </div>
+
+      {latest?.direction && latest.direction !== "insufficient_history" ? (
+        <p className="text-xs text-muted-foreground">
+          Latest movement:{" "}
+          <span className="font-medium text-foreground">
+            {latest.direction}
+            {latest.delta != null
+              ? ` (${latest.delta > 0 ? "+" : ""}${latest.delta.toFixed(2)} MFBI)`
+              : ""}
+          </span>
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -85,6 +262,17 @@ export function StudentDashboard({
         mfbiScore={data.mfbiScore}
         weekLabel={data.latestWeek != null ? `Week ${data.latestWeek}` : null}
       >
+        <div className="space-y-1 pt-1 text-xs text-muted-foreground">
+          {data.riskScore != null ? (
+            <p>
+              Risk score: {data.riskScore.toFixed(2)}
+              {data.selectedModel ? ` · ${data.selectedModel}` : ""}
+            </p>
+          ) : null}
+          {data.predictionDate ? (
+            <p>Predicted: {formatDateTime(data.predictionDate)}</p>
+          ) : null}
+        </div>
         {data.monitoringStatus === "Pending" ? (
           <Link
             href="/student/monitoring"
@@ -110,16 +298,84 @@ export function StudentDashboard({
         subheading="Your burnout index combines these four factors from your latest weekly monitoring."
       />
 
+      {data.earlyWarning ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertTriangleIcon className="size-4" />
+              Early warning outlook
+            </CardTitle>
+            <CardDescription>
+              Current risk is from trained same-week models. Next-week uses the
+              trained next-week model when history exists. Week-2 is a
+              trend-based projection, not a guaranteed forecast.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-lg border border-border/70 p-3">
+                <p className="text-xs text-muted-foreground">Current status</p>
+                <p className="mt-1 text-lg font-semibold">
+                  {data.burnoutLevel ?? "—"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  MFBI {data.mfbiScore?.toFixed(2) ?? "—"}
+                </p>
+              </div>
+              <div className="rounded-lg border border-border/70 p-3">
+                <p className="text-xs text-muted-foreground">Next week</p>
+                <p className="mt-1 text-lg font-semibold">
+                  {data.earlyWarning.next_week_risk ?? "Need prior week"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {data.earlyWarning.has_ml_next_week
+                    ? "ML early detection"
+                    : "Awaiting history"}
+                </p>
+              </div>
+              <div className="rounded-lg border border-border/70 p-3">
+                <p className="text-xs text-muted-foreground">Week 2 projection</p>
+                <p className="mt-1 text-lg font-semibold">
+                  {data.earlyWarning.week2_risk ?? "—"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Trend-based indicator
+                </p>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Risk trend:{" "}
+              <span className="font-medium text-foreground">
+                {data.earlyWarning.trend.replaceAll("_", " ")}
+              </span>
+            </p>
+            {data.earlyWarning.warning_message ? (
+              <p className="rounded-lg bg-amber-500/10 p-3 text-sm text-amber-950 dark:text-amber-100">
+                {data.earlyWarning.warning_message}
+              </p>
+            ) : null}
+            <p className="text-xs text-muted-foreground">
+              This system provides educational early-warning support and is not
+              a medical diagnosis.
+            </p>
+          </CardContent>
+        </Card>
+      ) : null}
+
       <div className="grid gap-4 lg:grid-cols-5">
         <Card className="lg:col-span-3">
           <CardHeader>
             <CardTitle>Burnout risk trend</CardTitle>
             <CardDescription>
-              Recent weekly MFBI scores from assessment history.
+              Weekly MFBI history plus next-week and week-2 early-warning
+              projections on the chart.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <TrendBars data={data.weeklyTrend} />
+            <TrendChart
+              data={data.weeklyTrend}
+              earlyWarning={data.earlyWarning}
+            />
           </CardContent>
         </Card>
 

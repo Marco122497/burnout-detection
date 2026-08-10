@@ -141,7 +141,7 @@ export function BurnoutHistoryView({
         <p className="pt-1 text-xs text-muted-foreground">
           {latest?.prediction
             ? `Prediction: ${latest.prediction.selected_model} · DT ${latest.prediction.decision_tree_prediction} / RF ${latest.prediction.random_forest_prediction}`
-            : "Prediction: Decision Tree + Random Forest"}
+            : "Prediction: AI Decision Tree + Random Forest early detection"}
         </p>
       </BurnoutHero>
 

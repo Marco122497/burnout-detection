@@ -19,6 +19,11 @@ import {
 
 import { useNavigationPending } from "@/components/layout/navigation-pending";
 import { PageHeading } from "@/components/layout/page-heading";
+import {
+  AiEarlyWarningOverviewCards,
+  AiEarlyWarningStudentsCard,
+  AiModelStatusCard,
+} from "@/components/shared/ai-early-warning-panel";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -43,6 +48,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatDateTime } from "@/lib/auth/roles";
+import type { ModelEvaluationSnapshot } from "@/lib/guidance/model-metrics";
 import type { InstructorDashboardData } from "@/lib/instructor/queries";
 import { cn } from "@/lib/utils";
 
@@ -133,9 +139,13 @@ function alertDotClass(tone: InstructorDashboardData["recentAlerts"][number]["to
 
 export function InstructorDashboard({
   data,
+  modelEvaluation,
+  aiHealthy,
 }: {
   firstName?: string;
   data: InstructorDashboardData;
+  modelEvaluation: ModelEvaluationSnapshot;
+  aiHealthy: boolean;
 }) {
   const { navigate, isPending, pendingHref } = useNavigationPending();
   const [yearFilter, setYearFilter] = React.useState("all");
@@ -301,6 +311,15 @@ export function InstructorDashboard({
             emphasize
           />
         </div>
+        {yearFilter === "all" ? (
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <AiEarlyWarningOverviewCards
+              earlyWarningCount={data.earlyWarningCount}
+              nextWeekHighCount={data.nextWeekHighCount}
+              week2HighCount={data.week2HighCount}
+            />
+          </div>
+        ) : null}
       </section>
 
       <div className="grid min-w-0 gap-4 lg:grid-cols-2">
@@ -436,6 +455,16 @@ export function InstructorDashboard({
           </CardContent>
         </Card>
       </div>
+
+      <AiEarlyWarningStudentsCard
+        students={
+          yearFilter === "all"
+            ? data.earlyWarningStudents
+            : data.earlyWarningStudents.filter(
+                (s) => s.year_level === Number(yearFilter)
+              )
+        }
+      />
 
       <Card className="min-w-0 overflow-hidden">
         <CardHeader>
@@ -733,6 +762,11 @@ export function InstructorDashboard({
           </CardContent>
         </Card>
       </div>
+
+      <AiModelStatusCard
+        modelEvaluation={modelEvaluation}
+        aiHealthy={aiHealthy}
+      />
     </div>
   );
 }

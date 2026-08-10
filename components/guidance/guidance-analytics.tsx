@@ -21,6 +21,11 @@ import {
 
 import { sendStudentBurnoutAlert } from "@/app/actions/guidance";
 import { useNavigationPending } from "@/components/layout/navigation-pending";
+import {
+  AiEarlyWarningOverviewCards,
+  AiEarlyWarningStudentsCard,
+  AiModelStatusCard,
+} from "@/components/shared/ai-early-warning-panel";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -39,7 +44,7 @@ import {
 } from "@/components/ui/chart";
 import { openPrintReport } from "@/lib/instructor/export";
 import type { getGuidanceAnalytics } from "@/lib/guidance/monitoring";
-import { MODEL_EVALUATION } from "@/lib/guidance/model-metrics";
+import type { ModelEvaluationSnapshot } from "@/lib/guidance/model-metrics";
 import { cn, formatYearLevel } from "@/lib/utils";
 
 type Analytics = ReturnType<typeof getGuidanceAnalytics>;
@@ -122,7 +127,15 @@ function SectionHeading({
   );
 }
 
-export function GuidanceAnalyticsView({ data }: { data: Analytics }) {
+export function GuidanceAnalyticsView({
+  data,
+  modelEvaluation,
+  aiHealthy,
+}: {
+  data: Analytics;
+  modelEvaluation: ModelEvaluationSnapshot;
+  aiHealthy: boolean;
+}) {
   const { navigate, isPending, pendingHref } = useNavigationPending();
   const [alertPendingId, setAlertPendingId] = useState<string | null>(null);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
@@ -214,6 +227,13 @@ export function GuidanceAnalyticsView({ data }: { data: Analytics }) {
               data.averageMfbi != null ? data.averageMfbi.toFixed(2) : "—"
             }
             hint="Mean MFBI"
+          />
+        </div>
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <AiEarlyWarningOverviewCards
+            earlyWarningCount={data.earlyWarningCount}
+            nextWeekHighCount={data.nextWeekHighCount}
+            week2HighCount={data.week2HighCount}
           />
         </div>
       </section>
@@ -708,19 +728,40 @@ export function GuidanceAnalyticsView({ data }: { data: Analytics }) {
         </Card>
       </section>
 
-      {/* 9. Prediction Accuracy */}
       <section>
+        <AiEarlyWarningStudentsCard
+          students={data.earlyWarningStudents.map((s) => ({
+            id: s.id,
+            full_name: s.full_name,
+            student_number: s.student_number,
+            course: s.course,
+            year_level: s.year_level,
+            mfbi_score: s.mfbi_score,
+            current_risk: s.current_risk,
+            next_week_risk: s.next_week_risk,
+            week2_risk: s.week2_risk,
+            trend: s.trend,
+          }))}
+        />
+      </section>
+
+      {/* 9. Prediction Accuracy */}
+      <section className="grid gap-4 lg:grid-cols-3">
+        <div className="lg:col-span-2">
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Burnout Prediction Accuracy</CardTitle>
             <CardDescription>
-              Offline evaluation for {MODEL_EVALUATION.modelVersion} Decision
-              Tree and Random Forest predictors.
+              Hold-out evaluation for {modelEvaluation.modelVersion} Decision
+              Tree and Random Forest predictors
+              {modelEvaluation.source === "unavailable"
+                ? " (run npm run train to populate)"
+                : " from burnout-ai training"}.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 sm:grid-cols-2">
-              {[MODEL_EVALUATION.randomForest, MODEL_EVALUATION.decisionTree].map(
+              {[modelEvaluation.randomForest, modelEvaluation.decisionTree].map(
                 (model) => (
                   <div
                     key={model.label}
@@ -762,13 +803,13 @@ export function GuidanceAnalyticsView({ data }: { data: Analytics }) {
                   <tr className="border-b">
                     <td className="px-2 py-1.5">Decision Tree</td>
                     <td className="px-2 py-1.5 tabular-nums">
-                      {Math.round(MODEL_EVALUATION.decisionTree.accuracy * 100)}%
+                      {Math.round(modelEvaluation.decisionTree.accuracy * 100)}%
                     </td>
                   </tr>
                   <tr>
                     <td className="px-2 py-1.5">Random Forest</td>
                     <td className="px-2 py-1.5 tabular-nums">
-                      {Math.round(MODEL_EVALUATION.randomForest.accuracy * 100)}%
+                      {Math.round(modelEvaluation.randomForest.accuracy * 100)}%
                     </td>
                   </tr>
                 </tbody>
@@ -776,6 +817,11 @@ export function GuidanceAnalyticsView({ data }: { data: Analytics }) {
             </div>
           </CardContent>
         </Card>
+        </div>
+        <AiModelStatusCard
+          modelEvaluation={modelEvaluation}
+          aiHealthy={aiHealthy}
+        />
       </section>
 
       {/* 11. Heatmap */}

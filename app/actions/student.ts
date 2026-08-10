@@ -2,11 +2,13 @@
 
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { isRedirectError } from "next/dist/client/components/redirect-error";
 
 import { toAuditLogRow } from "@/lib/audit";
 import { requireRole } from "@/lib/auth/session";
 import { computeMfbi } from "@/lib/student/mfbi";
-import { predictBurnoutRisk } from "@/lib/student/predict";
+import { saveBurnoutTrend } from "@/lib/student/burnout-trends";
+import { predictBurnoutRiskWithAi } from "@/lib/student/predict";
 import { getWeeklyMonitoringSections } from "@/lib/student/questionnaires";
 import {
   computeSectionScores,
@@ -30,6 +32,24 @@ async function getRequestIp() {
 }
 
 export async function submitWeeklyMonitoring(
+  _prev: StudentActionState,
+  formData: FormData
+): Promise<StudentActionState> {
+  try {
+    return await submitWeeklyMonitoringInner(_prev, formData);
+  } catch (error) {
+    if (isRedirectError(error)) throw error;
+    console.error("submitWeeklyMonitoring:", error);
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to submit weekly monitoring. Please try again.",
+    };
+  }
+}
+
+async function submitWeeklyMonitoringInner(
   _prev: StudentActionState,
   formData: FormData
 ): Promise<StudentActionState> {
@@ -172,7 +192,56 @@ export async function submitWeeklyMonitoring(
     };
   }
 
-  const prediction = predictBurnoutRisk(mfbi, scores);
+  const { data: priorRows } = await supabase
+    .from("weekly_monitoring")
+    .select(
+      "week_number, stress_score, academic_workload_score, study_time_score, sleep_hours_score, mfbi_results(mfbi_score, burnout_risk_level)"
+    )
+    .eq("student_id", user.id)
+    .eq("term_id", term.term_id)
+    .lt("week_number", week_number)
+    .order("week_number", { ascending: true });
+
+  const historyLevels: string[] = [];
+  const historyMfbi: number[] = [];
+  let priorWeek: {
+    stress_score: number;
+    academic_workload_score: number;
+    study_time_score: number;
+    sleep_hours_score: number;
+  } | null = null;
+
+  for (const row of priorRows ?? []) {
+    const mfbiRaw = row.mfbi_results;
+    const mfbiPrior = Array.isArray(mfbiRaw) ? mfbiRaw[0] : mfbiRaw;
+    if (mfbiPrior?.burnout_risk_level) {
+      historyLevels.push(String(mfbiPrior.burnout_risk_level));
+    }
+    if (mfbiPrior?.mfbi_score != null) {
+      historyMfbi.push(Number(mfbiPrior.mfbi_score));
+    }
+  }
+
+  // Include the week being submitted in trend history.
+  historyLevels.push(mfbi.burnout_risk_level);
+  historyMfbi.push(mfbi.mfbi_score);
+
+  if (priorRows && priorRows.length > 0) {
+    const last = priorRows[priorRows.length - 1];
+    priorWeek = {
+      stress_score: Number(last.stress_score),
+      academic_workload_score: Number(last.academic_workload_score),
+      study_time_score: Number(last.study_time_score),
+      sleep_hours_score: Number(last.sleep_hours_score),
+    };
+  }
+
+  const prediction = await predictBurnoutRiskWithAi(mfbi, scores, {
+    studentId: user.id,
+    priorWeek,
+    historyLevels,
+    historyMfbi,
+  });
   const { data: predictionRow, error: predictionError } = await supabase
     .from("ml_predictions")
     .insert({
@@ -188,25 +257,44 @@ export async function submitWeeklyMonitoring(
     };
   }
 
+  await saveBurnoutTrend(supabase, {
+    studentId: user.id,
+    termId: term.term_id,
+    weekNumber: week_number,
+    monitoringId: monitoring.monitoring_id,
+    mfbiScore: Number(mfbiRow.mfbi_score),
+    riskLevel: prediction.final_prediction,
+    previousMfbiScore:
+      historyMfbi.length >= 2 ? historyMfbi[historyMfbi.length - 2] : null,
+  });
+
   const ip = await getRequestIp();
+  const { parseEarlyWarningRemarks } = await import("@/lib/student/ai-client");
+  const earlyWarning = parseEarlyWarningRemarks(prediction.remarks);
+  const alertHigh =
+    prediction.final_prediction === "High" ||
+    prediction.final_prediction === "Severe" ||
+    earlyWarning?.next_week_risk === "High" ||
+    earlyWarning?.week2_risk === "High";
 
   await supabase.from("notifications").insert([
     {
       user_id: user.id,
       title: "Weekly monitoring submitted",
-      message: `Week ${week_number} monitoring was saved successfully. MFBI ${Number(mfbiRow.mfbi_score).toFixed(2)} (${mfbiRow.burnout_risk_level}).`,
+      message: `Week ${week_number} monitoring was saved successfully. MFBI ${Number(mfbiRow.mfbi_score).toFixed(2)} (${mfbiRow.burnout_risk_level}). Current risk: ${prediction.final_prediction}.`,
       notification_type: "Assessment",
       priority: "Normal",
       monitoring_id: monitoring.monitoring_id,
       prediction_id: predictionRow?.prediction_id ?? null,
     },
-    ...(prediction.final_prediction === "High" ||
-    prediction.final_prediction === "Severe"
+    ...(alertHigh
       ? [
           {
             user_id: user.id,
             title: "Counseling recommendation",
-            message: `Your predicted burnout risk is ${prediction.final_prediction}. Consider reviewing guidance recommendations and contacting the Guidance Office if needed.`,
+            message:
+              earlyWarning?.warning_message ??
+              `Your predicted burnout risk is ${prediction.final_prediction}. Consider reviewing guidance recommendations and contacting the Guidance Office if needed.`,
             notification_type: "Counseling" as const,
             priority: "High" as const,
             monitoring_id: monitoring.monitoring_id,

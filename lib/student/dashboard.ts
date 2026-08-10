@@ -1,6 +1,11 @@
 import type { Profile } from "@/lib/auth/roles";
 import type { createClient } from "@/lib/supabase/server";
 import {
+  parseEarlyWarningRemarks,
+  type EarlyWarningPayload,
+} from "@/lib/student/ai-client";
+import { getStudentBurnoutTrends, backfillBurnoutTrendsFromHistory } from "@/lib/student/burnout-trends";
+import {
   ensureWeeklyMonitoringReminder,
   getWeeklyMonitoringHistory,
 } from "@/lib/student/queries";
@@ -16,6 +21,9 @@ export type BurnoutFactor = {
 export type StudentDashboardData = {
   burnoutLevel: string | null;
   mfbiScore: number | null;
+  riskScore: number | null;
+  predictionDate: string | null;
+  selectedModel: string | null;
   stressLevel: string | null;
   stressScore: number | null;
   latestWeek: number | null;
@@ -25,10 +33,17 @@ export type StudentDashboardData = {
     studyTime: BurnoutFactor;
     sleep: BurnoutFactor;
   } | null;
+  earlyWarning: EarlyWarningPayload | null;
   monitoringStatus: "Submitted" | "Pending" | "Closed";
   latestMonitoringDate: string | null;
   currentWeek: number | null;
-  weeklyTrend: { week: number; score: number | null; level: string | null }[];
+  weeklyTrend: {
+    week: number;
+    score: number | null;
+    level: string | null;
+    delta?: number | null;
+    direction?: string | null;
+  }[];
   recommendation: {
     title: string;
     description: string;
@@ -55,6 +70,27 @@ export async function getStudentDashboardData(
     getWeeklyMonitoringHistory(supabase, studentId),
   ]);
 
+  let savedTrends = await getStudentBurnoutTrends(
+    supabase,
+    studentId,
+    term?.term_id ?? null
+  );
+
+  // If the trends table exists but is empty, seed it from existing MFBI history.
+  if (!savedTrends.length && term?.term_id && history.length) {
+    const seeded = await backfillBurnoutTrendsFromHistory(
+      supabase,
+      studentId,
+      term.term_id
+    );
+    if (seeded > 0) {
+      savedTrends = await getStudentBurnoutTrends(
+        supabase,
+        studentId,
+        term.term_id
+      );
+    }
+  }
   const currentWeek = term ? getCurrentWeekNumber(term) : null;
   const submittedThisWeek = Boolean(
     currentWeek && history.some((row) => row.week_number === currentWeek)
@@ -70,6 +106,16 @@ export async function getStudentDashboardData(
   const burnoutLevel =
     latest?.prediction?.final_prediction ?? mfbi?.burnout_level ?? null;
   const mfbiScore = mfbi?.mfbi_score ?? null;
+  const earlyWarning = parseEarlyWarningRemarks(
+    latest?.prediction?.remarks ?? null
+  );
+  const riskScore =
+    latest?.prediction?.random_forest_confidence != null
+      ? Math.round(Number(latest.prediction.random_forest_confidence)) / 100
+      : null;
+  const predictionDate =
+    latest?.prediction?.prediction_date ?? latest?.monitoring_date ?? null;
+  const selectedModel = latest?.prediction?.selected_model ?? null;
 
   const [recommendationRow, department, announcementResult] =
     await Promise.all([
@@ -158,20 +204,35 @@ export async function getStudentDashboardData(
       created_at: item.created_at,
     }));
 
-  const weeklyTrend = [...history]
+  const weeklyTrendFromHistory = [...history]
     .reverse()
-    .slice(-8)
     .map((row) => {
       const result = Array.isArray(row.mfbi_results)
         ? row.mfbi_results[0]
         : row.mfbi_results;
+      if (result?.mfbi_score == null) return null;
       return {
         week: row.week_number,
-        score: result?.mfbi_score ?? null,
+        score: result.mfbi_score,
         level:
-          row.prediction?.final_prediction ?? result?.burnout_level ?? null,
+          row.prediction?.final_prediction ?? result.burnout_level ?? null,
+        delta: null as number | null,
+        direction: null as string | null,
       };
-    });
+    })
+    .filter((point): point is NonNullable<typeof point> => point != null)
+    .slice(-12);
+
+  const weeklyTrend =
+    savedTrends.length > 0
+      ? savedTrends.slice(-12).map((point) => ({
+          week: point.week,
+          score: point.score,
+          level: point.level,
+          delta: point.delta,
+          direction: point.direction,
+        }))
+      : weeklyTrendFromHistory;
 
   const stressScore = latest?.stress_score ?? null;
   const stressLevel =
@@ -208,10 +269,14 @@ export async function getStudentDashboardData(
   return {
     burnoutLevel,
     mfbiScore,
+    riskScore,
+    predictionDate,
+    selectedModel,
     stressLevel,
     stressScore,
     latestWeek: latest?.week_number ?? null,
     factors,
+    earlyWarning,
     monitoringStatus: submittedThisWeek
       ? "Submitted"
       : term?.monitoring_enabled

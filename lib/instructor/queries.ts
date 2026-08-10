@@ -22,6 +22,11 @@ export type StudentMonitorRow = {
   mfbi_score: number | null;
   burnout_level: string | null;
   prediction: string | null;
+  early_warning_attention?: boolean;
+  next_week_risk?: string | null;
+  week2_risk?: string | null;
+  early_warning_trend?: string | null;
+  has_ml_next_week?: boolean;
   previous_mfbi_score: number | null;
   previous_burnout_level: string | null;
   monitoring_date: string | null;
@@ -54,6 +59,9 @@ export type InstructorDashboardData = {
   lowRiskCount: number;
   moderateRiskCount: number;
   highRiskCount: number;
+  earlyWarningCount: number;
+  nextWeekHighCount: number;
+  week2HighCount: number;
   lowRiskPercent: number;
   moderateRiskPercent: number;
   highRiskPercent: number;
@@ -96,6 +104,21 @@ export type InstructorDashboardData = {
     mfbi_score: number | null;
     mainConcern: string;
     monitoring_date: string | null;
+    next_week_risk?: string | null;
+    week2_risk?: string | null;
+    early_warning_trend?: string | null;
+  }[];
+  earlyWarningStudents: {
+    id: string;
+    full_name: string;
+    student_number: string | null;
+    classLabel: string;
+    year_level: number | null;
+    current_risk: string;
+    next_week_risk: string | null;
+    week2_risk: string | null;
+    trend: string | null;
+    mfbi_score: number | null;
   }[];
   riskFactors: { label: string; count: number }[];
   pendingStudents: {
@@ -211,7 +234,7 @@ export async function getInstructorStudentRows(
   let monitoringQuery = supabase
     .from("weekly_monitoring")
     .select(
-      "monitoring_id, student_id, week_number, stress_score, academic_workload_score, study_time_score, sleep_hours_score, submitted_at, term_id, created_at, mfbi_results(mfbi_id, mfbi_score, burnout_risk_level, ml_predictions(final_prediction))"
+      "monitoring_id, student_id, week_number, stress_score, academic_workload_score, study_time_score, sleep_hours_score, submitted_at, term_id, created_at, mfbi_results(mfbi_id, mfbi_score, burnout_risk_level, ml_predictions(final_prediction, remarks))"
     )
     .in("student_id", ids)
     .order("created_at", { ascending: false });
@@ -250,6 +273,10 @@ export async function getInstructorStudentRows(
     }
   }
 
+  const { staffEarlyWarningFromRemarks } = await import(
+    "@/lib/student/early-warning-staff"
+  );
+
   return students.map((student) => {
     const monitoring = latestMonitoring.get(student.id) ?? null;
     const previous = previousMonitoring.get(student.id) ?? null;
@@ -265,6 +292,8 @@ export async function getInstructorStudentRows(
       : predictionRaw;
     const stressScore =
       monitoring?.stress_score != null ? Number(monitoring.stress_score) : null;
+
+    const ew = staffEarlyWarningFromRemarks(prediction?.remarks);
 
     return {
       id: student.id,
@@ -292,6 +321,11 @@ export async function getInstructorStudentRows(
       mfbi_score: mfbi?.mfbi_score != null ? Number(mfbi.mfbi_score) : null,
       burnout_level: mfbi?.burnout_risk_level ?? null,
       prediction: prediction?.final_prediction ?? null,
+      early_warning_attention: ew.early_warning_attention,
+      next_week_risk: ew.next_week_risk,
+      week2_risk: ew.week2_risk,
+      early_warning_trend: ew.early_warning_trend,
+      has_ml_next_week: ew.has_ml_next_week,
       previous_mfbi_score:
         previousMfbi?.mfbi_score != null
           ? Number(previousMfbi.mfbi_score)
@@ -673,13 +707,30 @@ export async function getInstructorDashboardData(
     }))
     .sort((a, b) => b.elevated - a.elevated || a.label.localeCompare(b.label));
 
-  const attentionStudents = classified
-    .filter((i) => i.bucket === "High" || i.bucket === "Moderate")
+  const attentionStudents = [
+    ...classified.filter((i) => i.bucket === "High" || i.bucket === "Moderate"),
+    ...rows
+      .filter(
+        (r) =>
+          r.early_warning_attention &&
+          riskBucket(r.prediction || r.burnout_level) !== "High" &&
+          riskBucket(r.prediction || r.burnout_level) !== "Moderate"
+      )
+      .map((r) => ({
+        row: r,
+        bucket: (riskBucket(r.prediction || r.burnout_level) ||
+          "Moderate") as "Low" | "Moderate" | "High",
+      })),
+  ]
     .sort((a, b) => {
+      const earlyBoost = (row: StudentMonitorRow) =>
+        row.early_warning_attention ? 1 : 0;
       const rank = (b: "Low" | "Moderate" | "High") =>
         b === "High" ? 2 : b === "Moderate" ? 1 : 0;
       const riskDiff = rank(b.bucket) - rank(a.bucket);
       if (riskDiff !== 0) return riskDiff;
+      const earlyDiff = earlyBoost(b.row) - earlyBoost(a.row);
+      if (earlyDiff !== 0) return earlyDiff;
       return (b.row.mfbi_score ?? 0) - (a.row.mfbi_score ?? 0);
     })
     .slice(0, 12)
@@ -689,11 +740,39 @@ export async function getInstructorDashboardData(
       student_number: row.student_number,
       classLabel: classLabel(row),
       year_level: row.year_level,
-      risk: (row.prediction || row.burnout_level || bucket) as string,
+      risk: row.early_warning_attention
+        ? `${row.prediction || row.burnout_level || bucket} (early warning)`
+        : ((row.prediction || row.burnout_level || bucket) as string),
       mfbi_score: row.mfbi_score,
       mainConcern: mainConcern(row),
       monitoring_date: row.monitoring_date,
+      next_week_risk: row.next_week_risk ?? null,
+      week2_risk: row.week2_risk ?? null,
+      early_warning_trend: row.early_warning_trend ?? null,
     }));
+
+  const earlyWarningStudents = rows
+    .filter((r) => r.early_warning_attention)
+    .sort((a, b) => (b.mfbi_score ?? 0) - (a.mfbi_score ?? 0))
+    .slice(0, 15)
+    .map((row) => ({
+      id: row.id,
+      full_name: row.full_name,
+      student_number: row.student_number,
+      classLabel: classLabel(row),
+      year_level: row.year_level,
+      current_risk: (row.prediction || row.burnout_level || "—") as string,
+      next_week_risk: row.next_week_risk ?? null,
+      week2_risk: row.week2_risk ?? null,
+      trend: row.early_warning_trend ?? null,
+      mfbi_score: row.mfbi_score,
+    }));
+
+  const earlyWarningCount = earlyWarningStudents.length;
+  const nextWeekHighCount = rows.filter(
+    (r) => r.next_week_risk === "High"
+  ).length;
+  const week2HighCount = rows.filter((r) => r.week2_risk === "High").length;
 
   const assessed = rows.filter(
     (r) =>
@@ -784,6 +863,14 @@ export async function getInstructorDashboardData(
       meta: "Latest snapshot",
     });
   }
+
+  if (earlyWarningCount > 0) {
+    recentAlerts.push({
+      tone: "moderate",
+      text: `${earlyWarningCount} student${earlyWarningCount === 1 ? "" : "s"} flagged by AI early-warning outlook (${nextWeekHighCount} next-week High)`,
+      meta: "Next-week / trend projection",
+    });
+  }
   if (pendingCount > 0) {
     recentAlerts.push({
       tone: "moderate",
@@ -808,6 +895,9 @@ export async function getInstructorDashboardData(
     lowRiskCount,
     moderateRiskCount,
     highRiskCount,
+    earlyWarningCount,
+    nextWeekHighCount,
+    week2HighCount,
     lowRiskPercent: pct(lowRiskCount),
     moderateRiskPercent: pct(moderateRiskCount),
     highRiskPercent: pct(highRiskCount),
@@ -819,6 +909,7 @@ export async function getInstructorDashboardData(
     riskByClass,
     weeklyTrends,
     attentionStudents,
+    earlyWarningStudents,
     riskFactors,
     pendingStudents,
     recentAlerts: recentAlerts.slice(0, 6),
@@ -988,27 +1079,65 @@ export function getInstructorAnalytics(
   const attentionStudents = rows
     .map((row) => {
       const bucket = riskBucket(row.prediction || row.burnout_level);
-      if (bucket !== "High" && bucket !== "Moderate") return null;
+      if (
+        bucket !== "High" &&
+        bucket !== "Moderate" &&
+        !row.early_warning_attention
+      ) {
+        return null;
+      }
       return {
         id: row.id,
         full_name: row.full_name,
         student_number: row.student_number,
         classLabel: classLabel(row),
         year_level: row.year_level,
-        risk: (row.prediction || row.burnout_level || bucket) as string,
+        risk: row.early_warning_attention
+          ? `${row.prediction || row.burnout_level || bucket || "Elevated"} (early warning)`
+          : ((row.prediction || row.burnout_level || bucket) as string),
         mfbi_score: row.mfbi_score,
         mainFactor: mainRiskFactor(row),
         trend: riskTrend(row),
+        next_week_risk: row.next_week_risk ?? null,
+        week2_risk: row.week2_risk ?? null,
+        early_warning_trend: row.early_warning_trend ?? null,
       };
     })
     .filter((item): item is NonNullable<typeof item> => item != null)
     .sort((a, b) => {
       const rank = (risk: string) =>
-        risk === "High" || risk === "Severe" ? 2 : risk === "Moderate" ? 1 : 0;
+        risk.includes("High") || risk.includes("Severe")
+          ? 2
+          : risk.includes("Moderate")
+            ? 1
+            : 0;
       const riskDiff = rank(b.risk) - rank(a.risk);
       if (riskDiff !== 0) return riskDiff;
       return (b.mfbi_score ?? 0) - (a.mfbi_score ?? 0);
     });
+
+  const earlyWarningStudents = rows
+    .filter((r) => r.early_warning_attention)
+    .sort((a, b) => (b.mfbi_score ?? 0) - (a.mfbi_score ?? 0))
+    .slice(0, 15)
+    .map((row) => ({
+      id: row.id,
+      full_name: row.full_name,
+      student_number: row.student_number,
+      classLabel: classLabel(row),
+      year_level: row.year_level,
+      current_risk: (row.prediction || row.burnout_level || "—") as string,
+      next_week_risk: row.next_week_risk ?? null,
+      week2_risk: row.week2_risk ?? null,
+      trend: row.early_warning_trend ?? null,
+      mfbi_score: row.mfbi_score,
+    }));
+
+  const earlyWarningCount = earlyWarningStudents.length;
+  const nextWeekHighCount = rows.filter(
+    (r) => r.next_week_risk === "High"
+  ).length;
+  const week2HighCount = rows.filter((r) => r.week2_risk === "High").length;
 
   const assessed = rows.filter(
     (r) =>
@@ -1115,6 +1244,12 @@ export function getInstructorAnalytics(
       text: `${delta} fewer High Risk student${delta === 1 ? "" : "s"} vs last week`,
     });
   }
+  if (earlyWarningCount > 0) {
+    recentChanges.push({
+      tone: "moderate",
+      text: `${earlyWarningCount} student${earlyWarningCount === 1 ? "" : "s"} flagged by AI early warning (${nextWeekHighCount} next-week High)`,
+    });
+  }
   if (!recentChanges.length) {
     recentChanges.push({
       tone: "info",
@@ -1129,12 +1264,16 @@ export function getInstructorAnalytics(
     lowRiskCount,
     moderateRiskCount,
     highRiskCount,
+    earlyWarningCount,
+    nextWeekHighCount,
+    week2HighCount,
     riskOverview,
     yearStats,
     riskByClass,
     classOptions,
     weeklyTrends,
     attentionStudents,
+    earlyWarningStudents,
     riskFactors,
     submittedCount,
     pendingCount,

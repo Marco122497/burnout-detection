@@ -89,6 +89,13 @@ export function predictRandomForest(
   return { prediction, confidence };
 }
 
+export type PriorWeekScores = {
+  stress_score: number;
+  academic_workload_score: number;
+  study_time_score: number;
+  sleep_hours_score: number;
+};
+
 export function predictBurnoutRisk(
   mfbi: MfbiResult,
   sections: SectionScores
@@ -117,4 +124,61 @@ export function predictBurnoutRisk(
     model_version: "phase2-rules-v2-mfbi-ranges",
     remarks: `MFBI ${mfbi.mfbi_score.toFixed(4)}; selected ${selected_model}`,
   };
+}
+
+/**
+ * Prefer the trained burnout-ai early-warning service; fall back to rule-based
+ * predictors when AI_API_URL is unset, the service is down, or the call errors.
+ */
+export async function predictBurnoutRiskWithAi(
+  mfbi: MfbiResult,
+  sections: SectionScores,
+  options?: {
+    studentId?: string;
+    priorWeek?: PriorWeekScores | null;
+    historyLevels?: string[];
+    historyMfbi?: number[];
+  }
+): Promise<PredictionResult> {
+  try {
+    const { callBurnoutAiEarlyWarning } = await import("@/lib/student/ai-client");
+
+    const features = {
+      stress_score: sections.stress_score,
+      academic_workload_score: sections.academic_workload_score,
+      study_time_score: sections.study_time_score,
+      sleep_hours_score: sections.sleep_hours_score,
+      mfbi_score: mfbi.mfbi_score,
+      ...(options?.priorWeek
+        ? {
+            stress_trend:
+              sections.stress_score - options.priorWeek.stress_score,
+            workload_trend:
+              sections.academic_workload_score -
+              options.priorWeek.academic_workload_score,
+            study_trend:
+              sections.study_time_score - options.priorWeek.study_time_score,
+            sleep_trend:
+              sections.sleep_hours_score - options.priorWeek.sleep_hours_score,
+          }
+        : {}),
+    };
+
+    const aiResult = await callBurnoutAiEarlyWarning(features, {
+      studentId: options?.studentId,
+      historyLevels: options?.historyLevels,
+      historyMfbi: options?.historyMfbi,
+    });
+
+    if (aiResult) {
+      return {
+        ...aiResult.prediction,
+        remarks: `MFBI ${mfbi.mfbi_score.toFixed(4)}; ${aiResult.prediction.remarks}`,
+      };
+    }
+  } catch (error) {
+    console.error("predictBurnoutRiskWithAi fallback:", error);
+  }
+
+  return predictBurnoutRisk(mfbi, sections);
 }

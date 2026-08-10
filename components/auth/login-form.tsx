@@ -75,7 +75,7 @@ export function LoginForm() {
               name="email"
               type="email"
               autoComplete="email"
-              placeholder="you@school.edu"
+              placeholder="you@ckcm.edu.ph"
               required
             />
           </div>
@@ -94,6 +94,7 @@ export function LoginForm() {
                 id="password"
                 name="password"
                 autoComplete="current-password"
+                placeholder="enter your password"
                 required
               />
             </div>

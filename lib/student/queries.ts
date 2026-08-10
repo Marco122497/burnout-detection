@@ -42,6 +42,11 @@ export type MonitoringRow = {
     selected_model: string;
     decision_tree_prediction: string;
     random_forest_prediction: string;
+    decision_tree_confidence?: number | null;
+    random_forest_confidence?: number | null;
+    model_version?: string | null;
+    prediction_date?: string | null;
+    remarks?: string | null;
   } | null;
 };
 
@@ -55,23 +60,79 @@ export async function getWeeklyMonitoringHistory(
   supabase: SupabaseClient,
   studentId: string
 ) {
-  const { data } = await supabase
+  // Shallow nested select first — a deep ml_predictions embed can fail the
+  // whole query under RLS and empty the dashboard trend chart.
+  const { data, error } = await supabase
     .from("weekly_monitoring")
     .select(
-      "monitoring_id, week_number, stress_score, academic_workload_score, study_time_score, sleep_hours_score, submitted_at, remarks, created_at, status, mfbi_results(mfbi_id, mfbi_score, burnout_risk_level, normalized_stress, normalized_academic_workload, normalized_study_time, normalized_sleep_hours, ml_predictions(final_prediction, selected_model, decision_tree_prediction, random_forest_prediction))"
+      "monitoring_id, week_number, stress_score, academic_workload_score, study_time_score, sleep_hours_score, submitted_at, remarks, created_at, status, mfbi_results(mfbi_id, mfbi_score, burnout_risk_level, normalized_stress, normalized_academic_workload, normalized_study_time, normalized_sleep_hours)"
     )
     .eq("student_id", studentId)
     .order("week_number", { ascending: false });
 
+  if (error) {
+    console.error("getWeeklyMonitoringHistory:", error.message);
+  }
+
   const rows = data ?? [];
+  const mfbiIds = rows
+    .map((row) => {
+      const mfbiRaw = row.mfbi_results;
+      const mfbi = Array.isArray(mfbiRaw) ? mfbiRaw[0] : mfbiRaw;
+      return mfbi?.mfbi_id as number | undefined;
+    })
+    .filter((id): id is number => Boolean(id));
+
+  const predictionByMfbi = new Map<
+    number,
+    {
+      final_prediction: string;
+      selected_model: string;
+      decision_tree_prediction: string;
+      random_forest_prediction: string;
+      decision_tree_confidence: number | null;
+      random_forest_confidence: number | null;
+      model_version: string | null;
+      prediction_date: string | null;
+      remarks: string | null;
+    }
+  >();
+
+  if (mfbiIds.length) {
+    const { data: predictions } = await supabase
+      .from("ml_predictions")
+      .select(
+        "mfbi_id, final_prediction, selected_model, decision_tree_prediction, random_forest_prediction, decision_tree_confidence, random_forest_confidence, model_version, prediction_date, remarks"
+      )
+      .in("mfbi_id", mfbiIds);
+
+    for (const prediction of predictions ?? []) {
+      predictionByMfbi.set(prediction.mfbi_id, {
+        final_prediction: prediction.final_prediction,
+        selected_model: prediction.selected_model,
+        decision_tree_prediction: prediction.decision_tree_prediction,
+        random_forest_prediction: prediction.random_forest_prediction,
+        decision_tree_confidence:
+          prediction.decision_tree_confidence != null
+            ? Number(prediction.decision_tree_confidence)
+            : null,
+        random_forest_confidence:
+          prediction.random_forest_confidence != null
+            ? Number(prediction.random_forest_confidence)
+            : null,
+        model_version: prediction.model_version ?? null,
+        prediction_date: prediction.prediction_date ?? null,
+        remarks: prediction.remarks ?? null,
+      });
+    }
+  }
 
   return rows.map((row) => {
     const mfbiRaw = row.mfbi_results;
     const mfbi = Array.isArray(mfbiRaw) ? mfbiRaw[0] : mfbiRaw;
-    const predictionRaw = mfbi?.ml_predictions;
-    const prediction = Array.isArray(predictionRaw)
-      ? predictionRaw[0]
-      : predictionRaw;
+    const prediction = mfbi?.mfbi_id
+      ? predictionByMfbi.get(mfbi.mfbi_id) ?? null
+      : null;
 
     return {
       monitoring_id: row.monitoring_id,
@@ -100,6 +161,11 @@ export async function getWeeklyMonitoringHistory(
             selected_model: prediction.selected_model,
             decision_tree_prediction: prediction.decision_tree_prediction,
             random_forest_prediction: prediction.random_forest_prediction,
+            decision_tree_confidence: prediction.decision_tree_confidence,
+            random_forest_confidence: prediction.random_forest_confidence,
+            model_version: prediction.model_version,
+            prediction_date: prediction.prediction_date,
+            remarks: prediction.remarks,
           }
         : null,
     } satisfies MonitoringRow;

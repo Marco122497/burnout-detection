@@ -4,6 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:with-ai": "concurrently -k -n next,ai -c cyan,magenta \"next dev\" \"npm run ai\"",
+    "ai": "node scripts/run-ai.mjs",
+    "train": "node scripts/run-train.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
@@ -32,6 +35,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "concurrently": "^10.0.4",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
     "tailwindcss": "^4",
