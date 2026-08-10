@@ -4,6 +4,10 @@ import { getModelEvaluation } from "@/lib/guidance/model-metrics";
 import { getInstructorDashboardData } from "@/lib/instructor/queries";
 import { checkBurnoutAiHealth } from "@/lib/student/ai-client";
 
+export const metadata = {
+  title: "Instructor Dashboard",
+};
+
 export default async function InstructorDashboardPage() {
   const { supabase, user, profile } = await requireRole(["Instructor"]);
   const [data, modelEvaluation, aiHealthy] = await Promise.all([

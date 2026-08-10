@@ -10,6 +10,10 @@ import {
   getInstructorStudentRows,
 } from "@/lib/instructor/queries";
 
+export const metadata = {
+  title: "Student Monitoring",
+};
+
 export default async function InstructorMonitoringPage() {
   const { supabase, profile } = await requireRole(["Instructor"]);
   const [studentRows, departmentName, emails] = await Promise.all([

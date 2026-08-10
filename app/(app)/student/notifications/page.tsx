@@ -5,6 +5,10 @@ import { PageHeading } from "@/components/layout/page-heading";
 import { requireRole } from "@/lib/auth/session";
 import { getStudentNotifications } from "@/lib/student/queries";
 
+export const metadata = {
+  title: "Notifications",
+};
+
 export default async function StudentNotificationsPage() {
   const { supabase, user } = await requireRole(["Student"]);
   const notifications = await getStudentNotifications(supabase, user.id, 40);

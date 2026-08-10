@@ -5,6 +5,10 @@ import { PageHeading } from "@/components/layout/page-heading";
 import { requireRole } from "@/lib/auth/session";
 import { getDepartmentsWithCounts } from "@/lib/guidance/queries";
 
+export const metadata = {
+  title: "Departments",
+};
+
 export default async function GuidanceDepartmentsPage() {
   const { supabase } = await requireRole(["Guidance Counselor"]);
   const departments = await getDepartmentsWithCounts(supabase);

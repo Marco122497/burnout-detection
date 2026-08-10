@@ -11,6 +11,10 @@ import {
 } from "@/lib/guidance/monitoring";
 import { checkBurnoutAiHealth } from "@/lib/student/ai-client";
 
+export const metadata = {
+  title: "Analytics",
+};
+
 export default async function GuidanceAnalyticsPage() {
   const { supabase } = await requireRole(["Guidance Counselor"]);
   const [rows, weeklyTrends, modelEvaluation, aiHealthy] = await Promise.all([

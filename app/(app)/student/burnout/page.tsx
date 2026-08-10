@@ -8,6 +8,10 @@ import {
   getMonitoringAnswers,
 } from "@/lib/student/queries";
 
+export const metadata = {
+  title: "Assessment History",
+};
+
 export default async function StudentBurnoutPage() {
   const { supabase, user } = await requireRole(["Student"]);
   const snapshot = await getLatestBurnoutSnapshot(supabase, user.id);

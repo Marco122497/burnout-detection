@@ -9,6 +9,10 @@ import {
 } from "@/lib/instructor/queries";
 import { checkBurnoutAiHealth } from "@/lib/student/ai-client";
 
+export const metadata = {
+  title: "Analytics",
+};
+
 export default async function InstructorAnalyticsPage() {
   const { supabase, profile } = await requireRole(["Instructor"]);
   const [rows, weeklyTrends, departmentName, modelEvaluation, aiHealthy] =

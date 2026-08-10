@@ -5,6 +5,10 @@ import { PageHeading } from "@/components/layout/page-heading";
 import { requireUser } from "@/lib/auth/session";
 import { getDepartments } from "@/lib/guidance/queries";
 
+export const metadata = {
+  title: "Profile",
+};
+
 export default async function ProfilePage() {
   const { supabase, profile } = await requireUser();
   const departments = await getDepartments(supabase);

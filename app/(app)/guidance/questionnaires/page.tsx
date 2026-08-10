@@ -5,6 +5,10 @@ import { PageHeading } from "@/components/layout/page-heading";
 import { requireRole } from "@/lib/auth/session";
 import { getQuestionnaires } from "@/lib/guidance/questionnaires";
 
+export const metadata = {
+  title: "Questionnaires",
+};
+
 export default async function GuidanceQuestionnairesPage() {
   const { supabase } = await requireRole(["Guidance Counselor"]);
   const questionnaires = await getQuestionnaires(supabase);

@@ -5,6 +5,10 @@ import { PageHeading } from "@/components/layout/page-heading";
 import { requireRole } from "@/lib/auth/session";
 import { getUserEmails, getUsersByRole } from "@/lib/guidance/queries";
 
+export const metadata = {
+  title: "Admins",
+};
+
 export default async function GuidanceAdminsPage() {
   const { supabase, user } = await requireRole(["Guidance Counselor"]);
   const [adminRows, emails] = await Promise.all([

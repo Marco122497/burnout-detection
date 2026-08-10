@@ -8,6 +8,10 @@ import {
 } from "@/lib/guidance/monitoring";
 import { checkBurnoutAiHealth } from "@/lib/student/ai-client";
 
+export const metadata = {
+  title: "Guidance Dashboard",
+};
+
 export default async function GuidanceDashboardPage() {
   const { supabase, profile } = await requireRole(["Guidance Counselor"]);
   const [studentRows, weeklySeries, modelEvaluation, aiHealthy] =

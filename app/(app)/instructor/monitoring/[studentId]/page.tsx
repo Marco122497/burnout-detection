@@ -8,6 +8,10 @@ import {
 } from "@/lib/instructor/queries";
 import { getMonitoringAnswers } from "@/lib/student/queries";
 
+export const metadata = {
+  title: "Student Assessment History",
+};
+
 export default async function InstructorStudentHistoryPage({
   params,
 }: {

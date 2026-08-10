@@ -9,6 +9,10 @@ import { createClient } from "@/lib/supabase/server";
  */
 export const dynamic = "force-dynamic";
 
+export const metadata = {
+  title: "Register",
+};
+
 async function getActiveDepartments(): Promise<Department[]> {
   const select =
     "department_id, department_code, department_name, description, is_active, created_at, updated_at";

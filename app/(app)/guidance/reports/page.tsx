@@ -10,6 +10,10 @@ import {
   getInstructorMonitoringRows,
 } from "@/lib/guidance/monitoring";
 
+export const metadata = {
+  title: "Reports",
+};
+
 export default async function GuidanceReportsPage() {
   const { supabase } = await requireRole(["Guidance Counselor"]);
   const [rows, departments, term] = await Promise.all([

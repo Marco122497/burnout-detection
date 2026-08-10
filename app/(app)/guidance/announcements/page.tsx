@@ -6,6 +6,10 @@ import { requireRole } from "@/lib/auth/session";
 import { getDepartments } from "@/lib/guidance/queries";
 import type { AnnouncementRow } from "@/lib/instructor/queries";
 
+export const metadata = {
+  title: "Announcements",
+};
+
 export default async function GuidanceAnnouncementsPage() {
   const { supabase, user } = await requireRole(["Guidance Counselor"]);
 

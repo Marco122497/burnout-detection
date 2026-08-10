@@ -9,6 +9,10 @@ import {
   getUserEmails,
 } from "@/lib/guidance/queries";
 
+export const metadata = {
+  title: "Instructors",
+};
+
 export default async function GuidanceInstructorsPage() {
   const { supabase } = await requireRole(["Guidance Counselor"]);
   const [instructorRows, departments, emails] = await Promise.all([

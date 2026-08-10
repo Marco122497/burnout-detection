@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Source_Serif_4, DM_Sans } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
@@ -14,8 +15,11 @@ const sans = DM_Sans({
   subsets: ["latin"],
 });
 
-export const metadata = {
-  title: "Burnout Detection System",
+export const metadata: Metadata = {
+  title: {
+    default: "Burnout",
+    template: "Burnout | %s",
+  },
   description:
     "Student burnout monitoring, early warning, and guidance intervention",
 };

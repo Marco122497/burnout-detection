@@ -6,6 +6,10 @@ import { requireRole } from "@/lib/auth/session";
 import type { BurnoutLevel } from "@/lib/student/mfbi";
 import { getLatestBurnoutSnapshot } from "@/lib/student/queries";
 
+export const metadata = {
+  title: "Recommendations",
+};
+
 export default async function StudentRecommendationsPage() {
   const { supabase, user } = await requireRole(["Student"]);
   const snapshot = await getLatestBurnoutSnapshot(supabase, user.id);

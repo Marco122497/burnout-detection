@@ -3,6 +3,10 @@ import { KeyRoundIcon } from "lucide-react";
 import { PasswordForm } from "@/components/auth/password-form";
 import { PageHeading } from "@/components/layout/page-heading";
 
+export const metadata = {
+  title: "Change Password",
+};
+
 export default function ChangePasswordPage() {
   return (
     <div className="space-y-6">

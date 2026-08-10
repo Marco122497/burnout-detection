@@ -7,6 +7,10 @@ import {
   getQuestionsForQuestionnaire,
 } from "@/lib/guidance/questionnaires";
 
+export const metadata = {
+  title: "Questionnaire",
+};
+
 export default async function GuidanceQuestionnaireDetailPage({
   params,
 }: {

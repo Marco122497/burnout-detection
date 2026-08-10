@@ -6,6 +6,10 @@ import { requireRole } from "@/lib/auth/session";
 import { getWeeklyMonitoringSections } from "@/lib/student/questionnaires";
 import { getLatestBurnoutSnapshot } from "@/lib/student/queries";
 
+export const metadata = {
+  title: "Weekly Monitoring",
+};
+
 export default async function StudentMonitoringPage() {
   const { supabase, user } = await requireRole(["Student"]);
   const [snapshot, sections] = await Promise.all([

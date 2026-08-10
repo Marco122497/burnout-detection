@@ -9,6 +9,10 @@ import {
   getInstructorStudentRows,
 } from "@/lib/instructor/queries";
 
+export const metadata = {
+  title: "Announcements",
+};
+
 export default async function InstructorAnnouncementsPage() {
   const { supabase, user, profile } = await requireRole(["Instructor"]);
 

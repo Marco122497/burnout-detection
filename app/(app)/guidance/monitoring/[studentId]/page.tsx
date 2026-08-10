@@ -5,6 +5,10 @@ import { requireRole } from "@/lib/auth/session";
 import { getGuidanceStudentHistory } from "@/lib/guidance/monitoring";
 import { getMonitoringAnswers } from "@/lib/student/queries";
 
+export const metadata = {
+  title: "Student Assessment History",
+};
+
 export default async function GuidanceStudentHistoryPage({
   params,
 }: {

@@ -9,6 +9,10 @@ import {
 } from "@/lib/instructor/queries";
 import { getActiveTerm, getCurrentWeekNumber } from "@/lib/student/terms";
 
+export const metadata = {
+  title: "Reports",
+};
+
 export default async function InstructorReportsPage() {
   const { supabase, profile } = await requireRole(["Instructor"]);
   const [rows, term, departmentName] = await Promise.all([
