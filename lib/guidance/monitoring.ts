@@ -628,6 +628,10 @@ export function getGuidanceAnalytics(
       risk: r.early_warning_attention
         ? `${r.prediction || r.burnout_level || "Elevated"} (early warning)`
         : ((r.prediction || r.burnout_level || "High") as string),
+      status: r.early_warning_attention
+        ? "Early Warning"
+        : "Needs Attention",
+      monitoring_date: r.monitoring_date ?? null,
       next_week_risk: r.next_week_risk ?? null,
       week2_risk: r.week2_risk ?? null,
       early_warning_trend: r.early_warning_trend ?? null,
