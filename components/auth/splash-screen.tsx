@@ -3,12 +3,34 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+const SPLASH_SEEN_KEY = "burnout-splash-seen";
+
+export function markSplashSeen() {
+  try {
+    sessionStorage.setItem(SPLASH_SEEN_KEY, "1");
+  } catch {
+    // ignore storage errors
+  }
+}
+
+export function hasSplashBeenSeen() {
+  try {
+    return sessionStorage.getItem(SPLASH_SEEN_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 export function SplashScreen({
   durationMs = 2000,
-  href = "/login",
+  href,
+  onDone,
 }: {
   durationMs?: number;
+  /** Navigate here when the splash finishes. */
   href?: string;
+  /** Called instead of navigation when provided. */
+  onDone?: () => void;
 }) {
   const router = useRouter();
   const [exiting, setExiting] = useState(false);
@@ -16,19 +38,24 @@ export function SplashScreen({
   useEffect(() => {
     const exitAt = Math.max(durationMs - 350, 0);
     const exitTimer = window.setTimeout(() => setExiting(true), exitAt);
-    const navTimer = window.setTimeout(() => {
-      router.replace(href);
+    const doneTimer = window.setTimeout(() => {
+      markSplashSeen();
+      if (onDone) {
+        onDone();
+      } else if (href) {
+        router.replace(href);
+      }
     }, durationMs);
 
     return () => {
       window.clearTimeout(exitTimer);
-      window.clearTimeout(navTimer);
+      window.clearTimeout(doneTimer);
     };
-  }, [durationMs, href, router]);
+  }, [durationMs, href, onDone, router]);
 
   return (
     <div
-      className={`relative flex min-h-full flex-1 flex-col items-center justify-center overflow-hidden transition-opacity duration-300 ${
+      className={`fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden transition-opacity duration-300 ${
         exiting ? "opacity-0" : "opacity-100"
       }`}
     >
@@ -63,5 +90,36 @@ export function SplashScreen({
         </div>
       </div>
     </div>
+  );
+}
+
+/** Shows splash once per browser tab session, then reveals auth content. */
+export function AuthSplashGate({ children }: { children: React.ReactNode }) {
+  const [ready, setReady] = useState(false);
+  const [showSplash, setShowSplash] = useState(false);
+
+  useEffect(() => {
+    const seen = hasSplashBeenSeen();
+    setShowSplash(!seen);
+    setReady(true);
+  }, []);
+
+  if (!ready) {
+    return (
+      <div className="fixed inset-0 z-50 bg-background" aria-hidden />
+    );
+  }
+
+  return (
+    <>
+      {showSplash ? (
+        <SplashScreen
+          durationMs={2000}
+          onDone={() => setShowSplash(false)}
+        />
+      ) : (
+        children
+      )}
+    </>
   );
 }
