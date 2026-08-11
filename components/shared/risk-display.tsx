@@ -10,7 +10,9 @@ export function riskTone(level: string | null | undefined) {
 }
 
 /** Representative score for risk-level projections (not measured MFBI). */
-export function riskLevelToChartScore(level: string | null | undefined) {
+export function riskLevelToChartScore(
+  level: string | null | undefined
+): number | null {
   if (level === "High" || level === "Severe") return 0.85;
   if (level === "Moderate") return 0.55;
   if (level === "Low") return 0.2;
