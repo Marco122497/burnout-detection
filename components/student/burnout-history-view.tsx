@@ -494,11 +494,30 @@ export function BurnoutHistoryView({
         mfbiScore={mfbi?.mfbi_score ?? null}
         weekLabel={latest ? `Week ${latest.week_number}` : null}
       >
-        <p className="pt-1 text-xs text-muted-foreground">
-          {latest?.prediction
-            ? `Prediction: ${latest.prediction.selected_model} · DT ${latest.prediction.decision_tree_prediction} / RF ${latest.prediction.random_forest_prediction}`
-            : "Prediction: AI Decision Tree + Random Forest early detection"}
-        </p>
+        {latest?.prediction ? (
+          <div className="space-y-1 pt-1 text-xs text-muted-foreground">
+            <p>
+              DT: {latest.prediction.decision_tree_prediction}
+              {latest.prediction.decision_tree_confidence != null
+                ? ` (${Math.round(Number(latest.prediction.decision_tree_confidence))}%)`
+                : ""}
+              {latest.prediction.selected_model === "Decision Tree"
+                ? " · selected"
+                : ""}{" "}
+              RF: {latest.prediction.random_forest_prediction}
+              {latest.prediction.random_forest_confidence != null
+                ? ` (${Math.round(Number(latest.prediction.random_forest_confidence))}%)`
+                : ""}
+              {latest.prediction.selected_model === "Random Forest"
+                ? " · selected"
+                : ""}
+            </p>
+          </div>
+        ) : (
+          <p className="pt-1 text-xs text-muted-foreground">
+            Prediction: AI DT + RF early detection
+          </p>
+        )}
       </BurnoutHero>
 
       <BurnoutFactorSection

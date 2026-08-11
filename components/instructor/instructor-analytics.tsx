@@ -24,6 +24,7 @@ import {
   AiEarlyWarningStudentsCard,
   AiModelStatusCard,
 } from "@/components/shared/ai-early-warning-panel";
+import { AiBurnoutTrendChart } from "@/components/shared/ai-burnout-trend-chart";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -444,6 +445,28 @@ export function InstructorAnalyticsView({
           </CardContent>
         </Card>
       </div>
+
+      <Card className="min-w-0 overflow-hidden">
+        <CardHeader>
+          <CardTitle className="text-lg">AI Burnout Trend</CardTitle>
+          <CardDescription>
+            Department average MFBI by week, with AI early-warning next-week and
+            week-2 outlook projections.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="min-w-0 overflow-hidden">
+          <AiBurnoutTrendChart
+            weeklyTrends={data.weeklyTrends}
+            earlyWarningStudents={
+              yearFilter === "all"
+                ? data.aiProjectionStudents
+                : data.aiProjectionStudents.filter(
+                    (s) => s.year_level === Number(yearFilter)
+                  )
+            }
+          />
+        </CardContent>
+      </Card>
 
       <AiEarlyWarningStudentsCard
         students={

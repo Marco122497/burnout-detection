@@ -659,6 +659,12 @@ export function getGuidanceAnalytics(
     (r) => r.next_week_risk === "High"
   ).length;
   const week2HighCount = rows.filter((r) => r.week2_risk === "High").length;
+  const aiProjectionStudents = rows
+    .filter((r) => r.next_week_risk || r.week2_risk)
+    .map((r) => ({
+      next_week_risk: r.next_week_risk ?? null,
+      week2_risk: r.week2_risk ?? null,
+    }));
 
   const previousTrend =
     weeklyTrends.length >= 2 ? weeklyTrends[weeklyTrends.length - 2] : null;
@@ -748,6 +754,7 @@ export function getGuidanceAnalytics(
     averageScores,
     highRiskStudents,
     earlyWarningStudents,
+    aiProjectionStudents,
     earlyWarningCount,
     nextWeekHighCount,
     week2HighCount,

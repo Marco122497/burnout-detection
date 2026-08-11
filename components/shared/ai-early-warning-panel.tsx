@@ -172,6 +172,10 @@ export function AiEarlyWarningStudentsCard({
   );
 }
 
+function pct(value: number) {
+  return `${(value * 100).toFixed(1)}%`;
+}
+
 export function AiModelStatusCard({
   modelEvaluation,
   aiHealthy,
@@ -179,7 +183,12 @@ export function AiModelStatusCard({
   modelEvaluation: ModelEvaluationSnapshot;
   aiHealthy: boolean;
 }) {
+  const dt = modelEvaluation.decisionTree;
   const rf = modelEvaluation.randomForest;
+  const models = [
+    { short: "DT", block: dt },
+    { short: "RF", block: rf },
+  ] as const;
 
   return (
     <Card>
@@ -218,8 +227,8 @@ export function AiModelStatusCard({
           </span>
         </div>
         <div className="flex items-center justify-between gap-2">
-          <span className="text-muted-foreground">Model</span>
-          <span className="font-medium">{rf.label}</span>
+          <span className="text-muted-foreground">Models</span>
+          <span className="font-medium">DT · RF</span>
         </div>
         <div className="flex items-center justify-between gap-2">
           <span className="text-muted-foreground">Training</span>
@@ -227,19 +236,31 @@ export function AiModelStatusCard({
             {modelEvaluation.source === "trained" ? "Ready" : "Awaiting train"}
           </span>
         </div>
-        <div className="grid grid-cols-2 gap-2 border-t pt-3">
-          <div>
-            <p className="text-xs text-muted-foreground">Accuracy</p>
-            <p className="font-medium tabular-nums">
-              {(rf.accuracy * 100).toFixed(1)}%
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">F1</p>
-            <p className="font-medium tabular-nums">
-              {(rf.f1 * 100).toFixed(1)}%
-            </p>
-          </div>
+        <div className="grid grid-cols-2 gap-3 border-t pt-3">
+          {models.map(({ short, block }) => (
+            <div key={short} className="space-y-1.5">
+              <p className="text-xs font-medium text-muted-foreground">{short}</p>
+              <div className="grid grid-cols-2 gap-x-2 gap-y-1.5">
+                {(
+                  [
+                    ["Accuracy", block.accuracy],
+                    ["Precision", block.precision],
+                    ["Recall", block.recall],
+                    ["F1-Score", block.f1],
+                  ] as const
+                ).map(([label, value]) => (
+                  <div key={label}>
+                    <p className="text-[11px] leading-tight text-muted-foreground">
+                      {label}
+                    </p>
+                    <p className="text-sm font-medium leading-tight tabular-nums">
+                      {pct(value)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       </CardContent>
     </Card>

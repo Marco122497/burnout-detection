@@ -15,6 +15,11 @@ import {
   BurnoutFactorSection,
   BurnoutHero,
 } from "@/components/shared/burnout-summary";
+import {
+  PredictionLabel,
+  RiskLevelText,
+  scoreOverMax,
+} from "@/components/shared/risk-display";
 import { useNavigationPending } from "@/components/layout/navigation-pending";
 import { Button } from "@/components/ui/button";
 import {
@@ -198,7 +203,7 @@ export function StudentAssessmentHistoryView({
                   <tr>
                     <th className="px-2 py-1.5 font-medium">Week</th>
                     <th className="px-2 py-1.5 font-medium">Submitted</th>
-                    <th className="px-2 py-1.5 font-medium">PSS</th>
+                    <th className="px-2 py-1.5 font-medium">Stress</th>
                     <th className="px-2 py-1.5 font-medium">Workload</th>
                     <th className="px-2 py-1.5 font-medium">Study</th>
                     <th className="px-2 py-1.5 font-medium">Sleep Risk</th>
@@ -222,19 +227,32 @@ export function StudentAssessmentHistoryView({
                               ? new Date(row.submitted_at).toLocaleString()
                               : "—"}
                           </td>
-                          <td className="px-2 py-1.5">{row.stress_score}</td>
-                          <td className="px-2 py-1.5">{row.academic_workload}</td>
-                          <td className="px-2 py-1.5">{row.study_time}</td>
-                          <td className="px-2 py-1.5">{row.sleep_hours}</td>
-                          <td className="px-2 py-1.5">
+                          <td className="px-2 py-1.5 tabular-nums">
+                            {scoreOverMax(row.stress_score, 40)}
+                          </td>
+                          <td className="px-2 py-1.5 tabular-nums">
+                            {scoreOverMax(row.academic_workload, 10)}
+                          </td>
+                          <td className="px-2 py-1.5 tabular-nums">
+                            {scoreOverMax(row.study_time, 12)}
+                          </td>
+                          <td className="px-2 py-1.5 tabular-nums">
+                            {scoreOverMax(row.sleep_hours, 100)}
+                          </td>
+                          <td className="px-2 py-1.5 tabular-nums">
                             {row.mfbi_score != null
                               ? row.mfbi_score.toFixed(2)
                               : "—"}
                           </td>
                           <td className="px-2 py-1.5">
-                            {row.burnout_level ?? "—"}
+                            <RiskLevelText
+                              level={row.burnout_level}
+                              score={row.mfbi_score}
+                            />
                           </td>
-                          <td className="px-2 py-1.5">{row.prediction ?? "—"}</td>
+                          <td className="px-2 py-1.5">
+                            <PredictionLabel level={row.prediction} />
+                          </td>
                           <td className="px-2 py-1.5 text-right">
                             <Button
                               type="button"

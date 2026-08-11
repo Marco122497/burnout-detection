@@ -6,8 +6,6 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
-  Line,
-  LineChart,
   Pie,
   PieChart,
   XAxis,
@@ -26,6 +24,7 @@ import {
   AiEarlyWarningStudentsCard,
   AiModelStatusCard,
 } from "@/components/shared/ai-early-warning-panel";
+import { AiBurnoutTrendChart } from "@/components/shared/ai-burnout-trend-chart";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -53,10 +52,6 @@ const riskConfig = {
   low: { label: "Low Risk", color: "oklch(0.72 0.15 160)" },
   moderate: { label: "Moderate Risk", color: "oklch(0.8 0.15 85)" },
   high: { label: "High Risk", color: "oklch(0.68 0.19 40)" },
-} satisfies ChartConfig;
-
-const scoreConfig = {
-  average: { label: "Avg MFBI", color: "var(--chart-1)" },
 } satisfies ChartConfig;
 
 const yearConfig = {
@@ -151,18 +146,36 @@ export function GuidanceAnalyticsView({
     fill: `var(--color-${item.label.toLowerCase()})`,
   }));
 
-  const trendData = data.weeklyTrends.map((item) => ({
-    ...item,
-    weekLabel: `Week ${item.week}`,
-    average: Number(item.average.toFixed(2)),
-  }));
-
   const courseChartData = data.byCourse
     .filter((item) => item.count > 0)
     .map((item) => ({
       ...item,
       average: Number(item.average.toFixed(2)),
     }));
+
+  const highestYearLevel =
+    data.byYearLevel.length === 0
+      ? null
+      : [...data.byYearLevel].sort((a, b) =>
+          yearMetric === "average"
+            ? b.average - a.average
+            : b.highRiskCount - a.highRiskCount
+        )[0];
+
+  const highestYearSummary = highestYearLevel
+    ? yearMetric === "average"
+      ? `Highest: ${highestYearLevel.label} · MFBI ${highestYearLevel.average.toFixed(2)}`
+      : `Highest: ${highestYearLevel.label} · ${highestYearLevel.highRiskCount} high-risk`
+    : null;
+
+  const highestCourse =
+    courseChartData.length === 0
+      ? null
+      : [...courseChartData].sort((a, b) => b.average - a.average)[0];
+
+  const highestCourseSummary = highestCourse
+    ? `Highest: ${highestCourse.label} · MFBI ${highestCourse.average.toFixed(2)}`
+    : null;
 
   function sendAlert(studentId: string) {
     setAlertMessage(null);
@@ -330,54 +343,15 @@ export function GuidanceAnalyticsView({
           <CardHeader>
             <CardTitle className="text-lg">Burnout Trend</CardTitle>
             <CardDescription>
-              Average burnout score (MFBI) by monitoring week — use this to see
-              whether burnout is rising or falling over time.
+              Average burnout score (MFBI) by monitoring week, plus AI
+              early-warning next-week and week-2 outlook projections.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {trendData.length === 0 ? (
-              <p className="flex h-[250px] items-center justify-center text-sm text-muted-foreground">
-                No weekly trend yet.
-              </p>
-            ) : (
-              <ChartContainer
-                config={scoreConfig}
-                className="aspect-auto h-[250px] w-full max-w-full"
-              >
-                <LineChart data={trendData}>
-                  <CartesianGrid vertical={false} />
-                  <XAxis
-                    dataKey="weekLabel"
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                  />
-                  <YAxis
-                    domain={[0, 1]}
-                    tickLine={false}
-                    axisLine={false}
-                    width={36}
-                  />
-                  <ChartTooltip
-                    cursor={false}
-                    content={
-                      <ChartTooltipContent
-                        labelFormatter={(value) => String(value)}
-                        indicator="dot"
-                      />
-                    }
-                  />
-                  <Line
-                    dataKey="average"
-                    type="monotone"
-                    stroke="var(--color-average)"
-                    strokeWidth={2}
-                    dot={{ r: 3 }}
-                    activeDot={{ r: 5 }}
-                  />
-                </LineChart>
-              </ChartContainer>
-            )}
+            <AiBurnoutTrendChart
+              weeklyTrends={data.weeklyTrends}
+              earlyWarningStudents={data.aiProjectionStudents}
+            />
           </CardContent>
         </Card>
       </section>
@@ -392,6 +366,11 @@ export function GuidanceAnalyticsView({
                 <CardDescription>
                   Compare burnout across year levels.
                 </CardDescription>
+                {highestYearSummary ? (
+                  <p className="mt-1.5 text-xs font-medium text-foreground">
+                    {highestYearSummary}
+                  </p>
+                ) : null}
               </div>
               <select
                 value={yearMetric}
@@ -407,48 +386,57 @@ export function GuidanceAnalyticsView({
                 <option value="average">Average MFBI</option>
               </select>
             </CardHeader>
-            <CardContent className="min-w-0 px-2 sm:px-(--card-spacing)">
+            <CardContent className="min-w-0 space-y-2 px-2 sm:px-(--card-spacing)">
               {data.byYearLevel.length === 0 ? (
                 <p className="flex h-56 items-center justify-center text-sm text-muted-foreground">
                   No year-level data yet.
                 </p>
               ) : (
-                <ChartContainer
-                  config={yearConfig}
-                  className="aspect-auto h-[260px] w-full max-w-full"
-                >
-                  <BarChart
-                    data={data.byYearLevel}
-                    margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
+                <>
+                  {highestYearSummary ? (
+                    <div className="flex justify-end px-1">
+                      <p className="rounded-md bg-muted/60 px-2.5 py-1 text-xs font-semibold tracking-tight">
+                        {highestYearSummary}
+                      </p>
+                    </div>
+                  ) : null}
+                  <ChartContainer
+                    config={yearConfig}
+                    className="aspect-auto h-[260px] w-full max-w-full"
                   >
-                    <CartesianGrid vertical={false} />
-                    <XAxis
-                      dataKey="label"
-                      tickLine={false}
-                      axisLine={false}
-                      interval={0}
-                      tickMargin={8}
-                      tickFormatter={(value: string) =>
-                        value.replace(" Year", "")
-                      }
-                    />
-                    <YAxis
-                      tickLine={false}
-                      axisLine={false}
-                      width={28}
-                      domain={
-                        yearMetric === "average" ? [0, 1] : [0, "auto"]
-                      }
-                    />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar
-                      dataKey={yearMetric}
-                      fill={`var(--color-${yearMetric})`}
-                      radius={[4, 4, 0, 0]}
-                      barSize={50}
-                    />
-                  </BarChart>
-                </ChartContainer>
+                    <BarChart
+                      data={data.byYearLevel}
+                      margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
+                    >
+                      <CartesianGrid vertical={false} />
+                      <XAxis
+                        dataKey="label"
+                        tickLine={false}
+                        axisLine={false}
+                        interval={0}
+                        tickMargin={8}
+                        tickFormatter={(value: string) =>
+                          value.replace(" Year", "")
+                        }
+                      />
+                      <YAxis
+                        tickLine={false}
+                        axisLine={false}
+                        width={28}
+                        domain={
+                          yearMetric === "average" ? [0, 1] : [0, "auto"]
+                        }
+                      />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar
+                        dataKey={yearMetric}
+                        fill={`var(--color-${yearMetric})`}
+                        radius={[4, 4, 0, 0]}
+                        barSize={50}
+                      />
+                    </BarChart>
+                  </ChartContainer>
+                </>
               )}
             </CardContent>
           </Card>
@@ -465,53 +453,67 @@ export function GuidanceAnalyticsView({
                 Average burnout risk by academic program — highlights programs
                 that may need extra support.
               </CardDescription>
+              {highestCourseSummary ? (
+                <p className="mt-1.5 text-xs font-medium text-foreground">
+                  {highestCourseSummary}
+                </p>
+              ) : null}
             </CardHeader>
-            <CardContent className="min-w-0 px-2 sm:px-(--card-spacing)">
+            <CardContent className="min-w-0 space-y-2 px-2 sm:px-(--card-spacing)">
               {courseChartData.length === 0 ? (
                 <p className="flex h-56 items-center justify-center text-sm text-muted-foreground">
                   No program data yet.
                 </p>
               ) : (
-                <ChartContainer
-                  config={courseConfig}
-                  className="aspect-auto w-full max-w-full"
-                  style={{
-                    height: Math.max(140, courseChartData.length * 40),
-                  }}
-                >
-                  <BarChart
-                    data={courseChartData}
-                    layout="vertical"
-                    margin={{ top: 4, right: 12, bottom: 4, left: 4 }}
-                    barCategoryGap={10}
+                <>
+                  {highestCourseSummary ? (
+                    <div className="flex justify-end px-1">
+                      <p className="rounded-md bg-muted/60 px-2.5 py-1 text-xs font-semibold tracking-tight">
+                        {highestCourseSummary}
+                      </p>
+                    </div>
+                  ) : null}
+                  <ChartContainer
+                    config={courseConfig}
+                    className="aspect-auto w-full max-w-full"
+                    style={{
+                      height: Math.max(140, courseChartData.length * 40),
+                    }}
                   >
-                    <CartesianGrid horizontal={false} />
-                    <XAxis
-                      type="number"
-                      domain={[0, 1]}
-                      tickLine={false}
-                      axisLine={false}
-                    />
-                    <YAxis
-                      type="category"
-                      dataKey="label"
-                      width={70}
-                      tickLine={false}
-                      axisLine={false}
-                      tickMargin={4}
-                      tickFormatter={(value: string) =>
-                        value.length > 8 ? `${value.slice(0, 8)}…` : value
-                      }
-                    />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar
-                      dataKey="average"
-                      fill="var(--color-average)"
-                      radius={[0, 4, 4, 0]}
-                      maxBarSize={50}
-                    />
-                  </BarChart>
-                </ChartContainer>
+                    <BarChart
+                      data={courseChartData}
+                      layout="vertical"
+                      margin={{ top: 4, right: 12, bottom: 4, left: 4 }}
+                      barCategoryGap={10}
+                    >
+                      <CartesianGrid horizontal={false} />
+                      <XAxis
+                        type="number"
+                        domain={[0, 1]}
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      <YAxis
+                        type="category"
+                        dataKey="label"
+                        width={70}
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={4}
+                        tickFormatter={(value: string) =>
+                          value.length > 8 ? `${value.slice(0, 8)}…` : value
+                        }
+                      />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar
+                        dataKey="average"
+                        fill="var(--color-average)"
+                        radius={[0, 4, 4, 0]}
+                        maxBarSize={50}
+                      />
+                    </BarChart>
+                  </ChartContainer>
+                </>
               )}
             </CardContent>
           </Card>
@@ -761,35 +763,41 @@ export function GuidanceAnalyticsView({
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 sm:grid-cols-2">
-              {[modelEvaluation.randomForest, modelEvaluation.decisionTree].map(
-                (model) => (
-                  <div
-                    key={model.label}
-                    className="rounded-xl ring-1 ring-foreground/10"
-                  >
-                    <div className="border-b px-4 py-3">
-                      <p className="font-medium">{model.label}</p>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3 p-4">
-                      {(
-                        [
-                          ["Accuracy", model.accuracy],
-                          ["Precision", model.precision],
-                          ["Recall", model.recall],
-                          ["F1 Score", model.f1],
-                        ] as const
-                      ).map(([label, value]) => (
-                        <div key={label}>
-                          <p className="text-xs text-muted-foreground">{label}</p>
-                          <p className="font-[family-name:var(--font-display)] text-xl font-semibold tabular-nums">
-                            {Math.round(value * 100)}%
-                          </p>
-                        </div>
-                      ))}
-                    </div>
+              {[
+                { short: "DT", block: modelEvaluation.decisionTree },
+                { short: "RF", block: modelEvaluation.randomForest },
+              ].map(({ short, block }) => (
+                <div
+                  key={short}
+                  className="rounded-xl ring-1 ring-foreground/10"
+                >
+                  <div className="border-b px-4 py-3">
+                    <p className="font-medium">
+                      {short}
+                      <span className="ml-1.5 text-sm font-normal text-muted-foreground">
+                        {block.label}
+                      </span>
+                    </p>
                   </div>
-                )
-              )}
+                  <div className="grid grid-cols-2 gap-3 p-4">
+                    {(
+                      [
+                        ["Accuracy", block.accuracy],
+                        ["Precision", block.precision],
+                        ["Recall", block.recall],
+                        ["F1-Score", block.f1],
+                      ] as const
+                    ).map(([label, value]) => (
+                      <div key={label}>
+                        <p className="text-xs text-muted-foreground">{label}</p>
+                        <p className="font-[family-name:var(--font-display)] text-xl font-semibold tabular-nums">
+                          {(value * 100).toFixed(1)}%
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
             <div className="mt-4 overflow-x-auto">
               <table className="w-full text-left text-sm">
@@ -797,21 +805,34 @@ export function GuidanceAnalyticsView({
                   <tr>
                     <th className="px-2 py-1.5 font-medium">Model</th>
                     <th className="px-2 py-1.5 font-medium">Accuracy</th>
+                    <th className="px-2 py-1.5 font-medium">Precision</th>
+                    <th className="px-2 py-1.5 font-medium">Recall</th>
+                    <th className="px-2 py-1.5 font-medium">F1-Score</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr className="border-b">
-                    <td className="px-2 py-1.5">Decision Tree</td>
-                    <td className="px-2 py-1.5 tabular-nums">
-                      {Math.round(modelEvaluation.decisionTree.accuracy * 100)}%
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="px-2 py-1.5">Random Forest</td>
-                    <td className="px-2 py-1.5 tabular-nums">
-                      {Math.round(modelEvaluation.randomForest.accuracy * 100)}%
-                    </td>
-                  </tr>
+                  {(
+                    [
+                      ["DT", modelEvaluation.decisionTree],
+                      ["RF", modelEvaluation.randomForest],
+                    ] as const
+                  ).map(([short, block]) => (
+                    <tr key={short} className="border-b last:border-0">
+                      <td className="px-2 py-1.5">{short}</td>
+                      <td className="px-2 py-1.5 tabular-nums">
+                        {(block.accuracy * 100).toFixed(1)}%
+                      </td>
+                      <td className="px-2 py-1.5 tabular-nums">
+                        {(block.precision * 100).toFixed(1)}%
+                      </td>
+                      <td className="px-2 py-1.5 tabular-nums">
+                        {(block.recall * 100).toFixed(1)}%
+                      </td>
+                      <td className="px-2 py-1.5 tabular-nums">
+                        {(block.f1 * 100).toFixed(1)}%
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>

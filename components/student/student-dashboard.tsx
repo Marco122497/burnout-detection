@@ -383,10 +383,30 @@ export function StudentDashboard({
         weekLabel={data.latestWeek != null ? `Week ${data.latestWeek}` : null}
       >
         <div className="space-y-1 pt-1 text-xs text-muted-foreground">
-          {data.riskScore != null ? (
+          {data.decisionTreePrediction != null ||
+          data.randomForestPrediction != null ? (
             <p>
-              Risk score: {data.riskScore.toFixed(2)}
-              {data.selectedModel ? ` · ${data.selectedModel}` : ""}
+              DT: {data.decisionTreePrediction ?? "—"}
+              {data.decisionTreeConfidence != null
+                ? ` (${data.decisionTreeConfidence}%)`
+                : ""}
+              {data.selectedModel === "Decision Tree" ? " · selected" : ""}{" "}
+              RF: {data.randomForestPrediction ?? "—"}
+              {data.randomForestConfidence != null
+                ? ` (${data.randomForestConfidence}%)`
+                : ""}
+              {data.selectedModel === "Random Forest" ? " · selected" : ""}
+            </p>
+          ) : data.modelConfidence != null ? (
+            <p>
+              Prediction confidence: {data.modelConfidence}%
+              {data.selectedModel === "Decision Tree"
+                ? " · DT"
+                : data.selectedModel === "Random Forest"
+                  ? " · RF"
+                  : data.selectedModel
+                    ? ` · ${data.selectedModel}`
+                    : ""}
             </p>
           ) : null}
           {data.predictionDate ? (

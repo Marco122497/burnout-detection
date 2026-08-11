@@ -21,7 +21,12 @@ export type BurnoutFactor = {
 export type StudentDashboardData = {
   burnoutLevel: string | null;
   mfbiScore: number | null;
-  riskScore: number | null;
+  /** Selected-model prediction confidence as a percent (0–100). */
+  modelConfidence: number | null;
+  decisionTreeConfidence: number | null;
+  randomForestConfidence: number | null;
+  decisionTreePrediction: string | null;
+  randomForestPrediction: string | null;
   predictionDate: string | null;
   selectedModel: string | null;
   stressLevel: string | null;
@@ -109,13 +114,27 @@ export async function getStudentDashboardData(
   const earlyWarning = parseEarlyWarningRemarks(
     latest?.prediction?.remarks ?? null
   );
-  const riskScore =
-    latest?.prediction?.random_forest_confidence != null
-      ? Math.round(Number(latest.prediction.random_forest_confidence)) / 100
+  const selectedModel = latest?.prediction?.selected_model ?? null;
+  const decisionTreeConfidence =
+    latest?.prediction?.decision_tree_confidence != null
+      ? Math.round(Number(latest.prediction.decision_tree_confidence))
       : null;
+  const randomForestConfidence =
+    latest?.prediction?.random_forest_confidence != null
+      ? Math.round(Number(latest.prediction.random_forest_confidence))
+      : null;
+  const decisionTreePrediction =
+    latest?.prediction?.decision_tree_prediction ?? null;
+  const randomForestPrediction =
+    latest?.prediction?.random_forest_prediction ?? null;
+  const modelConfidence =
+    selectedModel === "Decision Tree"
+      ? decisionTreeConfidence
+      : selectedModel === "Random Forest"
+        ? randomForestConfidence
+        : (randomForestConfidence ?? decisionTreeConfidence);
   const predictionDate =
     latest?.prediction?.prediction_date ?? latest?.monitoring_date ?? null;
-  const selectedModel = latest?.prediction?.selected_model ?? null;
 
   const [recommendationRow, department, announcementResult] =
     await Promise.all([
@@ -269,7 +288,11 @@ export async function getStudentDashboardData(
   return {
     burnoutLevel,
     mfbiScore,
-    riskScore,
+    modelConfidence,
+    decisionTreeConfidence,
+    randomForestConfidence,
+    decisionTreePrediction,
+    randomForestPrediction,
     predictionDate,
     selectedModel,
     stressLevel,
