@@ -34,8 +34,12 @@ export type StudentNotification = {
 
 export function NotificationsList({
   notifications,
+  title = "Your notifications",
+  description = "Weekly reminders, submission confirmations, and counseling alerts.",
 }: {
   notifications: StudentNotification[];
+  title?: string;
+  description?: string;
 }) {
   const {
     page,
@@ -53,10 +57,8 @@ export function NotificationsList({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Your notifications</CardTitle>
-        <CardDescription>
-          Weekly reminders, submission confirmations, and counseling alerts.
-        </CardDescription>
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {notifications.length === 0 ? (

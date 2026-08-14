@@ -10,6 +10,12 @@ import {
   getWeeklyMonitoringHistory,
 } from "@/lib/student/queries";
 import { getActiveTerm, getCurrentWeekNumber } from "@/lib/student/terms";
+import type { BurnoutLevel } from "@/lib/student/mfbi";
+import {
+  getFactorRecommendations,
+  getOverallRecommendation,
+  type FactorRecommendation,
+} from "@/lib/student/tips";
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -55,6 +61,7 @@ export type StudentDashboardData = {
     burnout_level: string;
     recommended_action: string | null;
   } | null;
+  factorRecommendations: FactorRecommendation[];
   announcements: {
     announcement_id: number;
     title: string;
@@ -136,21 +143,8 @@ export async function getStudentDashboardData(
   const predictionDate =
     latest?.prediction?.prediction_date ?? latest?.monitoring_date ?? null;
 
-  const [recommendationRow, department, announcementResult] =
+  const [department, announcementResult] =
     await Promise.all([
-      burnoutLevel
-        ? supabase
-            .from("recommendations")
-            .select(
-              "title, description, recommended_action, burnout_risk_level"
-            )
-            .eq("burnout_risk_level", burnoutLevel)
-            .eq("is_active", true)
-            .order("created_at", { ascending: true })
-            .limit(1)
-            .maybeSingle()
-            .then((r) => r.data)
-        : Promise.resolve(null),
       profile.department_id
         ? supabase
             .from("departments")
@@ -175,15 +169,17 @@ export async function getStudentDashboardData(
       ),
     ]);
 
-  const recommendation: StudentDashboardData["recommendation"] =
-    recommendationRow
-      ? {
-          title: recommendationRow.title,
-          description: recommendationRow.description,
-          burnout_level: recommendationRow.burnout_risk_level,
-          recommended_action: recommendationRow.recommended_action,
-        }
-      : null;
+  const overall = getOverallRecommendation(
+    (burnoutLevel as BurnoutLevel | null) ?? null
+  );
+  const recommendation: StudentDashboardData["recommendation"] = overall
+    ? {
+        title: overall.title,
+        description: overall.description,
+        burnout_level: overall.burnout_level,
+        recommended_action: overall.recommended_action,
+      }
+    : null;
 
   const courseLabel =
     department?.description ||
@@ -285,6 +281,8 @@ export async function getStudentDashboardData(
         }
       : null;
 
+  const factorRecommendations = getFactorRecommendations(factors);
+
   return {
     burnoutLevel,
     mfbiScore,
@@ -309,6 +307,7 @@ export async function getStudentDashboardData(
     currentWeek,
     weeklyTrend,
     recommendation,
+    factorRecommendations,
     announcements,
     courseLabel,
   };

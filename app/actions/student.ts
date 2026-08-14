@@ -5,7 +5,9 @@ import { revalidatePath } from "next/cache";
 import { isRedirectError } from "next/dist/client/components/redirect-error";
 
 import { toAuditLogRow } from "@/lib/audit";
+import { buildFullName } from "@/lib/auth/roles";
 import { requireRole, requireUser } from "@/lib/auth/session";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { computeMfbi } from "@/lib/student/mfbi";
 import { saveBurnoutTrend } from "@/lib/student/burnout-trends";
 import { predictBurnoutRiskWithAi } from "@/lib/student/predict";
@@ -16,6 +18,7 @@ import {
   type AnswerMap,
 } from "@/lib/student/scoring";
 import { getActiveTerm, getCurrentWeekNumber } from "@/lib/student/terms";
+import { formatYearLevel } from "@/lib/utils";
 
 export type StudentActionState = {
   error?: string;
@@ -304,6 +307,22 @@ async function submitWeeklyMonitoringInner(
       : []),
   ]);
 
+  await notifyDepartmentInstructors({
+    studentName: buildFullName(profile),
+    yearLevel: profile.year_level,
+    course: profile.course,
+    section: profile.section,
+    departmentId: profile.department_id,
+    weekNumber: week_number,
+    mfbiScore: Number(mfbiRow.mfbi_score),
+    burnoutLevel: String(mfbiRow.burnout_risk_level),
+    predictedRisk: prediction.final_prediction,
+    alertHigh,
+    earlyWarningMessage: earlyWarning?.warning_message ?? null,
+    monitoringId: monitoring.monitoring_id,
+    predictionId: predictionRow?.prediction_id ?? null,
+  });
+
   await supabase.from("audit_logs").insert(
     toAuditLogRow({
       user_id: user.id,
@@ -322,10 +341,86 @@ async function submitWeeklyMonitoringInner(
   revalidatePath("/student/burnout");
   revalidatePath("/student/recommendations");
   revalidatePath("/student/notifications");
+  revalidatePath("/instructor");
+  revalidatePath("/instructor/notifications");
+  revalidatePath("/instructor/monitoring");
 
   return {
     success: `Week ${week_number} submitted. MFBI ${Number(mfbiRow.mfbi_score).toFixed(2)} (${mfbiRow.burnout_risk_level}). Prediction: ${prediction.final_prediction}.`,
   };
+}
+
+function instructorStudentLabel(input: {
+  studentName: string;
+  yearLevel: number | null;
+  course: string | null;
+  section: string | null;
+}) {
+  const year =
+    input.yearLevel != null
+      ? `${formatYearLevel(input.yearLevel).replace("year", "Year")} Student`
+      : "Student";
+  const details = [
+    input.course?.trim() || null,
+    input.section?.trim() ? `Section ${input.section.trim()}` : null,
+  ].filter(Boolean);
+
+  if (details.length) {
+    return `${input.studentName}, a ${year} in ${details.join(" · ")}`;
+  }
+  return `${input.studentName}, a ${year}`;
+}
+
+async function notifyDepartmentInstructors(input: {
+  studentName: string;
+  yearLevel: number | null;
+  course: string | null;
+  section: string | null;
+  departmentId: number | null;
+  weekNumber: number;
+  mfbiScore: number;
+  burnoutLevel: string;
+  predictedRisk: string;
+  alertHigh: boolean;
+  earlyWarningMessage: string | null;
+  monitoringId: number;
+  predictionId: number | null;
+}) {
+  if (!input.departmentId) return;
+
+  try {
+    const admin = createAdminClient();
+    const { data: instructors, error } = await admin
+      .from("profiles")
+      .select("id")
+      .eq("role", "Instructor")
+      .eq("is_active", true)
+      .eq("department_id", input.departmentId);
+
+    if (error || !instructors?.length) return;
+
+    const student = instructorStudentLabel(input);
+    const title = input.alertHigh
+      ? `High burnout risk · ${input.studentName}`
+      : `${input.studentName} submitted Week ${input.weekNumber}`;
+    const message = input.alertHigh
+      ? `${student} has elevated burnout risk. Week ${input.weekNumber}: MFBI ${input.mfbiScore.toFixed(2)} (${input.burnoutLevel}). Predicted risk: ${input.predictedRisk}.${input.earlyWarningMessage ? ` ${input.earlyWarningMessage}` : ""}`
+      : `${student} completed Week ${input.weekNumber} monitoring. MFBI ${input.mfbiScore.toFixed(2)} (${input.burnoutLevel}). Current risk: ${input.predictedRisk}.`;
+
+    await admin.from("notifications").insert(
+      instructors.map((instructor) => ({
+        user_id: instructor.id,
+        title,
+        message,
+        notification_type: input.alertHigh ? "Burnout Alert" : "Assessment",
+        priority: input.alertHigh ? "High" : "Normal",
+        monitoring_id: input.monitoringId,
+        prediction_id: input.predictionId,
+      }))
+    );
+  } catch (error) {
+    console.error("notifyDepartmentInstructors:", error);
+  }
 }
 
 export async function markNotificationRead(
@@ -355,5 +450,7 @@ export async function markNotificationRead(
   revalidatePath("/", "layout");
   revalidatePath("/student");
   revalidatePath("/student/notifications");
+  revalidatePath("/instructor");
+  revalidatePath("/instructor/notifications");
   return { success: "Notification marked as read." };
 }

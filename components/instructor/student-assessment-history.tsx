@@ -16,8 +16,13 @@ import {
   BurnoutHero,
 } from "@/components/shared/burnout-summary";
 import {
+  BurnoutRiskTrendCard,
+  EarlyWarningOutlookCard,
+} from "@/components/shared/burnout-outlook";
+import {
   PredictionLabel,
   RiskLevelText,
+  invertedScoreOverMax,
   scoreOverMax,
 } from "@/components/shared/risk-display";
 import { useNavigationPending } from "@/components/layout/navigation-pending";
@@ -29,6 +34,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { parseEarlyWarningRemarks } from "@/lib/student/ai-client";
 import { cn, formatYearLevel } from "@/lib/utils";
 
 function AnswersPanel({ answers }: { answers: MonitoringAnswer[] }) {
@@ -123,6 +129,34 @@ export function StudentAssessmentHistoryView({
         }
       : null;
 
+  const chronological = [...history].sort(
+    (a, b) => a.week_number - b.week_number
+  );
+  const weeklyTrend = chronological.map((row, index, rows) => {
+    const previousScore = index > 0 ? rows[index - 1].mfbi_score : null;
+    const delta =
+      row.mfbi_score != null && previousScore != null
+        ? row.mfbi_score - previousScore
+        : null;
+    return {
+      week: row.week_number,
+      score: row.mfbi_score,
+      level: row.prediction || row.burnout_level,
+      delta,
+      direction:
+        delta == null
+          ? null
+          : delta >= 0.08
+            ? "increasing"
+            : delta <= -0.08
+              ? "decreasing"
+              : "stable",
+    };
+  });
+  const earlyWarning = parseEarlyWarningRemarks(
+    latest?.prediction_remarks ?? null
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -184,6 +218,18 @@ export function StudentAssessmentHistoryView({
         subheading="The burnout index combines these four factors from the latest weekly monitoring."
       />
 
+      <EarlyWarningOutlookCard
+        earlyWarning={earlyWarning}
+        mfbiScore={student.mfbi_score}
+        burnoutLevel={student.prediction || student.burnout_level || null}
+      />
+
+      <BurnoutRiskTrendCard
+        data={weeklyTrend}
+        earlyWarning={earlyWarning}
+        emptyMessage="No weekly monitoring submissions yet."
+      />
+
       <Card>
         <CardHeader>
           <CardTitle>Assessment history</CardTitle>
@@ -234,7 +280,7 @@ export function StudentAssessmentHistoryView({
                             {scoreOverMax(row.academic_workload, 10)}
                           </td>
                           <td className="px-2 py-1.5 tabular-nums">
-                            {scoreOverMax(row.study_time, 12)}
+                            {invertedScoreOverMax(row.study_time, 12)}
                           </td>
                           <td className="px-2 py-1.5 tabular-nums">
                             {scoreOverMax(row.sleep_hours, 100)}

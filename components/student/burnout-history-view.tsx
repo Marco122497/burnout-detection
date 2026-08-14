@@ -14,6 +14,10 @@ import {
   BurnoutFactorSection,
   BurnoutHero,
 } from "@/components/shared/burnout-summary";
+import {
+  invertedScoreOverMax,
+  scoreOverMax,
+} from "@/components/shared/risk-display";
 import { TablePagination } from "@/components/shared/table-pagination";
 import { Button } from "@/components/ui/button";
 import {
@@ -121,11 +125,6 @@ function PredictionLabel({ level }: { level: string | null | undefined }) {
       {score != null ? ` (${score.toFixed(2)})` : ""}
     </span>
   );
-}
-
-function scoreOverMax(value: number | null | undefined, max: number) {
-  if (value == null || Number.isNaN(Number(value))) return "—";
-  return `${Number(value)}/${max}`;
 }
 
 function AnswersPanel({ answers }: { answers: MonitoringAnswer[] }) {
@@ -685,7 +684,7 @@ export function BurnoutHistoryView({
                               {scoreOverMax(row.academic_workload, 10)}
                             </td>
                             <td className="px-2 py-1.5 tabular-nums">
-                              {scoreOverMax(row.study_time, 12)}
+                              {invertedScoreOverMax(row.study_time, 12)}
                             </td>
                             <td className="px-2 py-1.5 tabular-nums">
                               {scoreOverMax(row.sleep_hours, 100)}

@@ -8,6 +8,10 @@ import type { StudentMonitorRow } from "@/lib/instructor/queries";
 import { useTablePagination } from "@/hooks/use-table-pagination";
 import { useNavigationPending } from "@/components/layout/navigation-pending";
 import { TablePagination } from "@/components/shared/table-pagination";
+import {
+  invertedScoreOverMax,
+  scoreOverMax,
+} from "@/components/shared/risk-display";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -224,21 +228,17 @@ export function StudentMonitoringTable({
                           </div>
                         </td>
                         <td className="px-2 py-1.5">{row.year_level ?? "—"}</td>
-                        <td className="px-2 py-1.5">
-                          {row.stress_level
-                            ? `${row.stress_level} (${row.stress_score})`
-                            : "—"}
+                        <td className="px-2 py-1.5 tabular-nums">
+                          {scoreOverMax(row.stress_score, 40)}
                         </td>
-                        <td className="px-2 py-1.5">
-                          {row.academic_workload ?? "—"}
+                        <td className="px-2 py-1.5 tabular-nums">
+                          {scoreOverMax(row.academic_workload, 10)}
                         </td>
-                        <td className="px-2 py-1.5">
-                          {row.study_time != null ? `${row.study_time}h` : "—"}
+                        <td className="px-2 py-1.5 tabular-nums">
+                          {invertedScoreOverMax(row.study_time, 12)}
                         </td>
-                        <td className="px-2 py-1.5">
-                          {row.sleep_hours != null
-                            ? `${row.sleep_hours}`
-                            : "—"}
+                        <td className="px-2 py-1.5 tabular-nums">
+                          {scoreOverMax(row.sleep_hours, 100)}
                         </td>
                         <td className="px-2 py-1.5">
                           {row.mfbi_score != null

@@ -35,7 +35,9 @@ function AppShellContent({
   const { isPending } = useNavigationPending();
   const viewAllHref = isStudentRole(profile.role)
     ? "/student/notifications"
-    : null;
+    : profile.role === "Instructor"
+      ? "/instructor/notifications"
+      : null;
 
   return (
     <>

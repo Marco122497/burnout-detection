@@ -85,7 +85,6 @@ export function WeeklyMonitoringForm({
     initialState
   );
   const [unansweredIds, setUnansweredIds] = useState<number[]>([]);
-  const headerRef = useRef<HTMLDivElement>(null);
   const lastScrolledSuccess = useRef<string | undefined>(undefined);
   useActionToast(state);
 
@@ -103,7 +102,26 @@ export function WeeklyMonitoringForm({
       return;
     }
     lastScrolledSuccess.current = state.success;
-    headerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+
+    const scrollToTop = (element: Element | null) => {
+      if (element instanceof HTMLElement && element.scrollTop > 0) {
+        element.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    };
+
+    window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+    scrollToTop(document.documentElement);
+    scrollToTop(document.body);
+    scrollToTop(document.querySelector('[data-slot="sidebar-inset"]'));
+
+    let node: HTMLElement | null = document.documentElement;
+    while (node) {
+      const overflowY = getComputedStyle(node).overflowY;
+      if (overflowY === "auto" || overflowY === "scroll") {
+        scrollToTop(node);
+      }
+      node = node.parentElement;
+    }
   }, [state.success]);
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -133,7 +151,7 @@ export function WeeklyMonitoringForm({
 
   return (
     <div className="space-y-6">
-      <Card ref={headerRef} id="weekly-monitoring-status">
+      <Card id="weekly-monitoring-status">
         <CardHeader>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="space-y-1.5">

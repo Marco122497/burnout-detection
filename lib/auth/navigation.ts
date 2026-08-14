@@ -77,6 +77,11 @@ export function getNavItems(role: UserRole, home: string): NavItem[] {
         icon: FileTextIcon,
       },
       {
+        title: "Notifications",
+        url: `${home}/notifications`,
+        icon: BellIcon,
+      },
+      {
         title: "Announcements",
         url: `${home}/announcements`,
         icon: MegaphoneIcon,

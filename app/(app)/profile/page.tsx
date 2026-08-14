@@ -10,7 +10,7 @@ export const metadata = {
 };
 
 export default async function ProfilePage() {
-  const { supabase, profile } = await requireUser();
+  const { supabase, user, profile } = await requireUser();
   const departments = await getDepartments(supabase);
 
   return (
@@ -20,7 +20,11 @@ export default async function ProfilePage() {
         description="View and update your personal information."
         icon={UserRoundIcon}
       />
-      <ProfileForm profile={profile} departments={departments} />
+      <ProfileForm
+        profile={profile}
+        departments={departments}
+        email={user.email ?? null}
+      />
     </div>
   );
 }

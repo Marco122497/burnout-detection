@@ -65,9 +65,11 @@ function profileToForm(profile: Profile) {
 export function ProfileForm({
   profile,
   departments,
+  email,
 }: {
   profile: Profile;
   departments: Department[];
+  email: string | null;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState(() => profileToForm(profile));
@@ -167,6 +169,19 @@ export function ProfileForm({
         <CardContent>
           <form action={profileAction} className="space-y-6">
             <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email || "—"}
+                  readOnly
+                  className="bg-muted/40"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Email is used to sign in and cannot be changed here.
+                </p>
+              </div>
               {student ? (
                 <div className="space-y-2 sm:col-span-2">
                   <Label htmlFor="student_number">Student Number</Label>

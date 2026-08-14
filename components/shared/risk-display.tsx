@@ -53,3 +53,14 @@ export function scoreOverMax(value: number | null | undefined, max: number) {
   if (value == null || Number.isNaN(Number(value))) return "—";
   return `${Number(value)}/${max}`;
 }
+
+/** Flip a load/risk score so a higher displayed value means healthier. */
+export function invertedScoreOverMax(
+  riskValue: number | null | undefined,
+  max: number
+) {
+  if (riskValue == null || Number.isNaN(Number(riskValue))) return "—";
+  const quality = Math.round((max - Number(riskValue)) * 100) / 100;
+  const clamped = Math.min(max, Math.max(0, quality));
+  return `${clamped}/${max}`;
+}

@@ -229,14 +229,20 @@ export async function getGuidanceStudentHistory(
     })
     .filter((id): id is number => Boolean(id));
 
-  const predictionByMfbi = new Map<number, string>();
+  const predictionByMfbi = new Map<
+    number,
+    { final_prediction: string; remarks: string | null }
+  >();
   if (mfbiIds.length) {
     const { data: predictions } = await supabase
       .from("ml_predictions")
-      .select("mfbi_id, final_prediction")
+      .select("mfbi_id, final_prediction, remarks")
       .in("mfbi_id", mfbiIds);
     for (const prediction of predictions ?? []) {
-      predictionByMfbi.set(prediction.mfbi_id, prediction.final_prediction);
+      predictionByMfbi.set(prediction.mfbi_id, {
+        final_prediction: prediction.final_prediction,
+        remarks: prediction.remarks ?? null,
+      });
     }
   }
 
@@ -244,6 +250,9 @@ export async function getGuidanceStudentHistory(
     const mfbi = Array.isArray(row.mfbi_results)
       ? row.mfbi_results[0]
       : row.mfbi_results;
+    const prediction = mfbi?.mfbi_id
+      ? predictionByMfbi.get(mfbi.mfbi_id) ?? null
+      : null;
     return {
       monitoring_id: row.monitoring_id,
       week_number: row.week_number,
@@ -254,9 +263,8 @@ export async function getGuidanceStudentHistory(
       submitted_at: row.submitted_at,
       mfbi_score: mfbi?.mfbi_score != null ? Number(mfbi.mfbi_score) : null,
       burnout_level: mfbi?.burnout_risk_level ?? null,
-      prediction: mfbi?.mfbi_id
-        ? predictionByMfbi.get(mfbi.mfbi_id) ?? null
-        : null,
+      prediction: prediction?.final_prediction ?? null,
+      prediction_remarks: prediction?.remarks ?? null,
       normalized_stress:
         mfbi?.normalized_stress != null ? Number(mfbi.normalized_stress) : null,
       normalized_workload:
