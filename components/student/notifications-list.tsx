@@ -35,7 +35,7 @@ export type StudentNotification = {
 export function NotificationsList({
   notifications,
   title = "Your notifications",
-  description = "Weekly reminders, submission confirmations, and counseling alerts.",
+  description = "Weekly reminders, announcements, submission confirmations, and counseling alerts.",
 }: {
   notifications: StudentNotification[];
   title?: string;
@@ -66,10 +66,11 @@ export function NotificationsList({
         ) : (
           <>
             <div className="overflow-x-auto rounded-lg border">
-              <Table className="min-w-[640px]">
+              <Table className="min-w-[720px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Title</TableHead>
+                    <TableHead>Type</TableHead>
                     <TableHead>Message</TableHead>
                     <TableHead>Priority</TableHead>
                     <TableHead>Status</TableHead>
@@ -84,6 +85,9 @@ export function NotificationsList({
                     >
                       <TableCell className="max-w-[12rem] font-medium">
                         <span className="line-clamp-2">{item.title}</span>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-muted-foreground">
+                        {item.notification_type}
                       </TableCell>
                       <TableCell className="max-w-[18rem] text-muted-foreground">
                         <span className="line-clamp-2 whitespace-pre-line">

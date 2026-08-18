@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   ActivityIcon,
@@ -15,8 +16,10 @@ import {
   YAxis,
 } from "recharts";
 
+import { Button } from "@/components/ui/button";
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -24,6 +27,8 @@ import {
 } from "@/components/ui/card";
 import {
   ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig,
@@ -33,9 +38,23 @@ import type { EarlyWarningPayload } from "@/lib/student/ai-client";
 import { cn } from "@/lib/utils";
 
 const trendChartConfig = {
-  score: { label: "MFBI", color: "var(--primary)" },
-  projection: { label: "Projection", color: "oklch(0.72 0.14 55)" },
+  score: { label: "MFBI", color: "#2563eb" },
+  projection: { label: "Projection", color: "#b45309" },
 } satisfies ChartConfig;
+
+type TrendRange = "4w" | "8w" | "all";
+
+const TREND_RANGE_OPTIONS: { id: TrendRange; label: string }[] = [
+  { id: "4w", label: "4 weeks" },
+  { id: "8w", label: "8 weeks" },
+  { id: "all", label: "All" },
+];
+
+const TREND_RANGE_DESCRIPTION: Record<TrendRange, string> = {
+  "4w": "Weekly MFBI for the last 4 monitoring weeks, plus AI outlook.",
+  "8w": "Weekly MFBI for the last 8 monitoring weeks, plus AI outlook.",
+  all: "Weekly MFBI history plus next-week and week-2 early-warning projections.",
+};
 
 export type WeeklyTrendPoint = {
   week: number;
@@ -229,21 +248,23 @@ export function BurnoutRiskTrendChart({
   data,
   earlyWarning,
   emptyMessage = "No burnout trend yet.",
+  title = "Burnout risk trend",
+  className,
 }: {
   data: WeeklyTrendPoint[];
   earlyWarning: EarlyWarningPayload | null;
   emptyMessage?: string;
+  title?: string;
+  className?: string;
 }) {
-  if (!data.length) {
-    return (
-      <div className="flex h-48 items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground">
-        {emptyMessage}
-      </div>
-    );
-  }
+  const [range, setRange] = useState<TrendRange>("all");
+  const visibleData = useMemo(() => {
+    const window = range === "4w" ? 4 : range === "8w" ? 8 : data.length;
+    return data.slice(-window);
+  }, [data, range]);
 
-  const latest = data[data.length - 1];
-  const recentCards = data.slice(-4);
+  const latest = visibleData[visibleData.length - 1];
+  const recentCards = visibleData.slice(-4);
   const nextWeekLevel = earlyWarning?.next_week_risk ?? null;
   const week2Level = earlyWarning?.week2_risk ?? null;
   const nextScore =
@@ -260,8 +281,8 @@ export function BurnoutRiskTrendChart({
     kind: "actual" | "next" | "week2";
   };
 
-  const chartData: ChartPoint[] = data.map((point, index) => {
-    const isLast = index === data.length - 1;
+  const chartData: ChartPoint[] = visibleData.map((point, index) => {
+    const isLast = index === visibleData.length - 1;
     return {
       week: `W${point.week}`,
       weekNumber: point.week,
@@ -294,124 +315,176 @@ export function BurnoutRiskTrendChart({
     });
   }
 
+  const showDots = chartData.length <= 12;
+
   return (
-    <div className="space-y-4">
-      {latest?.direction && latest.direction !== "insufficient_history" ? (
-        <div className="flex justify-end">
-          <p
-            className={cn(
-              "rounded-md px-2.5 py-1 text-xs font-semibold tracking-tight",
-              movementHighlight(latest.direction)
-            )}
-          >
-            Latest movement: {latest.direction}
-            {latest.delta != null ? (
-              <>
-                {" "}
-                <span
+    <Card className={className}>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>{TREND_RANGE_DESCRIPTION[range]}</CardDescription>
+        <CardAction>
+          <div className="flex rounded-lg border border-border p-0.5">
+            {TREND_RANGE_OPTIONS.map((option) => (
+              <Button
+                key={option.id}
+                type="button"
+                size="xs"
+                variant={range === option.id ? "secondary" : "ghost"}
+                aria-pressed={range === option.id}
+                onClick={() => setRange(option.id)}
+              >
+                {option.label}
+              </Button>
+            ))}
+          </div>
+        </CardAction>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {chartData.length === 0 ? (
+          <p className="py-16 text-center text-sm text-muted-foreground">
+            {emptyMessage}
+          </p>
+        ) : (
+          <>
+            {latest?.direction && latest.direction !== "insufficient_history" ? (
+              <div className="flex justify-end">
+                <p
                   className={cn(
-                    "font-bold tabular-nums",
-                    movementDeltaTone(latest.direction)
+                    "rounded-md px-2.5 py-1 text-xs font-semibold tracking-tight",
+                    movementHighlight(latest.direction)
                   )}
                 >
-                  ({latest.delta > 0 ? "+" : ""}
-                  {latest.delta.toFixed(2)} MFBI)
-                </span>
-              </>
+                  Latest movement: {latest.direction}
+                  {latest.delta != null ? (
+                    <>
+                      {" "}
+                      <span
+                        className={cn(
+                          "font-bold tabular-nums",
+                          movementDeltaTone(latest.direction)
+                        )}
+                      >
+                        ({latest.delta > 0 ? "+" : ""}
+                        {latest.delta.toFixed(2)} MFBI)
+                      </span>
+                    </>
+                  ) : null}
+                </p>
+              </div>
             ) : null}
-          </p>
-        </div>
-      ) : null}
 
-      <ChartContainer config={trendChartConfig} className="h-48 w-full">
-        <LineChart data={chartData} margin={{ left: 4, right: 8, top: 8 }}>
-          <CartesianGrid vertical={false} strokeDasharray="3 3" />
-          <XAxis dataKey="week" tickLine={false} axisLine={false} />
-          <YAxis
-            domain={[0, 1]}
-            tickLine={false}
-            axisLine={false}
-            width={32}
-            tickFormatter={(value) => Number(value).toFixed(1)}
-          />
-          <ChartTooltip
-            content={
-              <ChartTooltipContent
-                formatter={(value, name, item) => {
-                  const level = String(item?.payload?.level ?? "—");
-                  const kind = String(item?.payload?.kind ?? "actual");
-                  if (value == null) return null;
-                  const label =
-                    kind === "next"
-                      ? "Next-week projection"
-                      : kind === "week2"
-                        ? "Week-2 projection"
-                        : name === "projection"
-                          ? "Projection link"
-                          : "MFBI";
-                  return (
-                    <div className="flex flex-col gap-0.5">
-                      <span>
-                        {label}: {Number(value).toFixed(2)}
-                      </span>
-                      <span className={cn("text-xs", riskTone(level))}>
-                        {level} risk
-                        {kind !== "actual" ? " (projected)" : ""}
-                      </span>
-                    </div>
-                  );
+            <ChartContainer
+              config={trendChartConfig}
+              className="aspect-auto h-[250px] w-full"
+              initialDimension={{ width: 640, height: 250 }}
+            >
+              <LineChart
+                key={range}
+                accessibilityLayer
+                data={chartData}
+                margin={{
+                  left: 12,
+                  right: 12,
+                  top: 12,
                 }}
-              />
-            }
-          />
-          <Line
-            type="monotone"
-            dataKey="score"
-            stroke="var(--color-score)"
-            strokeWidth={2.5}
-            dot={{ r: 4 }}
-            activeDot={{ r: 5 }}
-            connectNulls={false}
-          />
-          {hasProjection ? (
-            <Line
-              type="monotone"
-              dataKey="projection"
-              stroke="var(--color-projection)"
-              strokeWidth={2}
-              strokeDasharray="5 4"
-              dot={{ r: 4, strokeWidth: 2 }}
-              activeDot={{ r: 5 }}
-              connectNulls
-            />
-          ) : null}
-        </LineChart>
-      </ChartContainer>
+              >
+                <CartesianGrid vertical={false} />
+                <YAxis
+                  hide
+                  domain={[0, (dataMax: number) => Math.max(dataMax * 1.25, 0.25)]}
+                />
+                <XAxis
+                  dataKey="week"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  minTickGap={range === "all" ? 24 : 0}
+                  interval={range === "all" ? "preserveStartEnd" : 0}
+                />
+                <ChartTooltip
+                  content={
+                    <ChartTooltipContent
+                      className="w-[180px]"
+                      formatter={(value, name, item) => {
+                        const kind = String(item?.payload?.kind ?? "actual");
+                        if (value == null) return null;
+                        const label =
+                          kind === "next"
+                            ? "Next-week projection"
+                            : kind === "week2"
+                              ? "Week-2 projection"
+                              : name === "projection"
+                                ? "Projection"
+                                : "MFBI";
+                        return (
+                          <div className="flex w-full items-center justify-between gap-4">
+                            <span className="text-muted-foreground">{label}</span>
+                            <span className="font-mono font-medium tabular-nums">
+                              {Number(value).toFixed(2)}
+                            </span>
+                          </div>
+                        );
+                      }}
+                    />
+                  }
+                />
+                <ChartLegend content={<ChartLegendContent />} />
+                <Line
+                  type="monotone"
+                  dataKey="score"
+                  stroke="var(--color-score)"
+                  strokeWidth={2}
+                  dot={showDots}
+                  connectNulls={false}
+                />
+                {hasProjection ? (
+                  <Line
+                    type="monotone"
+                    dataKey="projection"
+                    stroke="var(--color-projection)"
+                    strokeWidth={2}
+                    strokeDasharray="5 4"
+                    dot={showDots}
+                    connectNulls
+                  />
+                ) : null}
+              </LineChart>
+            </ChartContainer>
 
-      {hasProjection ? (
-        <p className="text-[11px] text-muted-foreground">
-          Solid line = recorded MFBI. Dashed line = next-week ML risk and week-2
-          trend projection (mapped to risk midpoints for charting).
-        </p>
-      ) : null}
+            {hasProjection ? (
+              <p className="text-[11px] text-muted-foreground">
+                Solid line = recorded MFBI. Dashed line = next-week ML risk and
+                week-2 trend projection (mapped to risk midpoints for charting).
+              </p>
+            ) : null}
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {recentCards.map((point) => (
-          <div
-            key={point.week}
-            className="rounded-lg border border-border/70 px-2.5 py-2"
-          >
-            <p className="text-[11px] text-muted-foreground">Week {point.week}</p>
-            <p className="text-sm font-semibold tabular-nums">
-              {point.score != null ? point.score.toFixed(2) : "—"}
-            </p>
-            <p className={cn("text-[11px] font-medium", riskTone(point.level))}>
-              {point.level ?? "—"}
-            </p>
-          </div>
-        ))}
-      </div>
-    </div>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {recentCards.map((point) => (
+                <div
+                  key={point.week}
+                  className="rounded-lg border border-border/70 px-2.5 py-2"
+                >
+                  <p className="text-[11px] text-muted-foreground">
+                    Week {point.week}
+                  </p>
+                  <p className="text-sm font-semibold tabular-nums">
+                    {point.score != null ? point.score.toFixed(2) : "—"}
+                  </p>
+                  <p
+                    className={cn(
+                      "text-[11px] font-medium",
+                      riskTone(point.level)
+                    )}
+                  >
+                    {point.level ?? "—"}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -425,21 +498,10 @@ export function BurnoutRiskTrendCard({
   emptyMessage?: string;
 }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Burnout risk trend</CardTitle>
-        <CardDescription>
-          Weekly MFBI history plus next-week and week-2 early-warning
-          projections on the chart.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <BurnoutRiskTrendChart
-          data={data}
-          earlyWarning={earlyWarning}
-          emptyMessage={emptyMessage}
-        />
-      </CardContent>
-    </Card>
+    <BurnoutRiskTrendChart
+      data={data}
+      earlyWarning={earlyWarning}
+      emptyMessage={emptyMessage}
+    />
   );
 }

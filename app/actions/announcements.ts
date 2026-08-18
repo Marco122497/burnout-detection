@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 
 import { toAuditLogRow } from "@/lib/audit";
 import { requireRole } from "@/lib/auth/session";
+import { notifyStudentsOfAnnouncement } from "@/lib/student/announcements";
 
 export type AnnouncementActionState = {
   error?: string;
@@ -31,6 +32,48 @@ function parseOptionalYear(value: FormDataEntryValue | null) {
   const year = Number(raw);
   if (Number.isNaN(year) || year < 1 || year > 6) return null;
   return year;
+}
+
+function revalidateStudentAnnouncementViews() {
+  revalidatePath("/student");
+  revalidatePath("/student/notifications");
+  revalidatePath("/", "layout");
+}
+
+async function notifyPublishedAnnouncement(input: {
+  announcement_id: number;
+  title: string;
+  content: string;
+  department_id: number | null;
+  course: string | null;
+  year_level: number | null;
+  section: string | null;
+  created_at?: string;
+}) {
+  await notifyStudentsOfAnnouncement({
+    announcement_id: input.announcement_id,
+    title: input.title,
+    content: input.content,
+    department_id: input.department_id,
+    course: input.course,
+    year_level: input.year_level,
+    section: input.section,
+    created_at: input.created_at ?? new Date().toISOString(),
+  });
+}
+
+async function notifyPublishedAnnouncementById(
+  supabase: Awaited<ReturnType<typeof requireRole>>["supabase"],
+  announcementId: number
+) {
+  const { data } = await supabase
+    .from("announcements")
+    .select(
+      "announcement_id, title, content, department_id, course, year_level, section, created_at"
+    )
+    .eq("announcement_id", announcementId)
+    .maybeSingle();
+  if (data) await notifyPublishedAnnouncement(data);
 }
 
 export async function createAnnouncement(
@@ -73,7 +116,7 @@ export async function createAnnouncement(
       is_active: publish,
       publish_date: new Date().toISOString(),
     })
-    .select("announcement_id")
+    .select("announcement_id, created_at")
     .single();
 
   if (error) {
@@ -93,8 +136,21 @@ export async function createAnnouncement(
     })
   );
 
+  if (publish) {
+    await notifyPublishedAnnouncement({
+      announcement_id: data.announcement_id,
+      title,
+      content,
+      department_id: profile.department_id,
+      course,
+      year_level,
+      section,
+      created_at: data.created_at,
+    });
+  }
+
   revalidatePath("/instructor/announcements");
-  revalidatePath("/student");
+  revalidateStudentAnnouncementViews();
   return {
     success: publish
       ? "Announcement published."
@@ -155,8 +211,20 @@ export async function updateAnnouncement(
     })
   );
 
+  if (publish) {
+    await notifyPublishedAnnouncement({
+      announcement_id: announcementId,
+      title,
+      content,
+      department_id: profile.department_id,
+      course,
+      year_level,
+      section,
+    });
+  }
+
   revalidatePath("/instructor/announcements");
-  revalidatePath("/student");
+  revalidateStudentAnnouncementViews();
   return { success: "Announcement updated." };
 }
 
@@ -195,7 +263,7 @@ export async function deleteAnnouncement(
   );
 
   revalidatePath("/instructor/announcements");
-  revalidatePath("/student");
+  revalidateStudentAnnouncementViews();
   return { success: "Announcement deleted." };
 }
 
@@ -236,8 +304,10 @@ export async function publishAnnouncement(
     })
   );
 
+  await notifyPublishedAnnouncementById(supabase, announcementId);
+
   revalidatePath("/instructor/announcements");
-  revalidatePath("/student");
+  revalidateStudentAnnouncementViews();
   return { success: "Announcement published." };
 }
 
@@ -288,7 +358,7 @@ export async function createGuidanceAnnouncement(
       is_active: publish,
       publish_date: new Date().toISOString(),
     })
-    .select("announcement_id")
+    .select("announcement_id, created_at")
     .single();
 
   if (error) {
@@ -308,8 +378,21 @@ export async function createGuidanceAnnouncement(
     })
   );
 
+  if (publish) {
+    await notifyPublishedAnnouncement({
+      announcement_id: data.announcement_id,
+      title,
+      content,
+      department_id,
+      course,
+      year_level,
+      section,
+      created_at: data.created_at,
+    });
+  }
+
   revalidatePath("/guidance/announcements");
-  revalidatePath("/student");
+  revalidateStudentAnnouncementViews();
   return {
     success: publish
       ? "Announcement published."
@@ -375,8 +458,20 @@ export async function updateGuidanceAnnouncement(
     })
   );
 
+  if (publish) {
+    await notifyPublishedAnnouncement({
+      announcement_id: announcementId,
+      title,
+      content,
+      department_id,
+      course,
+      year_level,
+      section,
+    });
+  }
+
   revalidatePath("/guidance/announcements");
-  revalidatePath("/student");
+  revalidateStudentAnnouncementViews();
   return { success: "Announcement updated." };
 }
 
@@ -417,7 +512,7 @@ export async function deleteGuidanceAnnouncement(
   );
 
   revalidatePath("/guidance/announcements");
-  revalidatePath("/student");
+  revalidateStudentAnnouncementViews();
   return { success: "Announcement deleted." };
 }
 
@@ -460,7 +555,9 @@ export async function publishGuidanceAnnouncement(
     })
   );
 
+  await notifyPublishedAnnouncementById(supabase, announcementId);
+
   revalidatePath("/guidance/announcements");
-  revalidatePath("/student");
+  revalidateStudentAnnouncementViews();
   return { success: "Announcement published." };
 }

@@ -339,21 +339,10 @@ export function GuidanceAnalyticsView({
 
       {/* 3. Burnout Trend */}
       <section>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Burnout Trend</CardTitle>
-            <CardDescription>
-              Average burnout score (MFBI) by monitoring week, plus AI
-              early-warning next-week and week-2 outlook projections.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <AiBurnoutTrendChart
-              weeklyTrends={data.weeklyTrends}
-              earlyWarningStudents={data.aiProjectionStudents}
-            />
-          </CardContent>
-        </Card>
+        <AiBurnoutTrendChart
+          weeklyTrends={data.weeklyTrends}
+          earlyWarningStudents={data.aiProjectionStudents}
+        />
       </section>
 
       <div className="grid gap-4 lg:grid-cols-2">

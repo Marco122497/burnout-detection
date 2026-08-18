@@ -2,14 +2,10 @@
 
 import { Fragment, useState } from "react";
 import { ChevronDownIcon } from "lucide-react";
-import {
-  CartesianGrid,
-  Line,
-  LineChart,
-  XAxis,
-  YAxis,
-} from "recharts";
 
+import {
+  BurnoutRiskTrendChart,
+} from "@/components/shared/burnout-outlook";
 import {
   BurnoutFactorSection,
   BurnoutHero,
@@ -27,16 +23,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
-} from "@/components/ui/chart";
 import { useTablePagination } from "@/hooks/use-table-pagination";
 import {
   parseEarlyWarningRemarks,
-  type EarlyWarningPayload,
 } from "@/lib/student/ai-client";
 import {
   unwrapMfbi,
@@ -45,11 +34,6 @@ import {
   type MonitoringRow,
 } from "@/lib/student/queries";
 import { cn } from "@/lib/utils";
-
-const trendChartConfig = {
-  score: { label: "MFBI", color: "var(--primary)" },
-  projection: { label: "Projection", color: "oklch(0.72 0.14 55)" },
-} satisfies ChartConfig;
 
 function riskTone(level: string | null | undefined) {
   if (level === "High" || level === "Severe") {
@@ -75,16 +59,6 @@ function movementHighlight(direction: string | null | undefined) {
     return "bg-emerald-500/15 text-emerald-950 dark:text-emerald-100";
   }
   return "bg-muted text-foreground";
-}
-
-function movementDeltaTone(direction: string | null | undefined) {
-  if (direction === "increasing") {
-    return "text-orange-600 dark:text-orange-400";
-  }
-  if (direction === "decreasing") {
-    return "text-emerald-600 dark:text-emerald-400";
-  }
-  return "text-foreground";
 }
 
 function monthlyBuckets(history: MonitoringRow[]) {
@@ -185,196 +159,6 @@ type WeeklyTrendPoint = {
   direction: string | null;
 };
 
-function WeeklyMfbiTrendChart({
-  data,
-  earlyWarning,
-  movementDirection,
-  movementDelta,
-}: {
-  data: WeeklyTrendPoint[];
-  earlyWarning: EarlyWarningPayload | null;
-  movementDirection: string | null;
-  movementDelta: number | null;
-}) {
-  if (!data.length) {
-    return (
-      <p className="text-sm text-muted-foreground">No weekly scores yet.</p>
-    );
-  }
-
-  const latest = data[data.length - 1];
-  const recentCards = data.slice(-4);
-  const nextWeekLevel = earlyWarning?.next_week_risk ?? null;
-  const week2Level = earlyWarning?.week2_risk ?? null;
-  const nextScore =
-    earlyWarning?.next_week_score ?? riskLevelToChartScore(nextWeekLevel);
-  const week2Score = riskLevelToChartScore(week2Level);
-  const hasProjection = nextScore != null || week2Score != null;
-
-  type ChartPoint = {
-    week: string;
-    weekNumber: number;
-    score: number | null;
-    projection: number | null;
-    level: string;
-    kind: "actual" | "next" | "week2";
-  };
-
-  const chartData: ChartPoint[] = data.map((point, index) => {
-    const isLast = index === data.length - 1;
-    return {
-      week: `W${point.week}`,
-      weekNumber: point.week,
-      score: point.score ?? 0,
-      projection: isLast && hasProjection ? (point.score ?? 0) : null,
-      level: point.level ?? "—",
-      kind: "actual" as const,
-    };
-  });
-
-  if (nextScore != null && nextWeekLevel) {
-    chartData.push({
-      week: "Next",
-      weekNumber: (latest?.week ?? 0) + 1,
-      score: null,
-      projection: nextScore,
-      level: nextWeekLevel,
-      kind: "next",
-    });
-  }
-
-  if (week2Score != null && week2Level) {
-    chartData.push({
-      week: "W+2",
-      weekNumber: (latest?.week ?? 0) + 2,
-      score: null,
-      projection: week2Score,
-      level: week2Level,
-      kind: "week2",
-    });
-  }
-
-  return (
-    <div className="space-y-4">
-      {movementDirection ? (
-        <div className="flex justify-end">
-          <p
-            className={cn(
-              "rounded-md px-2.5 py-1 text-xs font-semibold tracking-tight",
-              movementHighlight(movementDirection)
-            )}
-          >
-            Latest movement: {movementDirection}
-            {movementDelta != null ? (
-              <>
-                {" "}
-                <span
-                  className={cn(
-                    "font-bold tabular-nums",
-                    movementDeltaTone(movementDirection)
-                  )}
-                >
-                  ({movementDelta > 0 ? "+" : ""}
-                  {movementDelta.toFixed(2)} MFBI)
-                </span>
-              </>
-            ) : null}
-          </p>
-        </div>
-      ) : null}
-
-      <ChartContainer config={trendChartConfig} className="h-48 w-full">
-        <LineChart data={chartData} margin={{ left: 4, right: 8, top: 8 }}>
-          <CartesianGrid vertical={false} strokeDasharray="3 3" />
-          <XAxis dataKey="week" tickLine={false} axisLine={false} />
-          <YAxis
-            domain={[0, 1]}
-            tickLine={false}
-            axisLine={false}
-            width={32}
-            tickFormatter={(value) => Number(value).toFixed(1)}
-          />
-          <ChartTooltip
-            content={
-              <ChartTooltipContent
-                formatter={(value, name, item) => {
-                  const level = String(item?.payload?.level ?? "—");
-                  const kind = String(item?.payload?.kind ?? "actual");
-                  if (value == null) return null;
-                  const label =
-                    kind === "next"
-                      ? "Next-week projection"
-                      : kind === "week2"
-                        ? "Week-2 projection"
-                        : name === "projection"
-                          ? "Projection link"
-                          : "MFBI";
-                  return (
-                    <div className="flex flex-col gap-0.5">
-                      <span>
-                        {label}: {Number(value).toFixed(2)}
-                      </span>
-                      <span className={cn("text-xs", riskTone(level))}>
-                        {level} risk
-                        {kind !== "actual" ? " (projected)" : ""}
-                      </span>
-                    </div>
-                  );
-                }}
-              />
-            }
-          />
-          <Line
-            type="monotone"
-            dataKey="score"
-            stroke="var(--color-score)"
-            strokeWidth={2.5}
-            dot={{ r: 4 }}
-            activeDot={{ r: 5 }}
-            connectNulls={false}
-          />
-          {hasProjection ? (
-            <Line
-              type="monotone"
-              dataKey="projection"
-              stroke="var(--color-projection)"
-              strokeWidth={2}
-              strokeDasharray="5 4"
-              dot={{ r: 4, strokeWidth: 2 }}
-              activeDot={{ r: 5 }}
-              connectNulls
-            />
-          ) : null}
-        </LineChart>
-      </ChartContainer>
-
-      {hasProjection ? (
-        <p className="text-[11px] text-muted-foreground">
-          Solid line = recorded MFBI. Dashed line = next-week ML risk and week-2
-          trend projection (mapped to risk midpoints for charting).
-        </p>
-      ) : null}
-
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {recentCards.map((point) => (
-          <div
-            key={point.week}
-            className="rounded-lg border border-border/70 px-2.5 py-2"
-          >
-            <p className="text-[11px] text-muted-foreground">Week {point.week}</p>
-            <p className="text-sm font-semibold tabular-nums">
-              {point.score != null ? point.score.toFixed(2) : "—"}
-            </p>
-            <p className={cn("text-[11px] font-medium", riskTone(point.level))}>
-              {point.level ?? "—"}
-            </p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 export function BurnoutHistoryView({
   stressLevel,
   history,
@@ -398,23 +182,6 @@ export function BurnoutHistoryView({
   const earlyWarning = parseEarlyWarningRemarks(
     latest?.prediction?.remarks ?? null
   );
-  const previous = history[1] ?? null;
-  const previousMfbi = previous ? unwrapMfbi(previous)?.mfbi_score : null;
-  const latestMfbi = mfbi?.mfbi_score ?? null;
-  const movementDelta =
-    latestMfbi != null && previousMfbi != null
-      ? latestMfbi - previousMfbi
-      : null;
-  const movementDirection =
-    earlyWarning?.trend && earlyWarning.trend !== "insufficient_history"
-      ? earlyWarning.trend
-      : movementDelta != null
-        ? movementDelta >= 0.08
-          ? "increasing"
-          : movementDelta <= -0.08
-            ? "decreasing"
-            : "stable"
-        : null;
 
   const monthly = monthlyBuckets(history);
   const weeklyTrend: WeeklyTrendPoint[] = [...history]
@@ -527,26 +294,12 @@ export function BurnoutHistoryView({
       />
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Weekly MFBI scores</CardTitle>
-            <CardDescription>
-              Burnout risk trend by week
-              {earlyWarning
-                ? ", with next-week ML and week-2 early-warning projections"
-                : ""}
-              .
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <WeeklyMfbiTrendChart
-              data={weeklyTrend}
-              earlyWarning={earlyWarning}
-              movementDirection={movementDirection}
-              movementDelta={movementDelta}
-            />
-          </CardContent>
-        </Card>
+        <BurnoutRiskTrendChart
+          title="Weekly MFBI scores"
+          data={weeklyTrend}
+          earlyWarning={earlyWarning}
+          emptyMessage="No weekly scores yet."
+        />
 
         <Card>
           <CardHeader>

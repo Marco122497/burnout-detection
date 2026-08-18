@@ -122,22 +122,12 @@ export function StudentDashboard({
       />
 
       <div className="grid gap-4 lg:grid-cols-5">
-        <Card className="lg:col-span-3">
-          <CardHeader>
-            <CardTitle>Burnout risk trend</CardTitle>
-            <CardDescription>
-              Weekly MFBI history plus next-week and week-2 early-warning
-              projections on the chart.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <BurnoutRiskTrendChart
-              data={data.weeklyTrend}
-              earlyWarning={data.earlyWarning}
-              emptyMessage="No burnout trend yet. Submit weekly monitoring to start tracking."
-            />
-          </CardContent>
-        </Card>
+        <BurnoutRiskTrendChart
+          className="lg:col-span-3"
+          data={data.weeklyTrend}
+          earlyWarning={data.earlyWarning}
+          emptyMessage="No burnout trend yet. Submit weekly monitoring to start tracking."
+        />
 
         <Card className="lg:col-span-2">
           <CardHeader>

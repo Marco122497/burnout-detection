@@ -296,7 +296,7 @@ export async function getStudentNotifications(
   const { data } = await supabase
     .from("notifications")
     .select(
-      "notification_id, title, message, notification_type, priority, is_read, created_at, monitoring_id"
+      "notification_id, title, message, notification_type, priority, is_read, created_at, monitoring_id, announcement_id"
     )
     .eq("user_id", userId)
     .order("created_at", { ascending: false })

@@ -5,8 +5,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Line,
-  LineChart,
   XAxis,
   YAxis,
 } from "recharts";
@@ -24,6 +22,7 @@ import {
   AiEarlyWarningStudentsCard,
   AiModelStatusCard,
 } from "@/components/shared/ai-early-warning-panel";
+import { WeeklyBurnoutRiskTrendChart } from "@/components/shared/weekly-burnout-risk-trend-chart";
 import { AiBurnoutTrendChart } from "@/components/shared/ai-burnout-trend-chart";
 import { Button } from "@/components/ui/button";
 import {
@@ -62,12 +61,6 @@ const YEAR_FILTER_OPTIONS = [
 ] as const;
 
 const riskConfig = {
-  low: { label: "Low Risk", color: "oklch(0.72 0.15 160)" },
-  moderate: { label: "Moderate Risk", color: "oklch(0.8 0.15 85)" },
-  high: { label: "High Risk", color: "oklch(0.68 0.19 40)" },
-} satisfies ChartConfig;
-
-const trendConfig = {
   low: { label: "Low Risk", color: "oklch(0.72 0.15 160)" },
   moderate: { label: "Moderate Risk", color: "oklch(0.8 0.15 85)" },
   high: { label: "High Risk", color: "oklch(0.68 0.19 40)" },
@@ -379,94 +372,24 @@ export function InstructorAnalyticsView({
           </CardContent>
         </Card>
 
-        <Card className="min-w-0 overflow-hidden">
-          <CardHeader>
-            <CardTitle className="text-lg">Weekly Burnout Risk Trend</CardTitle>
-            <CardDescription>
-              Number of students in each risk level by monitoring week.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="min-w-0 overflow-hidden">
-            {trendData.length === 0 ? (
-              <p className="flex h-56 items-center justify-center text-sm text-muted-foreground">
-                No weekly trend yet.
-              </p>
-            ) : (
-              <ChartContainer
-                config={trendConfig}
-                className="aspect-auto h-[260px] w-full sm:h-[280px]"
-              >
-                <LineChart
-                  data={trendData}
-                  margin={{ left: 0, right: 8, top: 4, bottom: 0 }}
-                >
-                  <CartesianGrid vertical={false} />
-                  <XAxis
-                    dataKey="weekLabel"
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                    tickFormatter={(value: string) =>
-                      value.replace("Week ", "W")
-                    }
-                  />
-                  <YAxis
-                    allowDecimals={false}
-                    tickLine={false}
-                    axisLine={false}
-                    width={28}
-                  />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Line
-                    type="monotone"
-                    dataKey="low"
-                    stroke="var(--color-low)"
-                    strokeWidth={2}
-                    dot={{ r: 3 }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="moderate"
-                    stroke="var(--color-moderate)"
-                    strokeWidth={2}
-                    dot={{ r: 3 }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="high"
-                    stroke="var(--color-high)"
-                    strokeWidth={2}
-                    dot={{ r: 3 }}
-                  />
-                  <ChartLegend content={<ChartLegendContent />} />
-                </LineChart>
-              </ChartContainer>
-            )}
-          </CardContent>
-        </Card>
+        <WeeklyBurnoutRiskTrendChart
+          className="min-w-0 overflow-hidden"
+          data={trendData}
+        />
       </div>
 
-      <Card className="min-w-0 overflow-hidden">
-        <CardHeader>
-          <CardTitle className="text-lg">AI Burnout Trend</CardTitle>
-          <CardDescription>
-            Department average MFBI by week, with AI early-warning next-week and
-            week-2 outlook projections.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="min-w-0 overflow-hidden">
-          <AiBurnoutTrendChart
-            weeklyTrends={data.weeklyTrends}
-            earlyWarningStudents={
-              yearFilter === "all"
-                ? data.aiProjectionStudents
-                : data.aiProjectionStudents.filter(
-                    (s) => s.year_level === Number(yearFilter)
-                  )
-            }
-          />
-        </CardContent>
-      </Card>
+      <AiBurnoutTrendChart
+        className="min-w-0 overflow-hidden"
+        title="AI Burnout Trend"
+        weeklyTrends={data.weeklyTrends}
+        earlyWarningStudents={
+          yearFilter === "all"
+            ? data.aiProjectionStudents
+            : data.aiProjectionStudents.filter(
+                (s) => s.year_level === Number(yearFilter)
+              )
+        }
+      />
 
       <AiEarlyWarningStudentsCard
         students={

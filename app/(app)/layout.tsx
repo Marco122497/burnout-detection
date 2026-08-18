@@ -11,16 +11,19 @@ export default async function AppLayout({
 
   const { data: rows } = await supabase
     .from("notifications")
-    .select("notification_id, title, message, is_read, created_at")
+    .select(
+      "notification_id, title, message, notification_type, is_read, created_at"
+    )
     .eq("user_id", user.id)
     .eq("is_read", false)
     .order("created_at", { ascending: false })
-    .limit(8);
+    .limit(40);
 
   const notifications: NavNotification[] = (rows ?? []).map((row) => ({
     id: row.notification_id,
     title: row.title,
     content: row.message,
+    type: row.notification_type,
     date: row.created_at,
     isRead: Boolean(row.is_read),
   }));

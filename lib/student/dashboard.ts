@@ -4,6 +4,7 @@ import {
   parseEarlyWarningRemarks,
   type EarlyWarningPayload,
 } from "@/lib/student/ai-client";
+import { getStudentAnnouncements } from "@/lib/student/announcements";
 import { getStudentBurnoutTrends, backfillBurnoutTrendsFromHistory } from "@/lib/student/burnout-trends";
 import {
   ensureWeeklyMonitoringReminder,
@@ -153,14 +154,7 @@ export async function getStudentDashboardData(
             .maybeSingle()
             .then((r) => r.data)
         : Promise.resolve(null),
-      supabase
-        .from("announcements")
-        .select(
-          "announcement_id, title, content, created_at, department_id, course, year_level, section, is_active"
-        )
-        .eq("is_active", true)
-        .order("created_at", { ascending: false })
-        .limit(20),
+      getStudentAnnouncements(supabase, profile, 5),
       ensureWeeklyMonitoringReminder(
         supabase,
         studentId,
@@ -187,37 +181,12 @@ export async function getStudentDashboardData(
     profile.course ||
     null;
 
-  const announcements = (announcementResult.data ?? [])
-    .filter((item) => {
-      if (
-        item.department_id != null &&
-        profile.department_id != null &&
-        item.department_id !== profile.department_id
-      ) {
-        return false;
-      }
-      if (item.course && profile.course && item.course !== profile.course) {
-        return false;
-      }
-      if (
-        item.year_level != null &&
-        profile.year_level != null &&
-        item.year_level !== profile.year_level
-      ) {
-        return false;
-      }
-      if (item.section && profile.section && item.section !== profile.section) {
-        return false;
-      }
-      return true;
-    })
-    .slice(0, 5)
-    .map((item) => ({
-      announcement_id: item.announcement_id,
-      title: item.title,
-      content: item.content,
-      created_at: item.created_at,
-    }));
+  const announcements = announcementResult.map((item) => ({
+    announcement_id: item.announcement_id,
+    title: item.title,
+    content: item.content,
+    created_at: item.created_at,
+  }));
 
   const weeklyTrendFromHistory = [...history]
     .reverse()

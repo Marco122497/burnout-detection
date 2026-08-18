@@ -1,15 +1,6 @@
 "use client";
 
-import {
-  Cell,
-  Line,
-  LineChart,
-  CartesianGrid,
-  Pie,
-  PieChart,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { Cell, Pie, PieChart } from "recharts";
 import {
   AlertTriangleIcon,
   ClipboardCheckIcon,
@@ -24,6 +15,7 @@ import {
   AiEarlyWarningStudentsCard,
   AiModelStatusCard,
 } from "@/components/shared/ai-early-warning-panel";
+import { WeeklyBurnoutRiskTrendChart } from "@/components/shared/weekly-burnout-risk-trend-chart";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -48,12 +40,6 @@ import { cn, formatYearLevel } from "@/lib/utils";
 type Analytics = ReturnType<typeof getGuidanceAnalytics>;
 
 const riskConfig = {
-  low: { label: "Low Risk", color: "oklch(0.72 0.15 160)" },
-  moderate: { label: "Moderate Risk", color: "oklch(0.8 0.15 85)" },
-  high: { label: "High Risk", color: "oklch(0.68 0.19 40)" },
-} satisfies ChartConfig;
-
-const trendConfig = {
   low: { label: "Low Risk", color: "oklch(0.72 0.15 160)" },
   moderate: { label: "Moderate Risk", color: "oklch(0.8 0.15 85)" },
   high: { label: "High Risk", color: "oklch(0.68 0.19 40)" },
@@ -255,68 +241,7 @@ export function GuidanceDashboard({
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Weekly Burnout Risk Trend</CardTitle>
-            <CardDescription>
-              Number of students in each risk level by monitoring week.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {trendData.length === 0 ? (
-              <p className="flex h-56 items-center justify-center text-sm text-muted-foreground">
-                No weekly trend yet.
-              </p>
-            ) : (
-              <ChartContainer
-                config={trendConfig}
-                className="aspect-auto h-[250px] w-full max-w-full"
-              >
-                <LineChart data={trendData}>
-                  <CartesianGrid vertical={false} />
-                  <XAxis
-                    dataKey="weekLabel"
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                    tickFormatter={(value: string) =>
-                      value.replace("Week ", "W")
-                    }
-                  />
-                  <YAxis
-                    allowDecimals={false}
-                    tickLine={false}
-                    axisLine={false}
-                    width={32}
-                  />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Line
-                    type="monotone"
-                    dataKey="low"
-                    stroke="var(--color-low)"
-                    strokeWidth={2}
-                    dot={{ r: 3 }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="moderate"
-                    stroke="var(--color-moderate)"
-                    strokeWidth={2}
-                    dot={{ r: 3 }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="high"
-                    stroke="var(--color-high)"
-                    strokeWidth={2}
-                    dot={{ r: 3 }}
-                  />
-                  <ChartLegend content={<ChartLegendContent />} />
-                </LineChart>
-              </ChartContainer>
-            )}
-          </CardContent>
-        </Card>
+        <WeeklyBurnoutRiskTrendChart data={trendData} />
       </div>
 
       <Card>

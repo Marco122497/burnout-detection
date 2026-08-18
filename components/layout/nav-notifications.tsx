@@ -21,6 +21,7 @@ export type NavNotification = {
   title: string;
   content: string;
   date: string;
+  type?: string | null;
   isRead?: boolean;
 };
 
@@ -79,7 +80,7 @@ export function NavNotifications({
 
       <DropdownMenuContent
         align="end"
-        className="w-72 min-w-72 overflow-x-hidden sm:w-80 sm:min-w-80"
+        className="flex w-72 min-w-72 flex-col overflow-hidden p-1 sm:w-80 sm:min-w-80"
       >
         <DropdownMenuGroup>
           <DropdownMenuLabel className="font-normal">
@@ -101,7 +102,7 @@ export function NavNotifications({
             No new notifications.
           </div>
         ) : (
-          <div className="max-h-80 overflow-x-hidden overflow-y-auto">
+          <div className="min-h-0 max-h-[min(22rem,55vh)] overflow-x-hidden overflow-y-auto overscroll-contain [scrollbar-gutter:stable] [scrollbar-width:thin]">
             {visibleItems.map((item, index) => {
               const isMarking = markPending && pendingId === item.id;
               return (
@@ -120,6 +121,11 @@ export function NavNotifications({
                     }}
                   >
                     <div className="min-w-0 flex-1 space-y-1">
+                      {item.type === "Announcement" ? (
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-primary">
+                          Announcement
+                        </p>
+                      ) : null}
                       <p className="break-words text-sm font-medium leading-snug">
                         {item.title}
                       </p>
