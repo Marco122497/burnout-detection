@@ -1,16 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   ChevronsUpDownIcon,
   KeyRoundIcon,
+  Loader2,
   LogOutIcon,
   UserRoundIcon,
 } from "lucide-react";
 
 import { logout } from "@/app/actions/auth";
 import type { Profile } from "@/lib/auth/roles";
+import { useNavigationPending } from "@/components/layout/navigation-pending";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -42,9 +44,18 @@ function displayName(profile: Profile) {
 }
 
 export function NavUser({ profile }: { profile: Profile }) {
+  const pathname = usePathname();
+  const { navigate, isPending, pendingHref } = useNavigationPending();
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const name = displayName(profile);
+  const profileLoading = isPending && pendingHref === "/profile";
+  const passwordLoading = isPending && pendingHref === "/change-password";
+
+  function onNavigate(url: string) {
+    if (pathname === url) return;
+    navigate(url);
+  }
 
   async function handleLogout() {
     if (pending) return;
@@ -109,17 +120,25 @@ export function NavUser({ profile }: { profile: Profile }) {
 
           <DropdownMenuGroup>
             <DropdownMenuItem
-              render={<Link href="/profile" />}
               className="cursor-pointer"
+              onClick={() => onNavigate("/profile")}
             >
-              <UserRoundIcon />
+              {profileLoading ? (
+                <Loader2 className="animate-spin" />
+              ) : (
+                <UserRoundIcon />
+              )}
               Profile
             </DropdownMenuItem>
             <DropdownMenuItem
-              render={<Link href="/change-password" />}
               className="cursor-pointer"
+              onClick={() => onNavigate("/change-password")}
             >
-              <KeyRoundIcon />
+              {passwordLoading ? (
+                <Loader2 className="animate-spin" />
+              ) : (
+                <KeyRoundIcon />
+              )}
               Change password
             </DropdownMenuItem>
           </DropdownMenuGroup>

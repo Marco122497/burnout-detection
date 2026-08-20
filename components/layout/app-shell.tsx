@@ -32,7 +32,7 @@ function AppShellContent({
   children: React.ReactNode;
 }) {
   const dashboardHref = getDashboardPath(profile.role);
-  const { isPending } = useNavigationPending();
+  const { isPending, pendingHref } = useNavigationPending();
   const viewAllHref = isStudentRole(profile.role)
     ? "/student/notifications"
     : profile.role === "Instructor"
@@ -62,7 +62,7 @@ function AppShellContent({
           </div>
         </header>
         <div className="flex min-w-0 flex-1 flex-col gap-4 overflow-x-hidden p-4 md:p-6">
-          {isPending ? <AppPageSkeleton /> : children}
+          {isPending ? <AppPageSkeleton href={pendingHref} /> : children}
         </div>
       </SidebarInset>
     </>

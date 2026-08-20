@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 
 import type { BurnoutFactor } from "@/lib/student/dashboard";
+import { classifyMfbiScore } from "@/lib/student/mfbi";
 import {
   Card,
   CardContent,
@@ -149,6 +150,23 @@ function factorTone(normalized: number) {
   return "bg-rose-500";
 }
 
+function formatFactorScore(value: number, max: number) {
+  const display = Number.isInteger(value)
+    ? String(value)
+    : String(Math.round(value * 100) / 100);
+  return `${display}/${max}`;
+}
+
+function factorScoreLabel(
+  prefix: string,
+  value: number,
+  max: number,
+  level?: string | null
+) {
+  const score = formatFactorScore(value, max);
+  return level ? `${prefix}: ${score} · ${level}` : `${prefix}: ${score}`;
+}
+
 function FactorCard({
   icon,
   label,
@@ -242,7 +260,12 @@ export function BurnoutFactorSection({
           factor={factors?.stress ?? null}
           rawLabel={
             factors
-              ? `PSS: ${factors.stress.raw}/40${stressLevel ? ` · ${stressLevel}` : ""}`
+              ? factorScoreLabel(
+                  "PSS",
+                  factors.stress.raw,
+                  40,
+                  stressLevel
+                )
               : undefined
           }
         />
@@ -251,21 +274,46 @@ export function BurnoutFactorSection({
           label="Academic Workload"
           description="How heavy schoolwork feels."
           factor={factors?.workload ?? null}
+          rawLabel={
+            factors
+              ? factorScoreLabel(
+                  "AW",
+                  factors.workload.raw,
+                  10,
+                  classifyMfbiScore(factors.workload.normalized)
+                )
+              : undefined
+          }
         />
         <FactorCard
           icon={<ClockIcon />}
           label="Study Time"
           description="Time spent studying each day."
           factor={factors?.studyTime ?? null}
+          rawLabel={
+            factors
+              ? factorScoreLabel(
+                  "ST",
+                  factors.studyTime.raw,
+                  12,
+                  classifyMfbiScore(factors.studyTime.normalized)
+                )
+              : undefined
+          }
         />
         <FactorCard
           icon={<MoonIcon />}
           label="Sleep Hours"
           description="How poor sleep contributed to burnout risk."
           factor={factors?.sleep ?? null}
-          primaryLabel={
+          rawLabel={
             factors
-              ? `${Math.round(factors.sleep.normalized * 100)}%`
+              ? factorScoreLabel(
+                  "Sleep",
+                  factors.sleep.raw,
+                  100,
+                  classifyMfbiScore(factors.sleep.normalized)
+                )
               : undefined
           }
           footnote="Higher means poorer sleep and greater burnout risk."
