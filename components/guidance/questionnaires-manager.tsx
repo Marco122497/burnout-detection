@@ -48,6 +48,26 @@ import { Label } from "@/components/ui/label";
 const initialState: QuestionnaireActionState = {};
 const selectClassName =
   "h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+
+function displayQuestionnaireName(name: string) {
+  if (/perceived stress|pss/i.test(name)) return "Stress Level";
+  return name;
+}
+
+function displayQuestionnaireDescription(name: string, description: string | null) {
+  if (/academic workload/i.test(name)) {
+    return "Measures students' academic workload.";
+  }
+  return description;
+}
+
+function questionnaireListOrder(name: string) {
+  if (/perceived stress|pss/i.test(name)) return 0;
+  if (/academic workload/i.test(name)) return 1;
+  if (/study time/i.test(name)) return 2;
+  if (/sleep/i.test(name)) return 3;
+  return 99;
+}
 const textareaClassName =
   "min-h-20 w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
@@ -164,13 +184,19 @@ export function QuestionnairesList({
   );
   useActionToast(toggleState);
 
+  const orderedQuestionnaires = [...questionnaires].sort(
+    (a, b) =>
+      questionnaireListOrder(a.questionnaire_name) -
+      questionnaireListOrder(b.questionnaire_name)
+  );
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Questionnaires</CardTitle>
         <CardDescription>
-          Manage PSS, Academic Workload, Study Time, and Sleep Hours forms used
-          in weekly monitoring.
+          Manage Stress Level, Academic Workload, Study Time, and Sleep Hours
+          forms used in weekly monitoring.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -179,10 +205,14 @@ export function QuestionnairesList({
             No questionnaires found. Seed questionnaires in the database first.
           </p>
         ) : (
-          questionnaires.map((item) => {
+          orderedQuestionnaires.map((item) => {
             const manageHref = `/guidance/questionnaires/${item.questionnaire_id}`;
             const manageLoading =
               isPending && pendingHref === manageHref;
+            const description = displayQuestionnaireDescription(
+              item.questionnaire_name,
+              item.description
+            );
 
             return (
             <div
@@ -190,14 +220,17 @@ export function QuestionnairesList({
               className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"
             >
               <div>
-                <p className="font-medium">{item.questionnaire_name}</p>
+                <p className="font-medium">
+                  {displayQuestionnaireName(item.questionnaire_name)}
+                </p>
                 <p className="text-sm text-muted-foreground">
-                  {item.total_questions} active questions ·{" "}
+                  {item.total_questions}{" "}
+                  {item.total_questions === 1 ? "question" : "questions"} ·{" "}
                   {item.is_active ? "Enabled" : "Disabled"}
                 </p>
-                {item.description ? (
+                {description ? (
                   <p className="mt-1 text-sm text-muted-foreground">
-                    {item.description}
+                    {description}
                   </p>
                 ) : null}
               </div>
@@ -355,7 +388,7 @@ export function QuestionnaireDetailManager({
             Questionnaire management
           </p>
           <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
-            {questionnaire.questionnaire_name}
+            {displayQuestionnaireName(questionnaire.questionnaire_name)}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Add, edit, reorder, and configure reverse-scored items.
@@ -401,7 +434,7 @@ export function QuestionnaireDetailManager({
             {isPssQuestionnaire ? (
               <div className="space-y-3 rounded-lg border bg-muted/30 p-3 text-sm">
                 <div>
-                  <p className="font-medium">Perceived Stress Scale (PSS-10)</p>
+                  <p className="font-medium">Stress Level</p>
                   <p className="mt-1 text-muted-foreground">
                     The questions ask about your feelings and thoughts during
                     the last month. Indicate how often you felt or thought a

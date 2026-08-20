@@ -478,7 +478,7 @@ VALUES
 ),
 (
     'Academic Workload',
-    '5-point Likert scale (1 = Definitely Disagree, 5 = Definitely Agree).',
+    'Measures students'' academic workload.',
     0
 ),
 (

@@ -21,16 +21,11 @@ async function getIp() {
   );
 }
 
-function parseOptionalText(value: FormDataEntryValue | null) {
-  const text = String(value || "").trim();
-  return text || null;
-}
-
 function parseOptionalYear(value: FormDataEntryValue | null) {
   const raw = String(value || "").trim();
   if (!raw) return null;
   const year = Number(raw);
-  if (Number.isNaN(year) || year < 1 || year > 6) return null;
+  if (Number.isNaN(year) || year < 1 || year > 4) return null;
   return year;
 }
 
@@ -91,8 +86,6 @@ export async function createAnnouncement(
   const title = String(formData.get("title") || "").trim();
   const content = String(formData.get("content") || "").trim();
   const publish = String(formData.get("publish") || "") === "1";
-  const course = parseOptionalText(formData.get("course"));
-  const section = parseOptionalText(formData.get("section"));
   const year_level = parseOptionalYear(formData.get("year_level"));
 
   if (!title || !content) {
@@ -100,7 +93,7 @@ export async function createAnnouncement(
   }
 
   if (String(formData.get("year_level") || "").trim() && year_level == null) {
-    return { error: "Year level must be between 1 and 6." };
+    return { error: "Year level must be between 1 and 4." };
   }
 
   const { data, error } = await supabase
@@ -110,9 +103,9 @@ export async function createAnnouncement(
       content,
       created_by: user.id,
       department_id: profile.department_id,
-      course,
+      course: null,
       year_level,
-      section,
+      section: null,
       is_active: publish,
       publish_date: new Date().toISOString(),
     })
@@ -142,9 +135,9 @@ export async function createAnnouncement(
       title,
       content,
       department_id: profile.department_id,
-      course,
+      course: null,
       year_level,
-      section,
+      section: null,
       created_at: data.created_at,
     });
   }
@@ -168,8 +161,6 @@ export async function updateAnnouncement(
   const title = String(formData.get("title") || "").trim();
   const content = String(formData.get("content") || "").trim();
   const publish = String(formData.get("publish") || "") === "1";
-  const course = parseOptionalText(formData.get("course"));
-  const section = parseOptionalText(formData.get("section"));
   const year_level = parseOptionalYear(formData.get("year_level"));
 
   if (!announcementId || !title || !content) {
@@ -177,7 +168,7 @@ export async function updateAnnouncement(
   }
 
   if (String(formData.get("year_level") || "").trim() && year_level == null) {
-    return { error: "Year level must be between 1 and 6." };
+    return { error: "Year level must be between 1 and 4." };
   }
 
   const { error } = await supabase
@@ -185,9 +176,9 @@ export async function updateAnnouncement(
     .update({
       title,
       content,
-      course,
+      course: null,
       year_level,
-      section,
+      section: null,
       department_id: profile.department_id,
       is_active: publish,
     })
@@ -217,9 +208,9 @@ export async function updateAnnouncement(
       title,
       content,
       department_id: profile.department_id,
-      course,
+      course: null,
       year_level,
-      section,
+      section: null,
     });
   }
 
@@ -333,8 +324,6 @@ export async function createGuidanceAnnouncement(
   const department_id = parseOptionalDepartmentId(
     formData.get("department_id")
   );
-  const course = parseOptionalText(formData.get("course"));
-  const section = parseOptionalText(formData.get("section"));
   const year_level = parseOptionalYear(formData.get("year_level"));
 
   if (!title || !content) {
@@ -342,7 +331,7 @@ export async function createGuidanceAnnouncement(
   }
 
   if (String(formData.get("year_level") || "").trim() && year_level == null) {
-    return { error: "Year level must be between 1 and 6." };
+    return { error: "Year level must be between 1 and 4." };
   }
 
   const { data, error } = await supabase
@@ -352,9 +341,9 @@ export async function createGuidanceAnnouncement(
       content,
       created_by: user.id,
       department_id,
-      course,
+      course: null,
       year_level,
-      section,
+      section: null,
       is_active: publish,
       publish_date: new Date().toISOString(),
     })
@@ -384,9 +373,9 @@ export async function createGuidanceAnnouncement(
       title,
       content,
       department_id,
-      course,
+      course: null,
       year_level,
-      section,
+      section: null,
       created_at: data.created_at,
     });
   }
@@ -415,8 +404,6 @@ export async function updateGuidanceAnnouncement(
   const department_id = parseOptionalDepartmentId(
     formData.get("department_id")
   );
-  const course = parseOptionalText(formData.get("course"));
-  const section = parseOptionalText(formData.get("section"));
   const year_level = parseOptionalYear(formData.get("year_level"));
 
   if (!announcementId || !title || !content) {
@@ -424,7 +411,7 @@ export async function updateGuidanceAnnouncement(
   }
 
   if (String(formData.get("year_level") || "").trim() && year_level == null) {
-    return { error: "Year level must be between 1 and 6." };
+    return { error: "Year level must be between 1 and 4." };
   }
 
   const { error } = await supabase
@@ -433,9 +420,9 @@ export async function updateGuidanceAnnouncement(
       title,
       content,
       department_id,
-      course,
+      course: null,
       year_level,
-      section,
+      section: null,
       is_active: publish,
     })
     .eq("announcement_id", announcementId)
@@ -464,9 +451,9 @@ export async function updateGuidanceAnnouncement(
       title,
       content,
       department_id,
-      course,
+      course: null,
       year_level,
-      section,
+      section: null,
     });
   }
 

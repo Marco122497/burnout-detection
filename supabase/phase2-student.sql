@@ -77,7 +77,7 @@ SET
 UPDATE questionnaires
 SET
   total_questions = 5,
-  description = '5-point Likert scale (1 = Definitely Disagree, 5 = Definitely Agree).'
+  description = 'Measures students'' academic workload.'
 WHERE questionnaire_name = 'Academic Workload';
 
 -- ------------------------------------------------------------

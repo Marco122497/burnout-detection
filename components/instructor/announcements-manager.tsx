@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState } from "react";
-import { Loader2, PencilIcon } from "lucide-react";
+import { useActionState, useEffect, useState } from "react";
+import { Loader2, MegaphoneIcon, PencilIcon, PlusIcon } from "lucide-react";
 
 import {
   createAnnouncement,
@@ -18,6 +18,17 @@ import {
   DeleteConfirmDialog,
   DeleteIconButton,
 } from "@/components/shared/delete-confirm-dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -28,31 +39,33 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 const initialState: AnnouncementActionState = {};
 const selectClassName =
   "h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
 function targetLabel(item: AnnouncementRow) {
-  const parts = [
-    item.course ? `Course: ${item.course}` : null,
-    item.year_level != null ? formatYearLevel(item.year_level) : null,
-    item.section ? `Section ${item.section}` : null,
-  ].filter(Boolean);
-  return parts.length ? parts.join(" · ") : "Entire assigned department";
+  return item.year_level != null
+    ? formatYearLevel(item.year_level)
+    : "Entire department";
 }
 
 export function AnnouncementsManager({
   announcements,
   departmentName,
-  courseOptions,
-  sectionOptions,
 }: {
   announcements: AnnouncementRow[];
   departmentName: string | null;
-  courseOptions: string[];
-  sectionOptions: string[];
 }) {
+  const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [createState, createAction, createPending] = useActionState(
@@ -78,221 +91,247 @@ export function AnnouncementsManager({
   useActionToast(publishState);
 
   useEffect(() => {
+    if (createState.success) {
+      setFormOpen(false);
+      setEditingId(null);
+    }
+  }, [createState.success]);
+
+  useEffect(() => {
+    if (updateState.success) {
+      setFormOpen(false);
+      setEditingId(null);
+    }
+  }, [updateState.success]);
+
+  useEffect(() => {
     if (deleteState.success) setDeletingId(null);
   }, [deleteState.success]);
 
   const editing = announcements.find((a) => a.announcement_id === editingId);
   const deleting = announcements.find((a) => a.announcement_id === deletingId);
-  const courses = useMemo(() => courseOptions, [courseOptions]);
-  const sections = useMemo(() => sectionOptions, [sectionOptions]);
   const deleteFormId = `delete-announcement-${deletingId ?? "none"}`;
+  const formId = editing ? "edit-announcement-form" : "create-announcement-form";
+  const formPending = editing ? updatePending : createPending;
+
+  function openCreate() {
+    setEditingId(null);
+    setFormOpen(true);
+  }
+
+  function openEdit(id: number) {
+    setEditingId(id);
+    setFormOpen(true);
+  }
+
+  function closeForm(open: boolean) {
+    if (formPending) return;
+    setFormOpen(open);
+    if (!open) setEditingId(null);
+  }
 
   return (
     <div className="space-y-6">
       <Card>
-        <CardHeader>
-          <CardTitle>
-            {editing ? "Edit announcement" : "Create announcement"}
-          </CardTitle>
-          <CardDescription>
-            Target your assigned department
-            {departmentName ? ` (${departmentName})` : ""}, optionally narrowed
-            by course, year level, or section.
-          </CardDescription>
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1.5">
+            <CardTitle>Your announcements</CardTitle>
+            <CardDescription>
+              Edit, publish drafts, or delete announcements you created
+              {departmentName ? ` for ${departmentName}` : ""}.
+            </CardDescription>
+          </div>
+          <Button type="button" onClick={openCreate}>
+            <PlusIcon className="size-4" />
+            Create announcement
+          </Button>
         </CardHeader>
         <CardContent>
-          <form
-            key={editing?.announcement_id ?? "create"}
-            action={editing ? updateAction : createAction}
-            className="space-y-4"
-          >
-            {editing ? (
-              <input
-                type="hidden"
-                name="announcement_id"
-                value={editing.announcement_id}
-              />
-            ) : null}
-            <div className="space-y-2">
-              <Label htmlFor="title">Title</Label>
-              <Input
-                id="title"
-                name="title"
-                required
-                defaultValue={editing?.title ?? ""}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="content">Content</Label>
-              <textarea
-                id="content"
-                name="content"
-                required
-                rows={5}
-                defaultValue={editing?.content ?? ""}
-                className="w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-              />
-            </div>
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div className="space-y-2">
-                <Label htmlFor="course">Course (optional)</Label>
-                <Input
-                  id="course"
-                  name="course"
-                  list="course-options"
-                  defaultValue={editing?.course ?? ""}
-                  placeholder="Leave blank for all courses"
-                />
-                <datalist id="course-options">
-                  {courses.map((course) => (
-                    <option key={course} value={course} />
-                  ))}
-                </datalist>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="year_level">Year level (optional)</Label>
-                <select
-                  id="year_level"
-                  name="year_level"
-                  defaultValue={editing?.year_level?.toString() ?? ""}
-                  className={selectClassName}
-                >
-                  <option value="">All years</option>
-                  {[1, 2, 3, 4, 5, 6].map((year) => (
-                    <option key={year} value={year}>
-                      {year}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="section">Section (optional)</Label>
-                <Input
-                  id="section"
-                  name="section"
-                  list="section-options"
-                  defaultValue={editing?.section ?? ""}
-                  placeholder="Leave blank for all sections"
-                />
-                <datalist id="section-options">
-                  {sections.map((section) => (
-                    <option key={section} value={section} />
-                  ))}
-                </datalist>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="submit"
-                name="publish"
-                value="0"
-                variant="outline"
-                disabled={createPending || updatePending}
-              >
-                {(createPending || updatePending) && (
-                  <Loader2 className="animate-spin" />
-                )}
-                Save draft
-              </Button>
-              <Button
-                type="submit"
-                name="publish"
-                value="1"
-                disabled={createPending || updatePending}
-              >
-                {(createPending || updatePending) && (
-                  <Loader2 className="animate-spin" />
-                )}
-                {editing ? "Save & publish" : "Publish"}
-              </Button>
-              {editing ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => setEditingId(null)}
-                >
-                  Cancel edit
-                </Button>
-              ) : null}
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Your announcements</CardTitle>
-          <CardDescription>
-            Edit, publish drafts, or delete announcements you created.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
           {announcements.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               No announcements yet.
             </p>
           ) : (
-            announcements.map((item) => (
-              <div
-                key={item.announcement_id}
-                className="rounded-lg border p-4"
-              >
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="space-y-1">
-                    <div className="flex flex-wrap items-center gap-2">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Target</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Updated</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {announcements.map((item) => (
+                  <TableRow key={item.announcement_id}>
+                    <TableCell className="max-w-[16rem]">
                       <p className="font-medium">{item.title}</p>
-                      <span className="rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                        {item.is_active ? "Active" : "Draft"}
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Target: {targetLabel(item)}
-                    </p>
-                    <p className="text-sm text-muted-foreground whitespace-pre-line">
-                      {item.content}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Updated {formatDateTime(item.updated_at)}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setEditingId(item.announcement_id)}
-                    >
-                      <PencilIcon />
-                      Edit
-                    </Button>
-                    {!item.is_active ? (
-                      <form action={publishAction}>
-                        <input
-                          type="hidden"
-                          name="announcement_id"
-                          value={item.announcement_id}
-                        />
+                      <p className="line-clamp-2 text-xs text-muted-foreground whitespace-pre-line">
+                        {item.content}
+                      </p>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {targetLabel(item)}
+                    </TableCell>
+                    <TableCell>
+                      {item.is_active ? "Active" : "Draft"}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-muted-foreground">
+                      {formatDateTime(item.updated_at)}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap justify-end gap-1">
                         <Button
-                          type="submit"
-                          size="sm"
-                          disabled={publishPending}
+                          type="button"
+                          size="icon-sm"
+                          variant="ghost"
+                          aria-label="Edit announcement"
+                          onClick={() => openEdit(item.announcement_id)}
                         >
-                          Publish
+                          <PencilIcon />
                         </Button>
-                      </form>
-                    ) : null}
-                    <DeleteIconButton
-                      label="Delete announcement"
-                      disabled={deletePending}
-                      onClick={() => setDeletingId(item.announcement_id)}
-                    />
-                  </div>
-                </div>
-              </div>
-            ))
+                        {!item.is_active ? (
+                          <form action={publishAction}>
+                            <input
+                              type="hidden"
+                              name="announcement_id"
+                              value={item.announcement_id}
+                            />
+                            <Button
+                              type="submit"
+                              size="sm"
+                              variant="outline"
+                              disabled={publishPending}
+                            >
+                              Publish
+                            </Button>
+                          </form>
+                        ) : null}
+                        <DeleteIconButton
+                          label="Delete announcement"
+                          disabled={deletePending}
+                          onClick={() => setDeletingId(item.announcement_id)}
+                        />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           )}
         </CardContent>
       </Card>
+
+      <AlertDialog open={formOpen} onOpenChange={closeForm}>
+        <AlertDialogContent className="max-h-[90vh] gap-3 overflow-y-auto data-[size=default]:max-w-lg data-[size=default]:sm:max-w-lg">
+          <AlertDialogHeader>
+            <AlertDialogMedia>
+              {editing ? <PencilIcon /> : <MegaphoneIcon />}
+            </AlertDialogMedia>
+            <AlertDialogTitle>
+              {editing ? "Edit announcement" : "Create announcement"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Target your assigned department
+              {departmentName ? ` (${departmentName})` : ""}, or a specific
+              year level.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {formOpen ? (
+            <form
+              key={editing?.announcement_id ?? "create"}
+              id={formId}
+              action={editing ? updateAction : createAction}
+              className="grid gap-x-3 gap-y-2.5 sm:grid-cols-2"
+            >
+              {editing ? (
+                <input
+                  type="hidden"
+                  name="announcement_id"
+                  value={editing.announcement_id}
+                />
+              ) : null}
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label htmlFor="announcement-title">Title</Label>
+                <Input
+                  id="announcement-title"
+                  name="title"
+                  required
+                  defaultValue={editing?.title ?? ""}
+                />
+              </div>
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label htmlFor="announcement-content">Content</Label>
+                <textarea
+                  id="announcement-content"
+                  name="content"
+                  required
+                  rows={5}
+                  defaultValue={editing?.content ?? ""}
+                  className="min-h-28 w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                />
+              </div>
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label htmlFor="announcement-year">Year level (optional)</Label>
+                <select
+                  id="announcement-year"
+                  name="year_level"
+                  defaultValue={
+                    editing?.year_level != null &&
+                    editing.year_level >= 1 &&
+                    editing.year_level <= 4
+                      ? editing.year_level.toString()
+                      : ""
+                  }
+                  className={selectClassName}
+                >
+                  <option value="">Entire department</option>
+                  {[1, 2, 3, 4].map((year) => (
+                    <option key={year} value={year}>
+                      {formatYearLevel(year)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </form>
+          ) : null}
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={formPending}>Cancel</AlertDialogCancel>
+            <Button
+              type="submit"
+              form={formId}
+              name="publish"
+              value="0"
+              variant="outline"
+              disabled={formPending}
+            >
+              {formPending ? <Loader2 className="animate-spin" /> : null}
+              Save draft
+            </Button>
+            <AlertDialogAction
+              type="submit"
+              form={formId}
+              name="publish"
+              value="1"
+              disabled={formPending}
+            >
+              {formPending ? (
+                <>
+                  <Loader2 className="animate-spin" />
+                  Saving…
+                </>
+              ) : editing ? (
+                "Save & publish"
+              ) : (
+                "Publish"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <DeleteConfirmDialog
         open={deletingId != null}

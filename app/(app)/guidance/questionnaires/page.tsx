@@ -17,7 +17,7 @@ export default async function GuidanceQuestionnairesPage() {
     <div className="space-y-6">
       <PageHeading
         title="Questionnaires"
-        description="Configure PSS, Academic Workload, Study Time, and Sleep Hours forms."
+        description="Configure Stress Level, Academic Workload, Study Time, and Sleep Hours forms."
         icon={ClipboardListIcon}
       />
       <QuestionnairesList questionnaires={questionnaires} />

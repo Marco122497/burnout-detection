@@ -13,7 +13,7 @@ export const metadata = {
 export default async function GuidanceAnnouncementsPage() {
   const { supabase, user } = await requireRole(["Guidance Counselor"]);
 
-  const [{ data }, departments, { data: students }] = await Promise.all([
+  const [{ data }, departments] = await Promise.all([
     supabase
       .from("announcements")
       .select(
@@ -22,41 +22,18 @@ export default async function GuidanceAnnouncementsPage() {
       .eq("created_by", user.id)
       .order("created_at", { ascending: false }),
     getDepartments(supabase),
-    supabase
-      .from("profiles")
-      .select("course, section")
-      .eq("role", "Student")
-      .eq("is_active", true),
   ]);
-
-  const courseOptions = [
-    ...new Set(
-      (students ?? [])
-        .map((s) => s.course)
-        .filter((value): value is string => Boolean(value))
-    ),
-  ].sort((a, b) => a.localeCompare(b));
-
-  const sectionOptions = [
-    ...new Set(
-      (students ?? [])
-        .map((s) => s.section)
-        .filter((value): value is string => Boolean(value))
-    ),
-  ].sort((a, b) => a.localeCompare(b));
 
   return (
     <div className="space-y-6">
       <PageHeading
         title="School announcements"
-        description="Create announcements for the entire department or target by department, year level, or section."
+        description="Create announcements for the entire department or target by department and year level."
         icon={MegaphoneIcon}
       />
       <GuidanceAnnouncementsManager
         announcements={(data ?? []) as AnnouncementRow[]}
         departments={departments}
-        courseOptions={courseOptions}
-        sectionOptions={sectionOptions}
       />
     </div>
   );

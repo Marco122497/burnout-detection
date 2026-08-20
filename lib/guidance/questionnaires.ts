@@ -26,14 +26,33 @@ export type QuestionRow = {
 };
 
 export async function getQuestionnaires(supabase: SupabaseClient) {
-  const { data } = await supabase
-    .from("questionnaires")
-    .select(
-      "questionnaire_id, questionnaire_name, description, total_questions, is_active, available_from, available_until, created_at, updated_at"
-    )
-    .order("questionnaire_name", { ascending: true });
+  const [{ data: questionnaires }, { data: questions }] = await Promise.all([
+    supabase
+      .from("questionnaires")
+      .select(
+        "questionnaire_id, questionnaire_name, description, is_active, available_from, available_until, created_at, updated_at"
+      )
+      .order("questionnaire_name", { ascending: true }),
+    supabase.from("questions").select("questionnaire_id"),
+  ]);
 
-  return (data ?? []) as QuestionnaireRow[];
+  const counts = new Map<number, number>();
+  for (const question of questions ?? []) {
+    const id = Number(question.questionnaire_id);
+    counts.set(id, (counts.get(id) ?? 0) + 1);
+  }
+
+  return (questionnaires ?? []).map((row) => ({
+    questionnaire_id: row.questionnaire_id,
+    questionnaire_name: row.questionnaire_name,
+    description: row.description,
+    is_active: row.is_active,
+    available_from: row.available_from,
+    available_until: row.available_until,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    total_questions: counts.get(row.questionnaire_id) ?? 0,
+  })) satisfies QuestionnaireRow[];
 }
 
 export async function getQuestionnaireById(
@@ -77,8 +96,7 @@ export async function syncQuestionnaireQuestionCount(
   const { count } = await supabase
     .from("questions")
     .select("*", { count: "exact", head: true })
-    .eq("questionnaire_id", questionnaireId)
-    .eq("is_active", true);
+    .eq("questionnaire_id", questionnaireId);
 
   await supabase
     .from("questionnaires")
