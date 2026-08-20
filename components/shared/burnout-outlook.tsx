@@ -68,6 +68,37 @@ function formatScore(value: number | null | undefined) {
   return value != null ? value.toFixed(2) : "—";
 }
 
+function TrendWeekCard({
+  label,
+  score,
+  level,
+  projected = false,
+}: {
+  label: string;
+  score: number | null;
+  level: string | null;
+  projected?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-lg border px-2.5 py-2",
+        projected
+          ? "border-dashed border-amber-500/40 bg-amber-500/5"
+          : "border-border/70"
+      )}
+    >
+      <p className="text-[11px] text-muted-foreground">{label}</p>
+      <p className="text-sm font-semibold tabular-nums">
+        {formatScore(score)}
+      </p>
+      <p className={cn("text-[11px] font-medium", riskTone(level))}>
+        {level ?? "—"}
+      </p>
+    </div>
+  );
+}
+
 function outlookNodeTone(level: string | null | undefined) {
   if (level === "High" || level === "Severe") {
     return "bg-orange-500 text-white";
@@ -458,28 +489,27 @@ export function BurnoutRiskTrendChart({
               </p>
             ) : null}
 
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {recentCards.map((point) => (
-                <div
+                <TrendWeekCard
                   key={point.week}
-                  className="rounded-lg border border-border/70 px-2.5 py-2"
-                >
-                  <p className="text-[11px] text-muted-foreground">
-                    Week {point.week}
-                  </p>
-                  <p className="text-sm font-semibold tabular-nums">
-                    {point.score != null ? point.score.toFixed(2) : "—"}
-                  </p>
-                  <p
-                    className={cn(
-                      "text-[11px] font-medium",
-                      riskTone(point.level)
-                    )}
-                  >
-                    {point.level ?? "—"}
-                  </p>
-                </div>
+                  label={`Week ${point.week}`}
+                  score={point.score}
+                  level={point.level}
+                />
               ))}
+              <TrendWeekCard
+                label="Next week"
+                score={nextScore}
+                level={nextWeekLevel}
+                projected
+              />
+              <TrendWeekCard
+                label="Week 2"
+                score={week2Score}
+                level={week2Level}
+                projected
+              />
             </div>
           </>
         )}
