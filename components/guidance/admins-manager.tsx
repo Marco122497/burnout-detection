@@ -7,6 +7,7 @@ import {
   PencilIcon,
   PlusIcon,
   SearchIcon,
+  Trash2Icon,
   UserRoundCheckIcon,
   UserRoundPlusIcon,
   UserRoundXIcon,
@@ -14,6 +15,7 @@ import {
 
 import {
   createGuidanceUser,
+  deleteManagedUser,
   resetUserPassword,
   toggleUserStatus,
   updateUser,
@@ -21,6 +23,9 @@ import {
 } from "@/app/actions/guidance";
 import { useActionToast } from "@/hooks/use-action-toast";
 import { useTablePagination } from "@/hooks/use-table-pagination";
+import {
+  DeleteConfirmDialog,
+} from "@/components/shared/delete-confirm-dialog";
 import { TablePagination } from "@/components/shared/table-pagination";
 import type { UserListItem } from "@/lib/guidance/queries";
 import {
@@ -79,6 +84,8 @@ export function AdminsManager({
   const [addOpen, setAddOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [resetId, setResetId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const [createState, createAction, createPending] = useActionState(
     createGuidanceUser,
@@ -96,11 +103,16 @@ export function AdminsManager({
     resetUserPassword,
     initialState
   );
+  const [deleteState, deleteAction, deletePending] = useActionState(
+    deleteManagedUser,
+    initialState
+  );
 
   useActionToast(createState);
   useActionToast(updateState);
   useActionToast(toggleState);
   useActionToast(resetState);
+  useActionToast(deleteState);
 
   useEffect(() => {
     if (createState.success) setAddOpen(false);
@@ -113,6 +125,14 @@ export function AdminsManager({
   useEffect(() => {
     if (resetState.success) setResetId(null);
   }, [resetState]);
+
+  useEffect(() => {
+    if (deleteState.success) setDeletingId(null);
+  }, [deleteState.success]);
+
+  useEffect(() => {
+    if (toggleState.success) setTogglingId(null);
+  }, [toggleState.success]);
 
   const filteredAdmins = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -145,6 +165,10 @@ export function AdminsManager({
 
   const editing = admins.find((a) => a.id === editingId) ?? null;
   const resetting = admins.find((a) => a.id === resetId) ?? null;
+  const deleting = admins.find((a) => a.id === deletingId) ?? null;
+  const toggling = admins.find((a) => a.id === togglingId) ?? null;
+  const deleteFormId = `delete-admin-${deletingId ?? "none"}`;
+  const toggleFormId = `toggle-admin-${togglingId ?? "none"}`;
 
   function closeAdd(open: boolean) {
     setAddOpen(open);
@@ -158,6 +182,14 @@ export function AdminsManager({
     if (!open) setResetId(null);
   }
 
+  function closeDelete(open: boolean) {
+    if (!open) setDeletingId(null);
+  }
+
+  function closeToggle(open: boolean) {
+    if (!open) setTogglingId(null);
+  }
+
   return (
     <div className="space-y-6">
       <Card>
@@ -165,7 +197,7 @@ export function AdminsManager({
           <div className="space-y-1.5">
             <CardTitle>Guidance/admin accounts</CardTitle>
             <CardDescription>
-              Create, edit, activate/deactivate, and reset passwords for
+              Create, edit, activate/deactivate, reset passwords, or delete
               guidance counselor accounts.
             </CardDescription>
           </div>
@@ -267,48 +299,41 @@ export function AdminsManager({
                             />
                             <TooltipContent>Edit</TooltipContent>
                           </Tooltip>
-                          <form action={toggleAction}>
-                            <input
-                              type="hidden"
-                              name="user_id"
-                              value={admin.id}
+                          <Tooltip>
+                            <TooltipTrigger
+                              render={
+                                <Button
+                                  type="button"
+                                  size="icon-sm"
+                                  variant="ghost"
+                                  disabled={
+                                    togglePending ||
+                                    (admin.id === currentUserId &&
+                                      admin.is_active)
+                                  }
+                                  aria-label={
+                                    admin.is_active
+                                      ? "Deactivate"
+                                      : "Activate"
+                                  }
+                                  onClick={() => setTogglingId(admin.id)}
+                                >
+                                  {admin.is_active ? (
+                                    <UserRoundXIcon />
+                                  ) : (
+                                    <UserRoundCheckIcon />
+                                  )}
+                                </Button>
+                              }
                             />
-                            <input
-                              type="hidden"
-                              name="is_active"
-                              value={admin.is_active ? "0" : "1"}
-                            />
-                            <Tooltip>
-                              <TooltipTrigger
-                                render={
-                                  <Button
-                                    type="submit"
-                                    size="icon-sm"
-                                    variant="ghost"
-                                    disabled={
-                                      togglePending ||
-                                      (admin.id === currentUserId &&
-                                        admin.is_active)
-                                    }
-                                    aria-label={
-                                      admin.is_active
-                                        ? "Deactivate"
-                                        : "Activate"
-                                    }
-                                  >
-                                    {admin.is_active ? (
-                                      <UserRoundXIcon />
-                                    ) : (
-                                      <UserRoundCheckIcon />
-                                    )}
-                                  </Button>
-                                }
-                              />
-                              <TooltipContent>
-                                {admin.is_active ? "Deactivate" : "Activate"}
-                              </TooltipContent>
-                            </Tooltip>
-                          </form>
+                            <TooltipContent>
+                              {admin.id === currentUserId && admin.is_active
+                                ? "You cannot deactivate your own account"
+                                : admin.is_active
+                                  ? "Deactivate"
+                                  : "Activate"}
+                            </TooltipContent>
+                          </Tooltip>
                           <Tooltip>
                             <TooltipTrigger
                               render={
@@ -324,6 +349,29 @@ export function AdminsManager({
                               }
                             />
                             <TooltipContent>Reset password</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger
+                              render={
+                                <Button
+                                  type="button"
+                                  size="icon-sm"
+                                  variant="ghost"
+                                  aria-label="Delete admin"
+                                  disabled={
+                                    deletePending || admin.id === currentUserId
+                                  }
+                                  onClick={() => setDeletingId(admin.id)}
+                                >
+                                  <Trash2Icon />
+                                </Button>
+                              }
+                            />
+                            <TooltipContent>
+                              {admin.id === currentUserId
+                                ? "You cannot delete your own account"
+                                : "Delete"}
+                            </TooltipContent>
                           </Tooltip>
                         </div>
                       </TableCell>
@@ -615,6 +663,93 @@ export function AdminsManager({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog
+        open={togglingId != null}
+        onOpenChange={(open) => {
+          if (togglePending) return;
+          closeToggle(open);
+        }}
+      >
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogMedia
+              className={
+                toggling?.is_active
+                  ? "bg-destructive/10 text-destructive"
+                  : undefined
+              }
+            >
+              {toggling?.is_active ? (
+                <UserRoundXIcon />
+              ) : (
+                <UserRoundCheckIcon />
+              )}
+            </AlertDialogMedia>
+            <AlertDialogTitle>
+              {toggling?.is_active ? "Deactivate admin?" : "Activate admin?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {toggling
+                ? toggling.is_active
+                  ? `This will deactivate “${toggling.full_name}”. They will not be able to sign in until activated again.`
+                  : `This will activate “${toggling.full_name}” and restore their access.`
+                : "Update this admin’s account status."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {toggling ? (
+            <form id={toggleFormId} action={toggleAction}>
+              <input type="hidden" name="user_id" value={toggling.id} />
+              <input
+                type="hidden"
+                name="is_active"
+                value={toggling.is_active ? "0" : "1"}
+              />
+            </form>
+          ) : null}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={togglePending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              type="submit"
+              form={toggleFormId}
+              variant={toggling?.is_active ? "destructive" : "default"}
+              disabled={togglePending || !toggling}
+            >
+              {togglePending ? (
+                <>
+                  <Loader2 className="animate-spin" />
+                  Saving…
+                </>
+              ) : toggling?.is_active ? (
+                "Deactivate"
+              ) : (
+                "Activate"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <DeleteConfirmDialog
+        open={deletingId != null}
+        onOpenChange={closeDelete}
+        pending={deletePending}
+        title="Delete admin?"
+        description={
+          deleting
+            ? `This will permanently remove “${deleting.full_name}”. Admins with counseling records cannot be deleted — deactivate them instead.`
+            : "This will permanently remove the admin."
+        }
+        formId={deleteFormId}
+        formAction={deleteAction}
+      >
+        {deleting ? (
+          <>
+            <input type="hidden" name="user_id" value={deleting.id} />
+            <input type="hidden" name="role" value="Guidance Counselor" />
+          </>
+        ) : null}
+      </DeleteConfirmDialog>
     </div>
   );
 }

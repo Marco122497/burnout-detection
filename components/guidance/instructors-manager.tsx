@@ -6,6 +6,7 @@ import {
   Loader2,
   PencilIcon,
   PlusIcon,
+  Trash2Icon,
   UserRoundCheckIcon,
   UserRoundPlusIcon,
   UserRoundXIcon,
@@ -13,6 +14,7 @@ import {
 
 import {
   createInstructor,
+  deleteManagedUser,
   resetInstructorPassword,
   toggleInstructorStatus,
   updateInstructor,
@@ -20,6 +22,9 @@ import {
 } from "@/app/actions/guidance";
 import { useActionToast } from "@/hooks/use-action-toast";
 import { useTablePagination } from "@/hooks/use-table-pagination";
+import {
+  DeleteConfirmDialog,
+} from "@/components/shared/delete-confirm-dialog";
 import { TablePagination } from "@/components/shared/table-pagination";
 import type { Department } from "@/lib/auth/roles";
 import type { InstructorListItem } from "@/lib/guidance/queries";
@@ -78,6 +83,8 @@ export function InstructorsManager({
   const [addOpen, setAddOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [resetId, setResetId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const [createState, createAction, createPending] = useActionState(
     createInstructor,
@@ -95,11 +102,16 @@ export function InstructorsManager({
     resetInstructorPassword,
     initialState
   );
+  const [deleteState, deleteAction, deletePending] = useActionState(
+    deleteManagedUser,
+    initialState
+  );
 
   useActionToast(createState);
   useActionToast(updateState);
   useActionToast(toggleState);
   useActionToast(resetState);
+  useActionToast(deleteState);
 
   useEffect(() => {
     if (createState.success) setAddOpen(false);
@@ -113,8 +125,20 @@ export function InstructorsManager({
     if (resetState.success) setResetId(null);
   }, [resetState]);
 
+  useEffect(() => {
+    if (deleteState.success) setDeletingId(null);
+  }, [deleteState.success]);
+
+  useEffect(() => {
+    if (toggleState.success) setTogglingId(null);
+  }, [toggleState.success]);
+
   const editing = instructors.find((i) => i.id === editingId) ?? null;
   const resetting = instructors.find((i) => i.id === resetId) ?? null;
+  const deleting = instructors.find((i) => i.id === deletingId) ?? null;
+  const toggling = instructors.find((i) => i.id === togglingId) ?? null;
+  const deleteFormId = `delete-instructor-${deletingId ?? "none"}`;
+  const toggleFormId = `toggle-instructor-${togglingId ?? "none"}`;
   const editDialogOpen = editingId !== null;
   const resetDialogOpen = resetId !== null;
   const activeDepartments = departments.filter((d) => d.is_active);
@@ -140,6 +164,14 @@ export function InstructorsManager({
     if (!open) setResetId(null);
   }
 
+  function closeDelete(open: boolean) {
+    if (!open) setDeletingId(null);
+  }
+
+  function closeToggle(open: boolean) {
+    if (!open) setTogglingId(null);
+  }
+
   return (
     <div className="space-y-6">
       <Card>
@@ -147,7 +179,8 @@ export function InstructorsManager({
           <div className="space-y-1.5">
             <CardTitle>Instructor list</CardTitle>
             <CardDescription>
-              Activate/deactivate, edit details, or reset passwords.
+              Activate/deactivate, edit details, reset passwords, or delete
+              instructors.
             </CardDescription>
           </div>
           <Button type="button" onClick={() => setAddOpen(true)}>
@@ -234,46 +267,33 @@ export function InstructorsManager({
                             />
                             <TooltipContent>Edit</TooltipContent>
                           </Tooltip>
-                          <form action={toggleAction}>
-                            <input
-                              type="hidden"
-                              name="instructor_id"
-                              value={instructor.id}
+                          <Tooltip>
+                            <TooltipTrigger
+                              render={
+                                <Button
+                                  type="button"
+                                  size="icon-sm"
+                                  variant="ghost"
+                                  disabled={togglePending}
+                                  aria-label={
+                                    instructor.is_active
+                                      ? "Deactivate"
+                                      : "Activate"
+                                  }
+                                  onClick={() => setTogglingId(instructor.id)}
+                                >
+                                  {instructor.is_active ? (
+                                    <UserRoundXIcon />
+                                  ) : (
+                                    <UserRoundCheckIcon />
+                                  )}
+                                </Button>
+                              }
                             />
-                            <input
-                              type="hidden"
-                              name="is_active"
-                              value={instructor.is_active ? "0" : "1"}
-                            />
-                            <Tooltip>
-                              <TooltipTrigger
-                                render={
-                                  <Button
-                                    type="submit"
-                                    size="icon-sm"
-                                    variant="ghost"
-                                    disabled={togglePending}
-                                    aria-label={
-                                      instructor.is_active
-                                        ? "Deactivate"
-                                        : "Activate"
-                                    }
-                                  >
-                                    {instructor.is_active ? (
-                                      <UserRoundXIcon />
-                                    ) : (
-                                      <UserRoundCheckIcon />
-                                    )}
-                                  </Button>
-                                }
-                              />
-                              <TooltipContent>
-                                {instructor.is_active
-                                  ? "Deactivate"
-                                  : "Activate"}
-                              </TooltipContent>
-                            </Tooltip>
-                          </form>
+                            <TooltipContent>
+                              {instructor.is_active ? "Deactivate" : "Activate"}
+                            </TooltipContent>
+                          </Tooltip>
                           <Tooltip>
                             <TooltipTrigger
                               render={
@@ -289,6 +309,23 @@ export function InstructorsManager({
                               }
                             />
                             <TooltipContent>Reset password</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger
+                              render={
+                                <Button
+                                  type="button"
+                                  size="icon-sm"
+                                  variant="ghost"
+                                  aria-label="Delete instructor"
+                                  disabled={deletePending}
+                                  onClick={() => setDeletingId(instructor.id)}
+                                >
+                                  <Trash2Icon />
+                                </Button>
+                              }
+                            />
+                            <TooltipContent>Delete</TooltipContent>
                           </Tooltip>
                         </div>
                       </TableCell>
@@ -598,6 +635,99 @@ export function InstructorsManager({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog
+        open={togglingId != null}
+        onOpenChange={(open) => {
+          if (togglePending) return;
+          closeToggle(open);
+        }}
+      >
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogMedia
+              className={
+                toggling?.is_active
+                  ? "bg-destructive/10 text-destructive"
+                  : undefined
+              }
+            >
+              {toggling?.is_active ? (
+                <UserRoundXIcon />
+              ) : (
+                <UserRoundCheckIcon />
+              )}
+            </AlertDialogMedia>
+            <AlertDialogTitle>
+              {toggling?.is_active
+                ? "Deactivate instructor?"
+                : "Activate instructor?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {toggling
+                ? toggling.is_active
+                  ? `This will deactivate “${toggling.full_name}”. They will not be able to sign in until activated again.`
+                  : `This will activate “${toggling.full_name}” and restore their access.`
+                : "Update this instructor’s account status."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {toggling ? (
+            <form id={toggleFormId} action={toggleAction}>
+              <input
+                type="hidden"
+                name="instructor_id"
+                value={toggling.id}
+              />
+              <input
+                type="hidden"
+                name="is_active"
+                value={toggling.is_active ? "0" : "1"}
+              />
+            </form>
+          ) : null}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={togglePending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              type="submit"
+              form={toggleFormId}
+              variant={toggling?.is_active ? "destructive" : "default"}
+              disabled={togglePending || !toggling}
+            >
+              {togglePending ? (
+                <>
+                  <Loader2 className="animate-spin" />
+                  Saving…
+                </>
+              ) : toggling?.is_active ? (
+                "Deactivate"
+              ) : (
+                "Activate"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <DeleteConfirmDialog
+        open={deletingId != null}
+        onOpenChange={closeDelete}
+        pending={deletePending}
+        title="Delete instructor?"
+        description={
+          deleting
+            ? `This will permanently remove “${deleting.full_name}” and announcements they created. This cannot be undone.`
+            : "This will permanently remove the instructor."
+        }
+        formId={deleteFormId}
+        formAction={deleteAction}
+      >
+        {deleting ? (
+          <>
+            <input type="hidden" name="user_id" value={deleting.id} />
+            <input type="hidden" name="role" value="Instructor" />
+          </>
+        ) : null}
+      </DeleteConfirmDialog>
     </div>
   );
 }

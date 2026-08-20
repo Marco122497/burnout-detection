@@ -1010,6 +1010,128 @@ export async function resetUserPassword(
   return { success: "Password reset." };
 }
 
+export async function deleteManagedUser(
+  _prev: GuidanceActionState,
+  formData: FormData
+): Promise<GuidanceActionState> {
+  const { supabase, user, profile } = await requireRole([
+    "Guidance Counselor",
+  ]);
+  const user_id = String(formData.get("user_id") || "").trim();
+  const expectedRole = String(formData.get("role") || "").trim();
+
+  if (!user_id) {
+    return { error: "Invalid user." };
+  }
+
+  if (user_id === user.id) {
+    return { error: "You cannot delete your own account." };
+  }
+
+  if (
+    expectedRole &&
+    expectedRole !== "Student" &&
+    expectedRole !== "Instructor" &&
+    expectedRole !== "Guidance Counselor"
+  ) {
+    return { error: "Invalid user role." };
+  }
+
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch {
+    return {
+      error:
+        "Missing SUPABASE_SERVICE_ROLE_KEY. Add it to .env.local to manage users.",
+    };
+  }
+
+  const { data: target } = await admin
+    .from("profiles")
+    .select("id, first_name, last_name, role")
+    .eq("id", user_id)
+    .maybeSingle();
+
+  if (!target) {
+    return { error: "User not found." };
+  }
+
+  if (expectedRole && target.role !== expectedRole) {
+    return { error: "User role does not match this management page." };
+  }
+
+  if (target.role === "Student") {
+    const [{ count: monitoringCount }, { count: counselingCount }] =
+      await Promise.all([
+        admin
+          .from("weekly_monitoring")
+          .select("*", { count: "exact", head: true })
+          .eq("student_id", user_id),
+        admin
+          .from("counseling_records")
+          .select("*", { count: "exact", head: true })
+          .eq("student_id", user_id),
+      ]);
+
+    if ((monitoringCount ?? 0) > 0 || (counselingCount ?? 0) > 0) {
+      return {
+        error:
+          "This student still has monitoring or counseling records. Deactivate the account instead.",
+      };
+    }
+  }
+
+  if (target.role === "Guidance Counselor") {
+    const { count } = await admin
+      .from("counseling_records")
+      .select("*", { count: "exact", head: true })
+      .eq("guidance_counselor_id", user_id);
+
+    if ((count ?? 0) > 0) {
+      return {
+        error:
+          "This admin still has counseling records. Deactivate the account instead.",
+      };
+    }
+  }
+
+  const fullName = `${target.first_name} ${target.last_name}`.trim();
+
+  await supabase.from("audit_logs").insert(
+    toAuditLogRow({
+      user_id: user.id,
+      user_role: profile.role,
+      action: "DELETE_USER",
+      action_type: "DELETE",
+      table_name: "profiles",
+      record_id: user_id,
+      description: `Deleted ${target.role} ${fullName}`,
+      ip_address: await getIp(),
+    })
+  );
+
+  const { error } = await admin.auth.admin.deleteUser(user_id);
+
+  if (error) {
+    const message = error.message || "Failed to delete user.";
+    if (/foreign key|23503/i.test(message)) {
+      return {
+        error:
+          "Cannot delete this user because related records still reference them. Deactivate the account instead.",
+      };
+    }
+    return { error: message };
+  }
+
+  revalidatePath("/guidance/students");
+  revalidatePath("/guidance/instructors");
+  revalidatePath("/guidance/admins");
+  revalidatePath("/guidance/monitoring");
+  revalidatePath("/guidance");
+  return { success: `${target.role} deleted.` };
+}
+
 export async function openNextMonitoringWeek(
   _prev: GuidanceActionState,
   _formData: FormData
