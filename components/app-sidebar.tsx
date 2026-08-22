@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
@@ -25,23 +25,6 @@ function getPrefetchUrls(home: string, urls: string[]) {
   return Array.from(new Set([home, "/profile", "/change-password", ...urls]));
 }
 
-function navGroup(pathname: string) {
-  if (pathname.startsWith("/guidance/monitoring")) return "guidance-monitoring";
-  if (pathname.startsWith("/instructor/monitoring")) {
-    return "instructor-monitoring";
-  }
-  if (pathname.startsWith("/guidance/questionnaires")) {
-    return "guidance-questionnaires";
-  }
-  return null;
-}
-
-function isSoftNavigation(from: string, to: string) {
-  const fromGroup = navGroup(from);
-  const toGroup = navGroup(to);
-  return Boolean(fromGroup && toGroup && fromGroup === toGroup);
-}
-
 function isItemActive(pathname: string, itemUrl: string, home: string) {
   if (pathname === itemUrl) return true;
   if (itemUrl === home) return pathname === home;
@@ -58,8 +41,6 @@ export function AppSidebar({
   const router = useRouter();
   const { isMobile, setOpenMobile } = useSidebar();
   const { isPending, pendingHref, navigate } = useNavigationPending();
-  const [isSoftPending, startSoftTransition] = useTransition();
-  const [softPendingHref, setSoftPendingHref] = useState<string | null>(null);
   const home = getDashboardPath(profile.role);
   const navItems = getNavItems(profile.role, home);
   const isStudent = profile.role === "Student";
@@ -74,10 +55,6 @@ export function AppSidebar({
     }
   }, [home, profile.role, router]);
 
-  useEffect(() => {
-    setSoftPendingHref(null);
-  }, [pathname]);
-
   function onNavigate(url: string) {
     if (isItemActive(pathname, url, home) && pathname === url) return;
 
@@ -85,18 +62,10 @@ export function AppSidebar({
       setOpenMobile(false);
     }
 
-    if (isSoftNavigation(pathname, url)) {
-      setSoftPendingHref(url);
-      startSoftTransition(() => {
-        router.push(url);
-      });
-      return;
-    }
-
     navigate(url);
   }
 
-  const activePath = pendingHref ?? softPendingHref ?? pathname;
+  const activePath = pendingHref ?? pathname;
 
   return (
     <Sidebar {...props}>
@@ -132,10 +101,9 @@ export function AppSidebar({
             {navItems.map((item) => {
               const isActive = isItemActive(activePath, item.url, home);
               const isLoading =
-                (isPending &&
-                  pendingHref !== null &&
-                  isItemActive(pendingHref, item.url, home)) ||
-                (isSoftPending && softPendingHref === item.url);
+                isPending &&
+                pendingHref !== null &&
+                isItemActive(pendingHref, item.url, home);
 
               return (
                 <SidebarMenuItem key={item.url}>

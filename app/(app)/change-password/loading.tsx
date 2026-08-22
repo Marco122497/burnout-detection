@@ -1,5 +1,5 @@
 import { AppPageSkeleton } from "@/components/layout/app-page-skeleton";
 
-export default function ChangePasswordLoading() {
-  return <AppPageSkeleton />;
+export default function Loading() {
+  return <AppPageSkeleton href="/change-password" />;
 }

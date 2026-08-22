@@ -1,5 +1,5 @@
 import { AppPageSkeleton } from "@/components/layout/app-page-skeleton";
 
-export default function GuidanceReportsLoading() {
+export default function Loading() {
   return <AppPageSkeleton href="/guidance/reports" />;
 }

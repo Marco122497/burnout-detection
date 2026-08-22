@@ -2,6 +2,8 @@ import { StudentDashboard } from "@/components/student/student-dashboard";
 import { requireRole } from "@/lib/auth/session";
 import { getStudentDashboardData } from "@/lib/student/dashboard";
 
+export const dynamic = "force-dynamic";
+
 export const metadata = {
   title: "Student Dashboard",
 };

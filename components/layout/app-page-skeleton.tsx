@@ -711,5 +711,5 @@ export function pageSkeletonForPath(href: string) {
 
 export function AppPageSkeleton({ href }: { href?: string | null }) {
   const pathname = usePathname();
-  return pageSkeletonForPath(href ?? pathname);
+  return pageSkeletonForPath(href ?? pathname ?? "/");
 }

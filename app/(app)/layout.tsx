@@ -2,6 +2,8 @@ import { AppShell } from "@/components/layout/app-shell";
 import type { NavNotification } from "@/components/layout/nav-notifications";
 import { requireUser } from "@/lib/auth/session";
 
+export const dynamic = "force-dynamic";
+
 export default async function AppLayout({
   children,
 }: {
