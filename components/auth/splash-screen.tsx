@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { AuthBackground } from "@/components/auth/auth-background";
+
 const SPLASH_SEEN_KEY = "burnout-splash-seen";
 
 export function markSplashSeen() {
@@ -59,10 +61,7 @@ export function SplashScreen({
         exiting ? "opacity-0" : "opacity-100"
       }`}
     >
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_oklch(0.93_0.03_195),_transparent_55%),linear-gradient(to_bottom,_oklch(0.985_0.01_200),_oklch(0.95_0.02_220))] dark:bg-[radial-gradient(ellipse_at_top,_oklch(0.35_0.03_210),_transparent_55%),linear-gradient(to_bottom,_oklch(0.22_0.01_230),_oklch(0.18_0.015_230))]"
-      />
+      <AuthBackground />
 
       <div className="relative z-10 flex flex-col items-center px-6 text-center">
         <div className="splash-logo-wrap mb-6">
@@ -106,20 +105,17 @@ export function AuthSplashGate({ children }: { children: React.ReactNode }) {
 
   if (!ready) {
     return (
-      <div className="fixed inset-0 z-50 bg-background" aria-hidden />
+      <div className="relative min-h-svh" aria-hidden>
+        <AuthBackground />
+      </div>
     );
   }
 
-  return (
-    <>
-      {showSplash ? (
-        <SplashScreen
-          durationMs={2000}
-          onDone={() => setShowSplash(false)}
-        />
-      ) : (
-        children
-      )}
-    </>
-  );
+  if (showSplash) {
+    return (
+      <SplashScreen durationMs={2000} onDone={() => setShowSplash(false)} />
+    );
+  }
+
+  return children;
 }
