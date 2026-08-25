@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import { FormalReportDocument } from "@/components/reports/formal-report-document";
 import { ReportExportButtons } from "@/components/reports/report-export-buttons";
 import { ReportFilters } from "@/components/reports/report-filters";
+import type { Department } from "@/lib/auth/roles";
 import {
   getGuidanceAnalytics,
   type GuidanceStudentRow,
@@ -53,6 +54,7 @@ function followUpStatus(row: GuidanceStudentRow) {
 
 export function GuidanceReportsPanel({
   rows,
+  departments,
   currentWeek,
   reportType,
   from,
@@ -61,6 +63,7 @@ export function GuidanceReportsPanel({
   preparedRole = "Guidance Counselor",
 }: {
   rows: GuidanceStudentRow[];
+  departments: Department[];
   currentWeek: number | null;
   reportType: GuidanceReportType;
   from: string;
@@ -80,28 +83,34 @@ export function GuidanceReportsPanel({
   );
 
   const departmentRiskRows = useMemo(() => {
-    const map = new Map<
-      string,
-      {
-        total: number;
-        low: number;
-        moderate: number;
-        high: number;
-        scores: number[];
-        attention: number;
-      }
-    >();
+    type DeptStats = {
+      total: number;
+      low: number;
+      moderate: number;
+      high: number;
+      scores: number[];
+      attention: number;
+    };
+
+    const emptyStats = (): DeptStats => ({
+      total: 0,
+      low: 0,
+      moderate: 0,
+      high: 0,
+      scores: [],
+      attention: 0,
+    });
+
+    const map = new Map<string, DeptStats>();
+
+    // Include every department even when there is no burnout data.
+    for (const dept of departments) {
+      map.set(dept.department_name, emptyStats());
+    }
 
     for (const row of filteredRows) {
       const label = row.department_name || "Unassigned";
-      const entry = map.get(label) ?? {
-        total: 0,
-        low: 0,
-        moderate: 0,
-        high: 0,
-        scores: [],
-        attention: 0,
-      };
+      const entry = map.get(label) ?? emptyStats();
       entry.total += 1;
       if (row.mfbi_score != null) entry.scores.push(row.mfbi_score);
       const bucket = riskBucket(row.prediction || row.burnout_level);
@@ -124,7 +133,7 @@ export function GuidanceReportsPanel({
             ? entry.scores.reduce((a, b) => a + b, 0) / entry.scores.length
             : null,
       }));
-  }, [filteredRows]);
+  }, [filteredRows, departments]);
 
   const attentionStudents = useMemo(
     () =>

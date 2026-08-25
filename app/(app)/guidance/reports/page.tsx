@@ -5,6 +5,7 @@ import { PageHeading } from "@/components/layout/page-heading";
 import { requireRole } from "@/lib/auth/session";
 import { buildFormalName } from "@/lib/auth/roles";
 import { getGuidanceStudentRows } from "@/lib/guidance/monitoring";
+import { getDepartments } from "@/lib/guidance/queries";
 import {
   GUIDANCE_REPORT_TYPES,
   type GuidanceReportType,
@@ -31,9 +32,10 @@ export default async function GuidanceReportsPage({
   const reportType = resolveGuidanceReportType(params.type);
   const { from, to } = resolveReportDateRange(params);
 
-  const [rows, term] = await Promise.all([
+  const [rows, term, departments] = await Promise.all([
     getGuidanceStudentRows(supabase),
     getActiveTerm(supabase),
+    getDepartments(supabase),
   ]);
   const currentWeek = term ? getCurrentWeekNumber(term) : null;
 
@@ -48,6 +50,7 @@ export default async function GuidanceReportsPage({
       </div>
       <GuidanceReportsPanel
         rows={rows}
+        departments={departments}
         currentWeek={currentWeek}
         reportType={reportType}
         from={from}
