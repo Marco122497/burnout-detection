@@ -462,7 +462,8 @@ export async function getStudentAssessmentHistory(
 
 export async function getDepartmentWeeklySeries(
   supabase: SupabaseClient,
-  departmentId: number | null
+  departmentId: number | null,
+  range?: { from?: string; to?: string }
 ) {
   if (!departmentId) {
     return [] as {
@@ -485,10 +486,21 @@ export async function getDepartmentWeeklySeries(
   const ids = (students ?? []).map((s) => s.id);
   if (!ids.length) return [];
 
-  const { data } = await supabase
+  let query = supabase
     .from("weekly_monitoring")
-    .select("week_number, mfbi_results(mfbi_score, burnout_risk_level)")
+    .select(
+      "week_number, submitted_at, created_at, mfbi_results(mfbi_score, burnout_risk_level)"
+    )
     .in("student_id", ids);
+
+  if (range?.from) {
+    query = query.gte("submitted_at", `${range.from}T00:00:00`);
+  }
+  if (range?.to) {
+    query = query.lte("submitted_at", `${range.to}T23:59:59.999`);
+  }
+
+  const { data } = await query;
 
   const weeklyMap = new Map<
     number,

@@ -126,10 +126,14 @@ export function GuidanceAnalyticsView({
   data,
   modelEvaluation,
   aiHealthy,
+  preparedBy,
+  preparedRole = "Guidance Counselor",
 }: {
   data: Analytics;
   modelEvaluation: ModelEvaluationSnapshot;
   aiHealthy: boolean;
+  preparedBy?: string;
+  preparedRole?: string;
 }) {
   const { navigate, isPending, pendingHref } = useNavigationPending();
   const [alertPendingId, setAlertPendingId] = useState<string | null>(null);
@@ -207,7 +211,13 @@ export function GuidanceAnalyticsView({
           <tr><td>Status</td><td>${student.status}</td></tr>
         </tbody>
       </table>
-      <p style="margin-top:16px;font-size:12px;color:#555">Generated from Burnout Analytics for immediate intervention follow-up.</p>`
+      <p style="margin-top:16px;font-size:12px;color:#555">Generated from Burnout Analytics for immediate intervention follow-up.</p>`,
+      {
+        preparedBy,
+        preparedRole,
+        notedBy: "School Administrator",
+        notedByRole: "School Administrator",
+      }
     );
   }
 

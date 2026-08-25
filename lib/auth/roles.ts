@@ -89,6 +89,22 @@ export function buildFullName(parts: {
     .trim();
 }
 
+/** Formal name with middle name as initial (e.g. Tomarao → T.). */
+export function buildFormalName(parts: {
+  first_name: string;
+  middle_name?: string | null;
+  last_name: string;
+  suffix?: string | null;
+}): string {
+  const middle = parts.middle_name?.trim();
+  const middleInitial = middle ? `${middle.charAt(0).toUpperCase()}.` : null;
+  return [parts.first_name, middleInitial, parts.last_name, parts.suffix]
+    .filter(Boolean)
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function toProfile(row: ProfileRow | Record<string, unknown>): Profile {
   const data = row as ProfileRow;
   return {

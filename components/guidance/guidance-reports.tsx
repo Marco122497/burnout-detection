@@ -1,502 +1,386 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 
-import { Button } from "@/components/ui/button";
+import { FormalReportDocument } from "@/components/reports/formal-report-document";
+import { ReportExportButtons } from "@/components/reports/report-export-buttons";
+import { ReportFilters } from "@/components/reports/report-filters";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { downloadCsv, openPrintReport } from "@/lib/instructor/export";
-import type {
-  GuidanceStudentRow,
-  InstructorMonitoringRow,
+  getGuidanceAnalytics,
+  type GuidanceStudentRow,
 } from "@/lib/guidance/monitoring";
-import type { Department } from "@/lib/auth/roles";
+import {
+  GUIDANCE_REPORT_TYPES,
+  type GuidanceReportType,
+} from "@/lib/report-types";
+import {
+  filterRowsByMonitoringDate,
+  formatReportPeriodLabel,
+} from "@/lib/reports-range";
 
-const selectClassName =
-  "h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+function riskBucket(level: string | null | undefined) {
+  if (!level) return null;
+  const n = level.toLowerCase();
+  if (n.includes("low")) return "Low" as const;
+  if (n.includes("mod")) return "Moderate" as const;
+  if (n.includes("high") || n.includes("severe")) return "High" as const;
+  return null;
+}
 
-function tableHtml(headers: string[], rows: string[][]) {
-  return `<table>
-    <thead><tr>${headers.map((h) => `<th>${h}</th>`).join("")}</tr></thead>
-    <tbody>
-      ${rows
-        .map(
-          (row) =>
-            `<tr>${row.map((cell) => `<td>${cell || "—"}</td>`).join("")}</tr>`
-        )
-        .join("")}
-    </tbody>
-  </table>`;
+function interventionStatus(row: GuidanceStudentRow) {
+  const bucket = riskBucket(row.prediction || row.burnout_level);
+  if (row.early_warning_attention && bucket === "High") {
+    return "Counseling (EW)";
+  }
+  if (bucket === "High") return "Counseling rec.";
+  if (row.early_warning_attention) return "Early warning";
+  if (bucket === "Moderate") return "Monitor";
+  return "Routine";
+}
+
+function followUpStatus(row: GuidanceStudentRow) {
+  if (
+    row.early_warning_attention ||
+    riskBucket(row.prediction || row.burnout_level) === "High"
+  ) {
+    if (row.submittedThisWeek) return "Pending follow-up";
+    return "Overdue — no submit";
+  }
+  if (!row.monitoring_date) return "No assessment";
+  if (row.submittedThisWeek) return "Submitted";
+  return "Awaiting submit";
 }
 
 export function GuidanceReportsPanel({
   rows,
-  instructors,
-  departments,
   currentWeek,
+  reportType,
+  from,
+  to,
+  preparedBy,
+  preparedRole = "Guidance Counselor",
 }: {
   rows: GuidanceStudentRow[];
-  instructors: InstructorMonitoringRow[];
-  departments: Department[];
   currentWeek: number | null;
+  reportType: GuidanceReportType;
+  from: string;
+  to: string;
+  preparedBy?: string;
+  preparedRole?: string;
 }) {
-  const [departmentId, setDepartmentId] = useState("");
-  const [studentId, setStudentId] = useState("");
-
-  const departmentRows = useMemo(() => {
-    if (!departmentId) return rows;
-    return rows.filter((r) => String(r.department_id) === departmentId);
-  }, [rows, departmentId]);
-
-  const selectedDepartment = departments.find(
-    (d) => String(d.department_id) === departmentId
+  const generatedAt = useMemo(() => new Date(), []);
+  const periodLabel = formatReportPeriodLabel(from, to);
+  const filteredRows = useMemo(
+    () => filterRowsByMonitoringDate(rows, from, to),
+    [rows, from, to]
+  );
+  const analytics = useMemo(
+    () => getGuidanceAnalytics(filteredRows),
+    [filteredRows]
   );
 
-  const studentOptions = useMemo(
+  const departmentRiskRows = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        total: number;
+        low: number;
+        moderate: number;
+        high: number;
+        scores: number[];
+        attention: number;
+      }
+    >();
+
+    for (const row of filteredRows) {
+      const label = row.department_name || "Unassigned";
+      const entry = map.get(label) ?? {
+        total: 0,
+        low: 0,
+        moderate: 0,
+        high: 0,
+        scores: [],
+        attention: 0,
+      };
+      entry.total += 1;
+      if (row.mfbi_score != null) entry.scores.push(row.mfbi_score);
+      const bucket = riskBucket(row.prediction || row.burnout_level);
+      if (bucket === "Low") entry.low += 1;
+      else if (bucket === "Moderate") entry.moderate += 1;
+      else if (bucket === "High") entry.high += 1;
+      if (bucket === "High" || row.early_warning_attention) {
+        entry.attention += 1;
+      }
+      map.set(label, entry);
+    }
+
+    return [...map.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([department, entry]) => ({
+        department,
+        ...entry,
+        average:
+          entry.scores.length > 0
+            ? entry.scores.reduce((a, b) => a + b, 0) / entry.scores.length
+            : null,
+      }));
+  }, [filteredRows]);
+
+  const attentionStudents = useMemo(
     () =>
-      [...rows].sort((a, b) => a.full_name.localeCompare(b.full_name)),
-    [rows]
+      filteredRows
+        .filter(
+          (r) =>
+            riskBucket(r.prediction || r.burnout_level) === "High" ||
+            r.early_warning_attention
+        )
+        .sort((a, b) => (b.mfbi_score ?? 0) - (a.mfbi_score ?? 0)),
+    [filteredRows]
   );
 
-  const selectedStudent = rows.find((r) => r.id === studentId);
+  const report = useMemo(() => {
+    const low = analytics.riskOverview.find((r) => r.label === "Low");
+    const moderate = analytics.riskOverview.find((r) => r.label === "Moderate");
+    const high = analytics.riskOverview.find((r) => r.label === "High");
 
-  function universityRows() {
-    return rows.map((r) => [
-      r.full_name,
-      r.student_number ?? "",
-      r.department_name ?? "",
-      r.course ?? "",
-      String(r.year_level ?? ""),
-      r.section ?? "",
-      r.stress_level ?? "",
-      r.stress_score != null ? String(r.stress_score) : "",
-      r.mfbi_score != null ? r.mfbi_score.toFixed(2) : "",
-      r.prediction || r.burnout_level || "",
-    ]);
-  }
+    switch (reportType) {
+      case "institutional":
+        return {
+          title: "Institutional Burnout Summary",
+          tableTitle: "Institutional Overview",
+          filename: "institutional-burnout-summary.csv",
+          columns: [
+            { key: "metric", label: "Metric" },
+            { key: "value", label: "Value", align: "right" as const },
+            { key: "notes", label: "Notes" },
+          ],
+          csvHeader: ["Metric", "Value", "Notes"],
+          rows: [
+            [
+              "Total students",
+              String(analytics.totalStudents),
+              "With monitoring in selected period",
+            ],
+            [
+              "Students with risk data",
+              String(analytics.classifiedCount),
+              "Latest burnout classification available",
+            ],
+            [
+              "Low risk",
+              `${low?.count ?? 0} (${low?.percent ?? 0}%)`,
+              "Within healthy range",
+            ],
+            [
+              "Moderate risk",
+              `${moderate?.count ?? 0} (${moderate?.percent ?? 0}%)`,
+              "Monitor and support",
+            ],
+            [
+              "High risk",
+              `${high?.count ?? 0} (${high?.percent ?? 0}%)`,
+              "Priority for guidance",
+            ],
+            [
+              "Students requiring attention",
+              String(attentionStudents.length),
+              "High risk and/or AI early warning",
+            ],
+            [
+              "Average MFBI",
+              analytics.averageMfbi != null
+                ? analytics.averageMfbi.toFixed(2)
+                : "—",
+              "Institutional burnout index",
+            ],
+            [
+              "Weekly submissions",
+              `${analytics.submittedCount} (${analytics.completionPercent}%)`,
+              currentWeek != null ? `Week ${currentWeek}` : "Current week",
+            ],
+          ],
+          total: analytics.totalStudents,
+          totalLabel: "Total students",
+          emptyMessage: "No institutional burnout data in this date range.",
+        };
 
-  function departmentBurnoutRows() {
-    return departmentRows.map((r) => [
-      r.full_name,
-      r.student_number ?? "",
-      r.course ?? "",
-      String(r.year_level ?? ""),
-      r.section ?? "",
-      r.stress_level ?? "",
-      r.stress_score != null ? String(r.stress_score) : "",
-      r.mfbi_score != null ? r.mfbi_score.toFixed(2) : "",
-      r.prediction || r.burnout_level || "",
-    ]);
-  }
+      case "department":
+        return {
+          title: "Burnout by Department",
+          tableTitle: "Department Comparison",
+          filename: "burnout-by-department.csv",
+          columns: [
+            { key: "department", label: "Department" },
+            { key: "students", label: "Students", align: "right" as const },
+            { key: "low", label: "Low", align: "right" as const },
+            { key: "moderate", label: "Moderate", align: "right" as const },
+            { key: "high", label: "High", align: "right" as const },
+            { key: "attention", label: "Attention", align: "right" as const },
+            { key: "mfbi", label: "Avg MFBI", align: "right" as const },
+          ],
+          csvHeader: [
+            "Department",
+            "Students",
+            "Low",
+            "Moderate",
+            "High",
+            "Requiring Attention",
+            "Avg MFBI",
+          ],
+          rows: departmentRiskRows.map((d) => [
+            d.department,
+            String(d.total),
+            String(d.low),
+            String(d.moderate),
+            String(d.high),
+            String(d.attention),
+            d.average != null ? d.average.toFixed(2) : "—",
+          ]),
+          total: departmentRiskRows.length,
+          totalLabel: "Total departments",
+          emptyMessage: "No department data in this date range.",
+        };
 
-  function weeklyRows() {
-    return rows.map((r) => [
-      r.full_name,
-      r.student_number ?? "",
-      r.department_name ?? "",
-      r.section ?? "",
-      String(r.year_level ?? ""),
-      r.submittedThisWeek ? "Submitted" : "Pending",
-      r.academic_workload != null ? String(r.academic_workload) : "",
-      r.study_time != null ? String(r.study_time) : "",
-      r.sleep_hours != null ? String(r.sleep_hours) : "",
-      r.monitoring_date ?? "",
-    ]);
-  }
+      case "factors": {
+        const factorRows = [
+          {
+            label: "Stress Level",
+            average: analytics.averageStress,
+            scale: "0–40 (PSS)",
+            contribution: analytics.variableContribution.find(
+              (f) => f.key === "stress"
+            )?.percent,
+          },
+          {
+            label: "Academic Workload",
+            average: analytics.averageWorkload,
+            scale: "0–10",
+            contribution: analytics.variableContribution.find(
+              (f) => f.key === "workload"
+            )?.percent,
+          },
+          {
+            label: "Study Time",
+            average: analytics.averageStudy,
+            scale: "hours / day",
+            contribution: analytics.variableContribution.find(
+              (f) => f.key === "studyTime"
+            )?.percent,
+          },
+          {
+            label: "Sleep Hours",
+            average: analytics.averageSleep,
+            scale: "0–100 sleep risk",
+            contribution: analytics.variableContribution.find(
+              (f) => f.key === "sleep"
+            )?.percent,
+          },
+        ];
 
-  function instructorRows() {
-    return instructors.map((r) => [
-      r.full_name,
-      r.department_name ?? "",
-      r.is_active ? "Active" : "Inactive",
-      String(r.student_count),
-      String(r.submitted_count),
-      String(r.high_risk_count),
-      r.average_mfbi != null ? r.average_mfbi.toFixed(2) : "",
-    ]);
-  }
+        return {
+          title: "Burnout Factors",
+          tableTitle: "Contributing Factors",
+          filename: "burnout-factors.csv",
+          columns: [
+            { key: "factor", label: "Factor" },
+            { key: "average", label: "Average", align: "right" as const },
+            { key: "scale", label: "Scale" },
+            {
+              key: "contribution",
+              label: "Contribution",
+              align: "right" as const,
+            },
+          ],
+          csvHeader: ["Factor", "Average", "Scale", "Contribution %"],
+          rows: factorRows.map((f) => [
+            f.label,
+            f.average != null ? f.average.toFixed(2) : "—",
+            f.scale,
+            f.contribution != null ? `${f.contribution}%` : "—",
+          ]),
+          total: factorRows.length,
+          totalLabel: "Total factors",
+          emptyMessage: "No burnout factor averages in this date range.",
+        };
+      }
 
-  function studentHistorySnapshot() {
-    if (!selectedStudent) return [] as string[][];
-    return [
-      [
-        selectedStudent.full_name,
-        selectedStudent.student_number ?? "",
-        selectedStudent.department_name ?? "",
-        String(selectedStudent.year_level ?? ""),
-        selectedStudent.section ?? "",
-        selectedStudent.stress_score != null
-          ? String(selectedStudent.stress_score)
-          : "",
-        selectedStudent.stress_level ?? "",
-        selectedStudent.academic_workload != null
-          ? String(selectedStudent.academic_workload)
-          : "",
-        selectedStudent.study_time != null
-          ? String(selectedStudent.study_time)
-          : "",
-        selectedStudent.sleep_hours != null
-          ? String(selectedStudent.sleep_hours)
-          : "",
-        selectedStudent.mfbi_score != null
-          ? selectedStudent.mfbi_score.toFixed(2)
-          : "",
-        selectedStudent.prediction || selectedStudent.burnout_level || "",
-        selectedStudent.monitoring_date ?? "",
-      ],
-    ];
-  }
+      case "intervention":
+        return {
+          title: "Intervention & Follow-up",
+          tableTitle: "High-risk & Attention List",
+          filename: "intervention-follow-up.csv",
+          columns: [
+            { key: "student", label: "Student" },
+            { key: "no", label: "No." },
+            { key: "department", label: "Dept." },
+            { key: "risk", label: "Risk" },
+            { key: "mfbi", label: "MFBI", align: "right" as const },
+            { key: "intervention", label: "Intervention" },
+            { key: "followup", label: "Follow-up" },
+          ],
+          csvHeader: [
+            "Student",
+            "Student Number",
+            "Department",
+            "Risk",
+            "MFBI",
+            "Intervention",
+            "Follow-up",
+          ],
+          rows: attentionStudents.map((r) => [
+            r.full_name,
+            r.student_number ?? "",
+            r.department_name ?? "",
+            r.early_warning_attention
+              ? `${r.prediction || r.burnout_level || "Elevated"} (EW)`
+              : r.prediction || r.burnout_level || "High",
+            r.mfbi_score != null ? r.mfbi_score.toFixed(2) : "—",
+            interventionStatus(r),
+            followUpStatus(r),
+          ]),
+          total: attentionStudents.length,
+          totalLabel: "Total students",
+          emptyMessage:
+            "No high-risk or early-warning students in this date range.",
+        };
+    }
+  }, [
+    reportType,
+    analytics,
+    attentionStudents,
+    departmentRiskRows,
+    currentWeek,
+  ]);
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <CardTitle>University Burnout Report</CardTitle>
-            <CardDescription>
-              All students and latest burnout indicators.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              onClick={() =>
-                downloadCsv("university-burnout-report.csv", [
-                  [
-                    "Student",
-                    "Student Number",
-                    "Department",
-                    "Course",
-                    "Year",
-                    "Section",
-                    "Stress Level",
-                    "Stress Score",
-                    "MFBI",
-                    "Risk",
-                  ],
-                  ...universityRows(),
-                ])
-              }
-            >
-              Export Excel (CSV)
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() =>
-                openPrintReport(
-                  "University Burnout Report",
-                  tableHtml(
-                    [
-                      "Student",
-                      "No.",
-                      "Department",
-                      "Course",
-                      "Year",
-                      "Section",
-                      "Stress",
-                      "Score",
-                      "MFBI",
-                      "Risk",
-                    ],
-                    universityRows()
-                  )
-                )
-              }
-            >
-              Export PDF
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Department Burnout Report</CardTitle>
-            <CardDescription>
-              Filter by department, then export.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="space-y-2">
-              <Label htmlFor="department_id">Department</Label>
-              <select
-                id="department_id"
-                value={departmentId}
-                onChange={(e) => setDepartmentId(e.target.value)}
-                className={selectClassName}
-              >
-                <option value="">All departments</option>
-                {departments.map((dept) => (
-                  <option key={dept.department_id} value={dept.department_id}>
-                    {dept.department_code} — {dept.department_name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                onClick={() =>
-                  downloadCsv("department-burnout-report.csv", [
-                    [
-                      "Student",
-                      "Student Number",
-                      "Course",
-                      "Year",
-                      "Section",
-                      "Stress Level",
-                      "Stress Score",
-                      "MFBI",
-                      "Risk",
-                    ],
-                    ...departmentBurnoutRows(),
-                  ])
-                }
-              >
-                Export Excel (CSV)
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() =>
-                  openPrintReport(
-                    `Department Burnout Report${
-                      selectedDepartment
-                        ? ` — ${selectedDepartment.department_name}`
-                        : ""
-                    }`,
-                    tableHtml(
-                      [
-                        "Student",
-                        "No.",
-                        "Course",
-                        "Year",
-                        "Section",
-                        "Stress",
-                        "Score",
-                        "MFBI",
-                        "Risk",
-                      ],
-                      departmentBurnoutRows()
-                    )
-                  )
-                }
-              >
-                Export PDF
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Student Burnout History</CardTitle>
-            <CardDescription>
-              Latest assessment snapshot for one student. Open monitoring for
-              full week-by-week history.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="space-y-2">
-              <Label htmlFor="student_id">Student</Label>
-              <select
-                id="student_id"
-                value={studentId}
-                onChange={(e) => setStudentId(e.target.value)}
-                className={selectClassName}
-              >
-                <option value="">Select student</option>
-                {studentOptions.map((student) => (
-                  <option key={student.id} value={student.id}>
-                    {student.full_name}
-                    {student.student_number
-                      ? ` (${student.student_number})`
-                      : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                disabled={!selectedStudent}
-                onClick={() =>
-                  downloadCsv("student-burnout-history.csv", [
-                    [
-                      "Student",
-                      "Student Number",
-                      "Department",
-                      "Year",
-                      "Section",
-                      "PSS",
-                      "Stress Level",
-                      "Workload",
-                      "Study",
-                      "Sleep",
-                      "MFBI",
-                      "Risk",
-                      "Date",
-                    ],
-                    ...studentHistorySnapshot(),
-                  ])
-                }
-              >
-                Export Excel (CSV)
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={!selectedStudent}
-                onClick={() =>
-                  openPrintReport(
-                    `Student Burnout History — ${selectedStudent?.full_name ?? ""}`,
-                    tableHtml(
-                      [
-                        "Student",
-                        "No.",
-                        "Department",
-                        "Year",
-                        "Section",
-                        "PSS",
-                        "Stress",
-                        "Workload",
-                        "Study",
-                        "Sleep",
-                        "MFBI",
-                        "Risk",
-                        "Date",
-                      ],
-                      studentHistorySnapshot()
-                    )
-                  )
-                }
-              >
-                Export PDF
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Weekly Monitoring Report</CardTitle>
-            <CardDescription>
-              Submission status
-              {currentWeek ? ` for week ${currentWeek}` : ""} across the
-              university.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              onClick={() =>
-                downloadCsv("weekly-monitoring-report.csv", [
-                  [
-                    "Student",
-                    "Student Number",
-                    "Department",
-                    "Section",
-                    "Year",
-                    "Status",
-                    "Workload",
-                    "Study",
-                    "Sleep",
-                    "Date",
-                  ],
-                  ...weeklyRows(),
-                ])
-              }
-            >
-              Export Excel (CSV)
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() =>
-                openPrintReport(
-                  "Weekly Monitoring Report",
-                  tableHtml(
-                    [
-                      "Student",
-                      "No.",
-                      "Department",
-                      "Section",
-                      "Year",
-                      "Status",
-                      "Workload",
-                      "Study",
-                      "Sleep",
-                      "Date",
-                    ],
-                    weeklyRows()
-                  )
-                )
-              }
-            >
-              Export PDF
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Instructor Monitoring Report</CardTitle>
-            <CardDescription>
-              Instructor coverage and department risk summary.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              onClick={() =>
-                downloadCsv("instructor-monitoring-report.csv", [
-                  [
-                    "Instructor",
-                    "Department",
-                    "Status",
-                    "Students",
-                    "Submitted",
-                    "High Risk",
-                    "Avg MFBI",
-                  ],
-                  ...instructorRows(),
-                ])
-              }
-            >
-              Export Excel (CSV)
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() =>
-                openPrintReport(
-                  "Instructor Monitoring Report",
-                  tableHtml(
-                    [
-                      "Instructor",
-                      "Department",
-                      "Status",
-                      "Students",
-                      "Submitted",
-                      "High Risk",
-                      "Avg MFBI",
-                    ],
-                    instructorRows()
-                  )
-                )
-              }
-            >
-              Export PDF
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="flex flex-wrap items-end justify-between gap-3 print:hidden">
+        <ReportFilters
+          type={reportType}
+          from={from}
+          to={to}
+          basePath="/guidance/reports"
+          types={GUIDANCE_REPORT_TYPES}
+        />
+        <ReportExportButtons title={report.title} />
       </div>
+
+      <FormalReportDocument
+        title={report.title}
+        tableTitle={report.tableTitle}
+        columns={report.columns}
+        rows={report.rows}
+        generatedBy={preparedBy || preparedRole}
+        generatedRole={preparedRole}
+        generatedAt={generatedAt}
+        notedByName="School Administrator"
+        notedByRole="School Administrator"
+        periodLabel={periodLabel}
+        total={report.total}
+        totalLabel={report.totalLabel}
+        compact={reportType === "intervention"}
+        emptyMessage={report.emptyMessage}
+      />
     </div>
   );
 }

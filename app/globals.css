@@ -191,3 +191,118 @@
 .splash-bar-fill {
   animation: splash-progress 2s linear both;
 }
+
+.formal-report {
+  box-sizing: border-box;
+  width: 210mm;
+  min-height: 297mm;
+  padding: 14mm 16mm 20mm;
+  color: #111111;
+  background: #ffffff;
+  box-shadow: 0 1px 8px rgb(15 23 42 / 12%);
+}
+
+@media print {
+  @page {
+    margin: 14mm 16mm 18mm;
+
+    @bottom-left {
+      content: "Generated from Burnout Detection System (v1.0.0)";
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      font-size: 9px;
+      color: #6b7280;
+    }
+
+    @bottom-right {
+      content: "Page " counter(page) " of " counter(pages);
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      font-size: 9px;
+      color: #6b7280;
+    }
+  }
+
+  html,
+  body {
+    background: white !important;
+    color: #111111 !important;
+    width: auto !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  .print\:hidden,
+  [data-slot="sidebar"],
+  [data-slot="sidebar-gap"],
+  [data-slot="sidebar-container"],
+  [data-slot="sidebar-inset"] > header {
+    display: none !important;
+  }
+
+  [data-slot="sidebar-wrapper"],
+  [data-slot="sidebar-inset"],
+  [data-slot="sidebar-inset"] > div {
+    display: block !important;
+    width: auto !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: white !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .formal-report {
+    width: 100% !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .formal-report,
+  .formal-report * {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .formal-report header,
+  .formal-report h3,
+  .report-keep,
+  .formal-report svg,
+  .formal-report img {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .formal-report table {
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+
+  .formal-report thead {
+    display: table-header-group;
+  }
+
+  .formal-report tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .formal-report h3 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  .report-doc-footer {
+    display: none !important;
+  }
+}
