@@ -79,9 +79,14 @@ def _train_pair(X: pd.DataFrame, y: pd.Series, name: str, feature_names: list[st
         X, y, test_size=0.2, random_state=42, stratify=y
     )
 
-    decision_tree = DecisionTreeClassifier(max_depth=8, random_state=42)
+    decision_tree = DecisionTreeClassifier(
+        max_depth=8, random_state=42, class_weight="balanced"
+    )
     random_forest = RandomForestClassifier(
-        n_estimators=200, random_state=42, n_jobs=-1
+        n_estimators=200,
+        random_state=42,
+        n_jobs=-1,
+        class_weight="balanced",
     )
 
     decision_tree.fit(X_train, y_train)

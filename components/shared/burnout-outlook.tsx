@@ -30,11 +30,11 @@ import {
   ChartLegend,
   ChartLegendContent,
   ChartTooltip,
-  ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
 import { riskLevelToChartScore, riskTone } from "@/components/shared/risk-display";
 import type { EarlyWarningPayload } from "@/lib/student/ai-client";
+import { classifyTrendDirection } from "@/lib/student/burnout-trends";
 import { cn } from "@/lib/utils";
 
 const trendChartConfig = {
@@ -68,33 +68,89 @@ function formatScore(value: number | null | undefined) {
   return value != null ? value.toFixed(2) : "—";
 }
 
+function formatDirectionLabel(direction: string | null | undefined) {
+  if (!direction || direction === "insufficient_history") return null;
+  if (direction === "increasing") return "Increasing";
+  if (direction === "decreasing") return "Decreasing";
+  if (direction === "stable") return "Stable";
+  return direction.replaceAll("_", " ");
+}
+
 function TrendWeekCard({
   label,
   score,
   level,
+  direction,
+  delta,
   projected = false,
+  current = false,
 }: {
   label: string;
   score: number | null;
   level: string | null;
+  direction?: string | null;
+  delta?: number | null;
   projected?: boolean;
+  current?: boolean;
 }) {
+  const directionLabel = formatDirectionLabel(direction);
+
   return (
     <div
       className={cn(
         "rounded-lg border px-2.5 py-2",
         projected
           ? "border-dashed border-amber-500/40 bg-amber-500/5"
-          : "border-border/70"
+          : current
+            ? "border-blue-500/40 bg-blue-500/5"
+            : "border-border/70"
       )}
     >
-      <p className="text-[11px] text-muted-foreground">{label}</p>
-      <p className="text-sm font-semibold tabular-nums">
-        {formatScore(score)}
-      </p>
-      <p className={cn("text-[11px] font-medium", riskTone(level))}>
-        {level ?? "—"}
-      </p>
+      <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
+        <div className="min-w-0">
+          <p className="text-[11px] text-muted-foreground">
+            {label}
+            {current ? (
+              <span className="ml-1 font-semibold text-blue-700 dark:text-blue-300">
+                · Current
+              </span>
+            ) : null}
+          </p>
+        </div>
+        <p
+          className={cn(
+            "text-right text-[10px] font-semibold tracking-tight",
+            directionLabel
+              ? movementDeltaTone(direction)
+              : "text-muted-foreground"
+          )}
+        >
+          {directionLabel ? (
+            <>
+              {directionLabel}
+              {delta != null ? (
+                <span className="ml-0.5 tabular-nums font-medium opacity-80">
+                  ({delta > 0 ? "+" : ""}
+                  {delta.toFixed(2)})
+                </span>
+              ) : null}
+            </>
+          ) : (
+            "—"
+          )}
+        </p>
+        <p className="text-sm font-semibold tabular-nums">
+          {formatScore(score)}
+        </p>
+        <p
+          className={cn(
+            "text-right text-[11px] font-medium",
+            riskTone(level)
+          )}
+        >
+          {level ?? "—"}
+        </p>
+      </div>
     </div>
   );
 }
@@ -295,7 +351,20 @@ export function BurnoutRiskTrendChart({
   }, [data, range]);
 
   const latest = visibleData[visibleData.length - 1];
-  const recentCards = visibleData.slice(-4);
+  const pointsWithMovement = visibleData.map((point, index) => {
+    if (point.direction && point.direction !== "insufficient_history") {
+      return point;
+    }
+    const previousScore = index > 0 ? visibleData[index - 1]?.score : null;
+    if (point.score == null) return point;
+    const direction = classifyTrendDirection(point.score, previousScore ?? null);
+    const delta =
+      previousScore != null
+        ? Math.round((point.score - previousScore) * 100) / 100
+        : null;
+    return { ...point, direction, delta: point.delta ?? delta };
+  });
+  const recentCards = pointsWithMovement.slice(-4);
   const nextWeekLevel = earlyWarning?.next_week_risk ?? null;
   const week2Level = earlyWarning?.week2_risk ?? null;
   const nextScore =
@@ -303,50 +372,85 @@ export function BurnoutRiskTrendChart({
   const week2Score = riskLevelToChartScore(week2Level);
   const hasProjection = nextScore != null || week2Score != null;
 
+  const nextDirection =
+    nextScore != null
+      ? classifyTrendDirection(nextScore, latest?.score ?? null)
+      : null;
+  const nextDelta =
+    nextScore != null && latest?.score != null
+      ? Math.round((nextScore - latest.score) * 100) / 100
+      : null;
+  const week2Previous = nextScore ?? latest?.score ?? null;
+  const week2Direction =
+    week2Score != null
+      ? classifyTrendDirection(week2Score, week2Previous)
+      : null;
+  const week2Delta =
+    week2Score != null && week2Previous != null
+      ? Math.round((week2Score - week2Previous) * 100) / 100
+      : null;
+
   type ChartPoint = {
     week: string;
+    weekLabel: string;
     weekNumber: number;
     score: number | null;
     projection: number | null;
     level: string;
+    direction: string | null;
+    delta: number | null;
     kind: "actual" | "next" | "week2";
+    isCurrent: boolean;
   };
 
-  const chartData: ChartPoint[] = visibleData.map((point, index) => {
-    const isLast = index === visibleData.length - 1;
+  const chartData: ChartPoint[] = pointsWithMovement.map((point, index) => {
+    const isLast = index === pointsWithMovement.length - 1;
     return {
-      week: `W${point.week}`,
+      week: isLast ? "Current" : `W${point.week}`,
+      weekLabel: isLast ? `Week ${point.week} · Current` : `Week ${point.week}`,
       weekNumber: point.week,
       score: point.score ?? 0,
       projection: isLast && hasProjection ? (point.score ?? 0) : null,
       level: point.level ?? "—",
+      direction: point.direction ?? null,
+      delta: point.delta ?? null,
       kind: "actual" as const,
+      isCurrent: isLast,
     };
   });
 
   if (nextScore != null && nextWeekLevel) {
     chartData.push({
       week: "Next",
+      weekLabel: "Next week",
       weekNumber: (latest?.week ?? 0) + 1,
       score: null,
       projection: nextScore,
       level: nextWeekLevel,
+      direction: nextDirection,
+      delta: nextDelta,
       kind: "next",
+      isCurrent: false,
     });
   }
 
   if (week2Score != null && week2Level) {
     chartData.push({
       week: "W+2",
+      weekLabel: "Week 2",
       weekNumber: (latest?.week ?? 0) + 2,
       score: null,
       projection: week2Score,
       level: week2Level,
+      direction: week2Direction,
+      delta: week2Delta,
       kind: "week2",
+      isCurrent: false,
     });
   }
 
   const showDots = chartData.length <= 12;
+  const latestMovement = pointsWithMovement[pointsWithMovement.length - 1];
 
   return (
     <Card className={className}>
@@ -377,26 +481,27 @@ export function BurnoutRiskTrendChart({
           </p>
         ) : (
           <>
-            {latest?.direction && latest.direction !== "insufficient_history" ? (
+            {latestMovement?.direction &&
+            latestMovement.direction !== "insufficient_history" ? (
               <div className="flex justify-end">
                 <p
                   className={cn(
                     "rounded-md px-2.5 py-1 text-xs font-semibold tracking-tight",
-                    movementHighlight(latest.direction)
+                    movementHighlight(latestMovement.direction)
                   )}
                 >
-                  Latest movement: {latest.direction}
-                  {latest.delta != null ? (
+                  Latest movement: {latestMovement.direction}
+                  {latestMovement.delta != null ? (
                     <>
                       {" "}
                       <span
                         className={cn(
                           "font-bold tabular-nums",
-                          movementDeltaTone(latest.direction)
+                          movementDeltaTone(latestMovement.direction)
                         )}
                       >
-                        ({latest.delta > 0 ? "+" : ""}
-                        {latest.delta.toFixed(2)} MFBI)
+                        ({latestMovement.delta > 0 ? "+" : ""}
+                        {latestMovement.delta.toFixed(2)} MFBI)
                       </span>
                     </>
                   ) : null}
@@ -433,31 +538,71 @@ export function BurnoutRiskTrendChart({
                   interval={range === "all" ? "preserveStartEnd" : 0}
                 />
                 <ChartTooltip
-                  content={
-                    <ChartTooltipContent
-                      className="w-[180px]"
-                      formatter={(value, name, item) => {
-                        const kind = String(item?.payload?.kind ?? "actual");
-                        if (value == null) return null;
-                        const label =
-                          kind === "next"
-                            ? "Next-week projection"
-                            : kind === "week2"
-                              ? "Week-2 projection"
-                              : name === "projection"
-                                ? "Projection"
-                                : "MFBI";
-                        return (
-                          <div className="flex w-full items-center justify-between gap-4">
-                            <span className="text-muted-foreground">{label}</span>
-                            <span className="font-mono font-medium tabular-nums">
-                              {Number(value).toFixed(2)}
-                            </span>
-                          </div>
-                        );
-                      }}
-                    />
-                  }
+                  content={({ active, payload }) => {
+                    if (!active || !payload?.length) return null;
+                    const point = payload[0]?.payload as ChartPoint | undefined;
+                    if (!point) return null;
+                    const displayScore =
+                      point.kind === "actual" ? point.score : point.projection;
+                    const directionLabel = formatDirectionLabel(point.direction);
+
+                    return (
+                      <div
+                        className={cn(
+                          "grid min-w-[10.5rem] grid-cols-2 gap-x-3 gap-y-0.5 rounded-lg border bg-background px-2.5 py-2 text-xs shadow-xl",
+                          point.isCurrent
+                            ? "border-blue-500/40"
+                            : "border-border/50"
+                        )}
+                      >
+                        <div className="min-w-0">
+                          <p className="text-muted-foreground">
+                            {point.isCurrent
+                              ? `Week ${point.weekNumber}`
+                              : point.weekLabel}
+                            {point.isCurrent ? (
+                              <span className="ml-1 font-semibold text-blue-700 dark:text-blue-300">
+                                · Current
+                              </span>
+                            ) : null}
+                          </p>
+                        </div>
+                        <p
+                          className={cn(
+                            "text-right font-semibold tracking-tight",
+                            directionLabel
+                              ? movementDeltaTone(point.direction)
+                              : "text-muted-foreground"
+                          )}
+                        >
+                          {directionLabel ? (
+                            <>
+                              {directionLabel}
+                              {point.delta != null ? (
+                                <span className="ml-0.5 tabular-nums font-medium opacity-80">
+                                  ({point.delta > 0 ? "+" : ""}
+                                  {point.delta.toFixed(2)})
+                                </span>
+                              ) : null}
+                            </>
+                          ) : (
+                            "—"
+                          )}
+                        </p>
+                        <p className="text-sm font-semibold tabular-nums">
+                          {formatScore(displayScore)}
+                        </p>
+                        <p
+                          className={cn(
+                            "text-right text-[11px] font-medium",
+                            riskTone(point.level)
+                          )}
+                        >
+                          {point.level}
+                        </p>
+                      </div>
+                    );
+                  }}
                 />
                 <ChartLegend content={<ChartLegendContent />} />
                 <Line
@@ -490,24 +635,34 @@ export function BurnoutRiskTrendChart({
             ) : null}
 
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {recentCards.map((point) => (
-                <TrendWeekCard
-                  key={point.week}
-                  label={`Week ${point.week}`}
-                  score={point.score}
-                  level={point.level}
-                />
-              ))}
+              {recentCards.map((point) => {
+                const isCurrent = point.week === latest?.week;
+                return (
+                  <TrendWeekCard
+                    key={point.week}
+                    label={`Week ${point.week}`}
+                    score={point.score}
+                    level={point.level}
+                    direction={point.direction}
+                    delta={point.delta}
+                    current={isCurrent}
+                  />
+                );
+              })}
               <TrendWeekCard
                 label="Next week"
                 score={nextScore}
                 level={nextWeekLevel}
+                direction={nextDirection}
+                delta={nextDelta}
                 projected
               />
               <TrendWeekCard
                 label="Week 2"
                 score={week2Score}
                 level={week2Level}
+                direction={week2Direction}
+                delta={week2Delta}
                 projected
               />
             </div>
@@ -535,3 +690,6 @@ export function BurnoutRiskTrendCard({
     />
   );
 }
+
+
+
