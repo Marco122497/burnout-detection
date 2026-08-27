@@ -1346,6 +1346,98 @@ export async function closeMonitoringWindow(
   }
 }
 
+export async function resetMonitoringToWeek1(
+  _prev: GuidanceActionState,
+  _formData: FormData
+): Promise<GuidanceActionState> {
+  try {
+    const session = await getSessionUser();
+    if (
+      !session.user ||
+      !session.profile ||
+      session.profile.role !== "Guidance Counselor"
+    ) {
+      return { error: "Please sign in again as a Guidance Counselor." };
+    }
+
+    const { supabase, user, profile } = session;
+
+    const { data: term, error: termError } = await supabase
+      .from("academic_terms")
+      .select(
+        "term_id, academic_year, semester, monitoring_week, monitoring_enabled"
+      )
+      .eq("is_active", true)
+      .order("start_date", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (termError) {
+      if (
+        termError.message?.includes("monitoring_week") ||
+        termError.message?.includes("monitoring_enabled")
+      ) {
+        return {
+          error:
+            "Run supabase/phase5-monitoring-week.sql in Supabase before managing weekly monitoring.",
+        };
+      }
+      return { error: termError.message };
+    }
+
+    if (!term) {
+      return { error: "No active academic term is configured." };
+    }
+
+    const { error } = await supabase
+      .from("academic_terms")
+      .update({
+        monitoring_week: 1,
+        monitoring_enabled: true,
+      })
+      .eq("term_id", term.term_id);
+
+    if (error) {
+      return { error: error.message };
+    }
+
+    try {
+      await supabase.from("audit_logs").insert(
+        toAuditLogRow({
+          user_id: user.id,
+          user_role: profile.role,
+          action: "RESET_MONITORING_WEEK",
+          action_type: "UPDATE",
+          table_name: "academic_terms",
+          record_id: term.term_id,
+          description: `Reset monitoring to Week 1 (open) for ${term.academic_year} ${term.semester}`,
+          ip_address: await getIp(),
+        })
+      );
+    } catch {
+      // Audit is best-effort.
+    }
+
+    revalidatePath("/guidance/monitoring");
+    revalidatePath("/guidance");
+    revalidatePath("/student/monitoring");
+    revalidatePath("/student");
+    revalidatePath("/instructor/monitoring");
+
+    return {
+      success:
+        "Monitoring reset to Week 1 and opened for students. Next open advances to Week 2.",
+    };
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to reset monitoring to Week 1.",
+    };
+  }
+}
+
 export async function sendStudentBurnoutAlert(
   studentId: string
 ): Promise<GuidanceActionState> {

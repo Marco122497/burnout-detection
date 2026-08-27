@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
-import { CheckCircle2Icon, Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { CheckCircle2Icon, CheckIcon, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -67,6 +68,53 @@ function getUnansweredQuestions(
   return unanswered;
 }
 
+function ScaleChoice({
+  name,
+  value,
+  displayScore,
+  label,
+  required,
+  disabled,
+  onSelect,
+}: {
+  name: string;
+  value: number;
+  displayScore: number;
+  label: string;
+  required: boolean;
+  disabled: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <label
+      className={cn(
+        "group relative flex min-h-11 cursor-pointer items-start gap-2.5 rounded-lg border border-input bg-transparent px-3 py-2.5 text-start text-sm transition-colors select-none hover:bg-muted/50 has-focus-visible:border-ring has-focus-visible:ring-3 has-focus-visible:ring-ring/50 has-[:checked]:border-primary/40 has-[:checked]:bg-muted dark:bg-input/20 dark:has-[:checked]:bg-muted",
+        disabled && "pointer-events-none cursor-not-allowed opacity-50"
+      )}
+    >
+      <input
+        type="radio"
+        name={name}
+        value={value}
+        required={required}
+        disabled={disabled}
+        onChange={onSelect}
+        className="absolute inset-0 z-10 size-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
+        aria-label={`${displayScore} ${label}`}
+      />
+      <span
+        aria-hidden="true"
+        className="pointer-events-none relative flex size-4 shrink-0 translate-y-0.5 items-center justify-center rounded-full border border-input group-has-[:checked]:border-primary group-has-[:checked]:bg-primary group-has-[:checked]:text-primary-foreground dark:bg-input/30 dark:group-has-[:checked]:bg-primary"
+      >
+        <CheckIcon className="hidden size-3.5 group-has-[:checked]:block" />
+      </span>
+      <span className="pointer-events-none min-w-0 flex-1 font-medium leading-snug">
+        {displayScore} — {label}
+      </span>
+    </label>
+  );
+}
+
 export function WeeklyMonitoringForm({
   term,
   currentWeek,
@@ -80,12 +128,13 @@ export function WeeklyMonitoringForm({
   monitoringEnabled: boolean;
   sections: QuestionnaireSection[];
 }) {
+  const router = useRouter();
   const [state, formAction, pending] = useActionState(
     submitWeeklyMonitoring,
     initialState
   );
   const [unansweredIds, setUnansweredIds] = useState<number[]>([]);
-  const lastScrolledSuccess = useRef<string | undefined>(undefined);
+  const lastHandledSuccess = useRef<string | undefined>(undefined);
   useActionToast(state);
 
   const alreadySubmitted = submittedThisWeek || Boolean(state.success);
@@ -98,31 +147,12 @@ export function WeeklyMonitoringForm({
     !monitoringEnabled;
 
   useEffect(() => {
-    if (!state.success || state.success === lastScrolledSuccess.current) {
+    if (!state.success || state.success === lastHandledSuccess.current) {
       return;
     }
-    lastScrolledSuccess.current = state.success;
-
-    const scrollToTop = (element: Element | null) => {
-      if (element instanceof HTMLElement && element.scrollTop > 0) {
-        element.scrollTo({ top: 0, behavior: "smooth" });
-      }
-    };
-
-    window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
-    scrollToTop(document.documentElement);
-    scrollToTop(document.body);
-    scrollToTop(document.querySelector('[data-slot="sidebar-inset"]'));
-
-    let node: HTMLElement | null = document.documentElement;
-    while (node) {
-      const overflowY = getComputedStyle(node).overflowY;
-      if (overflowY === "auto" || overflowY === "scroll") {
-        scrollToTop(node);
-      }
-      node = node.parentElement;
-    }
-  }, [state.success]);
+    lastHandledSuccess.current = state.success;
+    router.push("/student");
+  }, [state.success, router]);
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     const form = event.currentTarget;
@@ -265,31 +295,25 @@ export function WeeklyMonitoringForm({
                             section.key === "pss"
                               ? option.value - 1
                               : option.value;
+
                           return (
-                            <label
+                            <ScaleChoice
                               key={`${question.question_id}-${option.value}`}
-                              className="flex cursor-pointer items-start gap-2 rounded-md border px-2 py-2 text-sm has-[:checked]:border-primary has-[:checked]:bg-primary/5"
-                            >
-                              <input
-                                type="radio"
-                                name={`q_${question.question_id}`}
-                                value={option.value}
-                                required={question.is_required}
-                                className="mt-0.5"
-                                onChange={() => {
-                                  if (!isMissing) return;
-                                  setUnansweredIds((prev) =>
-                                    prev.filter(
-                                      (id) => id !== question.question_id
-                                    )
-                                  );
-                                }}
-                                aria-label={`${displayScore} ${option.label}`}
-                              />
-                              <span className="font-medium leading-snug">
-                                {displayScore} — {option.label}
-                              </span>
-                            </label>
+                              name={`q_${question.question_id}`}
+                              value={option.value}
+                              displayScore={displayScore}
+                              label={option.label}
+                              required={question.is_required}
+                              disabled={disabled}
+                              onSelect={() => {
+                                if (!isMissing) return;
+                                setUnansweredIds((prev) =>
+                                  prev.filter(
+                                    (id) => id !== question.question_id
+                                  )
+                                );
+                              }}
+                            />
                           );
                         })}
                       </div>

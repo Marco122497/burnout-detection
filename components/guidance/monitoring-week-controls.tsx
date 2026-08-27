@@ -6,6 +6,7 @@ import { CalendarClockIcon, Loader2 } from "lucide-react";
 import {
   closeMonitoringWindow,
   openNextMonitoringWeek,
+  resetMonitoringToWeek1,
   type GuidanceActionState,
 } from "@/app/actions/guidance";
 import { useActionToast } from "@/hooks/use-action-toast";
@@ -34,14 +35,20 @@ export function MonitoringWeekControls({
     closeMonitoringWindow,
     initialState
   );
+  const [resetState, resetAction, resetPending] = useActionState(
+    resetMonitoringToWeek1,
+    initialState
+  );
 
   useActionToast(openState);
   useActionToast(closeState);
+  useActionToast(resetState);
 
   const week = term?.monitoring_week ?? 1;
   const enabled = Boolean(term?.monitoring_enabled);
   const nextWeek = week + 1;
-  const pending = openPending || closePending;
+  const pending = openPending || closePending || resetPending;
+  const alreadyWeek1Open = week === 1 && enabled;
 
   return (
     <Card>
@@ -114,6 +121,22 @@ export function MonitoringWeekControls({
                     </>
                   ) : (
                     "Close monitoring window"
+                  )}
+                </Button>
+              </form>
+              <form action={resetAction}>
+                <Button
+                  type="submit"
+                  variant="secondary"
+                  disabled={pending || alreadyWeek1Open}
+                >
+                  {resetPending ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" />
+                      Resetting…
+                    </>
+                  ) : (
+                    "Reset to Week 1"
                   )}
                 </Button>
               </form>
