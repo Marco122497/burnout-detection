@@ -7,10 +7,13 @@ import { Loader2 } from "lucide-react";
 import type { Profile } from "@/lib/auth/roles";
 import { getDashboardPath } from "@/lib/auth/roles";
 import { getNavItems } from "@/lib/auth/navigation";
+import { APP_VERSION } from "@/lib/app-meta";
+import { SidebarAppFooter } from "@/components/layout/sidebar-app-footer";
 import { useNavigationPending } from "@/components/layout/navigation-pending";
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupLabel,
   SidebarHeader,
@@ -18,6 +21,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  SidebarSeparator,
   useSidebar,
 } from "@/components/ui/sidebar";
 
@@ -85,7 +89,7 @@ export function AppSidebar({
               <div className="flex flex-col gap-0.5 leading-none">
                 <span className="font-medium">Burnout Detection System</span>
                 <span className="text-xs text-muted-foreground">
-                  v.1.1.1.0 (Beta)
+                  v{APP_VERSION}
                 </span>
               </div>
             </SidebarMenuButton>
@@ -127,6 +131,10 @@ export function AppSidebar({
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>
+      <SidebarFooter className="group-data-[collapsible=icon]:hidden">
+        <SidebarSeparator />
+        <SidebarAppFooter />
+      </SidebarFooter>
       <SidebarRail />
     </Sidebar>
   );

@@ -1,5 +1,6 @@
 import { AuthBackground } from "@/components/auth/auth-background";
 import { AuthSplashGate } from "@/components/auth/splash-screen";
+import { AppMetaFooter } from "@/components/layout/sidebar-app-footer";
 import { ModeToggle } from "@/components/mode-toggle";
 
 export default function AuthLayout({
@@ -24,13 +25,16 @@ export default function AuthLayout({
               className="mb-4 size-28 object-contain sm:size-32"
             />
             <p className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-              Burnout Monitor
+              BURNOUT SYSTEM
             </p>
             <p className="mt-2 text-sm text-muted-foreground">
               Student wellness & early intervention
             </p>
           </div>
           {children}
+        </div>
+        <div className="relative z-10 px-4 pb-6 text-center">
+          <AppMetaFooter className="text-xs text-muted-foreground/70 sm:text-sm" />
         </div>
       </div>
     </AuthSplashGate>

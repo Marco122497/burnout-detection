@@ -1,19 +1,8 @@
 import type { Metadata } from "next";
-import { Source_Serif_4, DM_Sans } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
-
-const display = Source_Serif_4({
-  variable: "--font-display",
-  subsets: ["latin"],
-});
-
-const sans = DM_Sans({
-  variable: "--font-sans",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: {
@@ -30,12 +19,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      suppressHydrationWarning
-      className={`${display.variable} ${sans.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col font-sans">
+    <html lang="en" suppressHydrationWarning className="h-full antialiased">
+      <body className="flex min-h-full flex-col font-sans">
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

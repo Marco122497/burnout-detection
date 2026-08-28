@@ -8,7 +8,7 @@ import { toast } from "sonner";
 
 import { login, type AuthActionState } from "@/app/actions/auth";
 import { useActionToast } from "@/hooks/use-action-toast";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -20,7 +20,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
-import { cn } from "@/lib/utils";
 
 const initialState: AuthActionState = {};
 
@@ -111,18 +110,6 @@ export function LoginForm() {
               "Sign in"
             )}
           </Button>
-          <Link
-            href="/register"
-            className={cn(
-              buttonVariants({ variant: "outline", size: "lg" }),
-              "w-full"
-            )}
-          >
-            Register
-          </Link>
-          <p className="text-center text-xs text-muted-foreground">
-            New here? Create an account, then sign in.
-          </p>
         </CardFooter>
       </form>
     </Card>
