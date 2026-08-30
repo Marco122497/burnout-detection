@@ -6,6 +6,11 @@ import { headers } from "next/headers";
 import { toAuditLogRow } from "@/lib/audit";
 import { requireRole } from "@/lib/auth/session";
 import { syncQuestionnaireQuestionCount } from "@/lib/guidance/questionnaires";
+import {
+  parseScaleOptionsField,
+  supportsCustomScaleOptions,
+  validateScaleOptions,
+} from "@/lib/student/scale-options";
 
 export type QuestionnaireActionState = {
   error?: string;
@@ -155,6 +160,7 @@ export async function createQuestion(
   const reverse_scored = String(formData.get("reverse_scored") || "") === "1";
   const is_required = String(formData.get("is_required") || "1") === "1";
   const orderRaw = String(formData.get("question_order") || "").trim();
+  const scaleOptionsRaw = String(formData.get("scale_options") || "").trim();
 
   if (!questionnaire_id || !question_text) {
     return { error: "Question text is required." };
@@ -163,6 +169,20 @@ export async function createQuestion(
   const allowed = ["Likert Scale", "Number", "Hours", "Yes/No"];
   if (!allowed.includes(response_type)) {
     return { error: "Invalid response type." };
+  }
+
+  let scale_options: ReturnType<typeof parseScaleOptionsField> = null;
+  if (supportsCustomScaleOptions(response_type as "Likert Scale" | "Number" | "Hours" | "Yes/No")) {
+    if (scaleOptionsRaw) {
+      scale_options = parseScaleOptionsField(scaleOptionsRaw);
+      if (!scale_options) {
+        return { error: "Invalid response choices." };
+      }
+      const scaleError = validateScaleOptions(scale_options);
+      if (scaleError) {
+        return { error: scaleError };
+      }
+    }
   }
 
   let question_order = orderRaw ? Number(orderRaw) : NaN;
@@ -187,6 +207,7 @@ export async function createQuestion(
       reverse_scored,
       is_required,
       is_active: true,
+      scale_options,
       created_by: user.id,
     })
     .select("question_id")
@@ -234,6 +255,7 @@ export async function updateQuestion(
   const is_required = String(formData.get("is_required") || "") === "1";
   const is_active = String(formData.get("is_active") || "") === "1";
   const question_order = Number(formData.get("question_order"));
+  const scaleOptionsRaw = String(formData.get("scale_options") || "").trim();
 
   if (!question_id || !questionnaire_id || !question_text) {
     return { error: "Question text is required." };
@@ -241,6 +263,25 @@ export async function updateQuestion(
 
   if (Number.isNaN(question_order) || question_order < 1) {
     return { error: "Question order must be at least 1." };
+  }
+
+  const allowed = ["Likert Scale", "Number", "Hours", "Yes/No"];
+  if (!allowed.includes(response_type)) {
+    return { error: "Invalid response type." };
+  }
+
+  let scale_options: ReturnType<typeof parseScaleOptionsField> = null;
+  if (supportsCustomScaleOptions(response_type as "Likert Scale" | "Number" | "Hours" | "Yes/No")) {
+    if (scaleOptionsRaw) {
+      scale_options = parseScaleOptionsField(scaleOptionsRaw);
+      if (!scale_options) {
+        return { error: "Invalid response choices." };
+      }
+      const scaleError = validateScaleOptions(scale_options);
+      if (scaleError) {
+        return { error: scaleError };
+      }
+    }
   }
 
   const { error } = await supabase
@@ -252,6 +293,7 @@ export async function updateQuestion(
       is_required,
       is_active,
       question_order,
+      scale_options,
     })
     .eq("question_id", question_id)
     .eq("questionnaire_id", questionnaire_id);

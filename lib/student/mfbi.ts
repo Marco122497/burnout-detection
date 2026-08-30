@@ -1,3 +1,5 @@
+import { STUDY_TIME_SCORE_MAX } from "@/lib/student/scale-options";
+
 export type BurnoutLevel = "Low" | "Moderate" | "High" | "Severe";
 
 export type MfbiInput = {
@@ -43,13 +45,13 @@ export function classifyMfbiScore(score: number): BurnoutLevel {
  * Normalization (0–1), all oriented so higher = greater burnout risk:
  * - Stress (PSS-10): 0–40
  * - Academic workload: 0–10
- * - Study time: 0–12 hours/day
+ * - Study time: 0–25 hours/week (ST1 weekly scale)
  * - Sleep risk: 0–100 (already risk-oriented; no hours inversion)
  */
 export function computeMfbi(input: MfbiInput): MfbiResult {
   const normalized_stress = clamp01(input.stressScore / 40);
   const normalized_academic_workload = clamp01(input.academicWorkload / 10);
-  const normalized_study_time = clamp01(input.studyTime / 12);
+  const normalized_study_time = clamp01(input.studyTime / STUDY_TIME_SCORE_MAX);
   const normalized_sleep_hours = clamp01(input.sleepRisk / 100);
 
   const mfbi_score = round4(

@@ -1,5 +1,7 @@
 import type { createClient } from "@/lib/supabase/server";
 import { buildFullName } from "@/lib/auth/roles";
+import { STUDY_TIME_SCORE_MAX } from "@/lib/student/scale-options";
+import { reconcileMonitoringStudyDisplay } from "@/lib/student/monitoring-display";
 import { getActiveTerm, getCurrentWeekNumber } from "@/lib/student/terms";
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
@@ -402,7 +404,7 @@ export async function getStudentAssessmentHistory(
     const prediction = mfbi?.mfbi_id
       ? predictionByMfbi.get(mfbi.mfbi_id) ?? null
       : null;
-    return {
+    return reconcileMonitoringStudyDisplay({
       monitoring_id: row.monitoring_id,
       week_number: row.week_number,
       stress_score: Number(row.stress_score),
@@ -428,7 +430,7 @@ export async function getStudentAssessmentHistory(
         mfbi?.normalized_sleep_hours != null
           ? Number(mfbi.normalized_sleep_hours)
           : null,
-    };
+    });
   });
 
   const latest = history[0] ?? null;
@@ -583,7 +585,7 @@ function mainConcern(row: StudentMonitorRow) {
     },
     {
       label: "Excessive Study Time",
-      score: row.study_time != null ? row.study_time / 12 : 0,
+      score: row.study_time != null ? row.study_time / STUDY_TIME_SCORE_MAX : 0,
     },
   ].sort((a, b) => b.score - a.score);
 
@@ -827,7 +829,7 @@ export async function getInstructorDashboardData(
     {
       label: "Excessive Study Time",
       count: assessed.filter(
-        (r) => r.study_time != null && r.study_time >= 8
+        (r) => r.study_time != null && r.study_time >= 18
       ).length,
     },
   ].sort((a, b) => b.count - a.count);
@@ -1192,7 +1194,7 @@ export function getInstructorAnalytics(
     },
     {
       label: "Study Time",
-      count: assessed.filter((r) => r.study_time != null && r.study_time >= 8)
+      count: assessed.filter((r) => r.study_time != null && r.study_time >= 18)
         .length,
     },
     {

@@ -9,9 +9,9 @@ import { useTablePagination } from "@/hooks/use-table-pagination";
 import { useNavigationPending } from "@/components/layout/navigation-pending";
 import { TablePagination } from "@/components/shared/table-pagination";
 import {
-  invertedScoreOverMax,
   scoreOverMax,
 } from "@/components/shared/risk-display";
+import { STUDY_TIME_SCORE_MAX } from "@/lib/student/scale-options";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -235,7 +235,7 @@ export function StudentMonitoringTable({
                           {scoreOverMax(row.academic_workload, 10)}
                         </td>
                         <td className="px-2 py-1.5 tabular-nums">
-                          {invertedScoreOverMax(row.study_time, 12)}
+                          {scoreOverMax(row.study_time, STUDY_TIME_SCORE_MAX)}
                         </td>
                         <td className="px-2 py-1.5 tabular-nums">
                           {scoreOverMax(row.sleep_hours, 100)}

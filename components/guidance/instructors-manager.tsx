@@ -20,6 +20,8 @@ import {
   updateInstructor,
   type GuidanceActionState,
 } from "@/app/actions/guidance";
+import { DefaultInitialPasswordField } from "@/components/guidance/default-initial-password-field";
+import { DEFAULT_INITIAL_PASSWORD_NOTE } from "@/lib/auth/defaults";
 import { useActionToast } from "@/hooks/use-action-toast";
 import { useTablePagination } from "@/hooks/use-table-pagination";
 import {
@@ -355,7 +357,8 @@ export function InstructorsManager({
             </AlertDialogMedia>
             <AlertDialogTitle>Add instructor</AlertDialogTitle>
             <AlertDialogDescription>
-              Create an instructor account and assign them to a department.
+              Create an instructor account and assign them to a department.{" "}
+              {DEFAULT_INITIAL_PASSWORD_NOTE}
             </AlertDialogDescription>
           </AlertDialogHeader>
 
@@ -370,15 +373,7 @@ export function InstructorsManager({
                 <Label htmlFor="create-email">Email</Label>
                 <Input id="create-email" name="email" type="email" required />
               </div>
-              <div className="space-y-1.5 sm:col-span-2">
-                <Label htmlFor="create-password">Temporary password</Label>
-                <PasswordInput
-                  id="create-password"
-                  name="password"
-                  minLength={8}
-                  required
-                />
-              </div>
+              <DefaultInitialPasswordField id="create-initial-password" />
               <div className="space-y-1.5">
                 <Label htmlFor="create-first_name">First name</Label>
                 <Input id="create-first_name" name="first_name" required />

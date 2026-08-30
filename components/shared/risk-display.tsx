@@ -51,7 +51,11 @@ export function PredictionLabel({ level }: { level: string | null | undefined })
 
 export function scoreOverMax(value: number | null | undefined, max: number) {
   if (value == null || Number.isNaN(Number(value))) return "—";
-  return `${Number(value)}/${max}`;
+  const numeric = Number(value);
+  const display = Number.isInteger(numeric)
+    ? String(numeric)
+    : String(Math.round(numeric * 100) / 100);
+  return `${display}/${max}`;
 }
 
 /** Flip a load/risk score so a higher displayed value means healthier. */

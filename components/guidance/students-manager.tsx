@@ -21,6 +21,8 @@ import {
   updateUser,
   type GuidanceActionState,
 } from "@/app/actions/guidance";
+import { DefaultInitialPasswordField } from "@/components/guidance/default-initial-password-field";
+import { DEFAULT_INITIAL_PASSWORD_NOTE } from "@/lib/auth/defaults";
 import { useActionToast } from "@/hooks/use-action-toast";
 import { useTablePagination } from "@/hooks/use-table-pagination";
 import {
@@ -402,8 +404,8 @@ export function StudentsManager({
             </AlertDialogMedia>
             <AlertDialogTitle>Add student</AlertDialogTitle>
             <AlertDialogDescription>
-              Create a student account and assign their course, year level, and
-              section.
+              Create a student account and assign their course and year level.{" "}
+              {DEFAULT_INITIAL_PASSWORD_NOTE}
             </AlertDialogDescription>
           </AlertDialogHeader>
 
@@ -423,17 +425,7 @@ export function StudentsManager({
                   required
                 />
               </div>
-              <div className="space-y-1.5 sm:col-span-2">
-                <Label htmlFor="student-create-password">
-                  Temporary password
-                </Label>
-                <PasswordInput
-                  id="student-create-password"
-                  name="password"
-                  minLength={8}
-                  required
-                />
-              </div>
+              <DefaultInitialPasswordField id="student-create-initial-password" />
               <div className="space-y-1.5">
                 <Label htmlFor="student-create-first_name">First name</Label>
                 <Input
@@ -487,7 +479,7 @@ export function StudentsManager({
                   ))}
                 </select>
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 sm:col-span-2">
                 <Label htmlFor="student-create-year_level">Year level</Label>
                 <select
                   id="student-create-year_level"
@@ -505,10 +497,6 @@ export function StudentsManager({
                     </option>
                   ))}
                 </select>
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="student-create-section">Section</Label>
-                <Input id="student-create-section" name="section" />
               </div>
             </form>
           ) : null}

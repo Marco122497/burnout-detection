@@ -454,3 +454,29 @@ export async function markNotificationRead(
   revalidatePath("/instructor/notifications");
   return { success: "Notification marked as read." };
 }
+
+export async function markAllNotificationsRead(
+  _prev: StudentActionState
+): Promise<StudentActionState> {
+  const { supabase, user } = await requireUser();
+
+  const { error } = await supabase
+    .from("notifications")
+    .update({
+      is_read: true,
+      read_at: new Date().toISOString(),
+    })
+    .eq("user_id", user.id)
+    .eq("is_read", false);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/", "layout");
+  revalidatePath("/student");
+  revalidatePath("/student/notifications");
+  revalidatePath("/instructor");
+  revalidatePath("/instructor/notifications");
+  return { success: "All notifications marked as read." };
+}

@@ -534,6 +534,9 @@ CREATE TABLE IF NOT EXISTS questions (
     -- PSS Reverse Scoring
     reverse_scored BOOLEAN DEFAULT FALSE,
 
+    -- Custom response choices (JSON array)
+    scale_options JSONB,
+
     -- Required Question
     is_required BOOLEAN DEFAULT TRUE,
 

@@ -21,6 +21,8 @@ import {
   updateUser,
   type GuidanceActionState,
 } from "@/app/actions/guidance";
+import { DefaultInitialPasswordField } from "@/components/guidance/default-initial-password-field";
+import { DEFAULT_INITIAL_PASSWORD_NOTE } from "@/lib/auth/defaults";
 import { useActionToast } from "@/hooks/use-action-toast";
 import { useTablePagination } from "@/hooks/use-table-pagination";
 import {
@@ -401,7 +403,8 @@ export function AdminsManager({
             </AlertDialogMedia>
             <AlertDialogTitle>Add guidance/admin account</AlertDialogTitle>
             <AlertDialogDescription>
-              Create a new guidance counselor account with full admin access.
+              Create a new guidance counselor account with full admin access.{" "}
+              {DEFAULT_INITIAL_PASSWORD_NOTE}
             </AlertDialogDescription>
           </AlertDialogHeader>
 
@@ -421,17 +424,7 @@ export function AdminsManager({
                   required
                 />
               </div>
-              <div className="space-y-1.5 sm:col-span-2">
-                <Label htmlFor="admin-create-password">
-                  Temporary password
-                </Label>
-                <PasswordInput
-                  id="admin-create-password"
-                  name="password"
-                  minLength={8}
-                  required
-                />
-              </div>
+              <DefaultInitialPasswordField id="admin-create-initial-password" />
               <div className="space-y-1.5">
                 <Label htmlFor="admin-create-first_name">First name</Label>
                 <Input

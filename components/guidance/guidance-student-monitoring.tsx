@@ -8,7 +8,8 @@ import type { Department } from "@/lib/auth/roles";
 import type { GuidanceStudentRow } from "@/lib/guidance/monitoring";
 import { useTablePagination } from "@/hooks/use-table-pagination";
 import { useNavigationPending } from "@/components/layout/navigation-pending";
-import { invertedScoreOverMax } from "@/components/shared/risk-display";
+import { scoreOverMax } from "@/components/shared/risk-display";
+import { STUDY_TIME_SCORE_MAX } from "@/lib/student/scale-options";
 import { TablePagination } from "@/components/shared/table-pagination";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -254,7 +255,7 @@ export function GuidanceStudentMonitoring({
                           {row.academic_workload ?? "—"}
                         </td>
                         <td className="px-2 py-1.5 tabular-nums">
-                          {invertedScoreOverMax(row.study_time, 12)}
+                          {scoreOverMax(row.study_time, STUDY_TIME_SCORE_MAX)}
                         </td>
                         <td className="px-2 py-1.5">
                           {row.sleep_hours != null

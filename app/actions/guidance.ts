@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 
 import { toAuditLogRow } from "@/lib/audit";
+import { DEFAULT_INITIAL_PASSWORD } from "@/lib/auth/defaults";
 import { getSessionUser, requireRole } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -61,7 +62,6 @@ export async function createDepartment(
   ]);
 
   const department_name = String(formData.get("department_name") || "").trim();
-  const description = String(formData.get("description") || "").trim() || null;
 
   if (!department_name) {
     return { error: "Department name is required." };
@@ -87,7 +87,7 @@ export async function createDepartment(
     .insert({
       department_code,
       department_name,
-      description,
+      description: null,
       is_active: true,
     })
     .select("department_id")
@@ -289,7 +289,7 @@ export async function createInstructor(
   ]);
 
   const email = String(formData.get("email") || "").trim();
-  const password = String(formData.get("password") || "");
+  const password = DEFAULT_INITIAL_PASSWORD;
   const first_name = String(formData.get("first_name") || "").trim();
   const middle_name = String(formData.get("middle_name") || "").trim() || null;
   const last_name = String(formData.get("last_name") || "").trim();
@@ -298,14 +298,10 @@ export async function createInstructor(
   const designation = String(formData.get("designation") || "").trim() || null;
   const department_id = Number(formData.get("department_id"));
 
-  if (!email || !password || !first_name || !last_name || !department_id) {
+  if (!email || !first_name || !last_name || !department_id) {
     return {
-      error: "Email, password, name, and department are required.",
+      error: "Email, name, and department are required.",
     };
-  }
-
-  if (password.length < 8) {
-    return { error: "Password must be at least 8 characters." };
   }
 
   let admin;
@@ -582,34 +578,27 @@ export async function createStudent(
   ]);
 
   const email = String(formData.get("email") || "").trim();
-  const password = String(formData.get("password") || "");
+  const password = DEFAULT_INITIAL_PASSWORD;
   const first_name = String(formData.get("first_name") || "").trim();
   const middle_name = String(formData.get("middle_name") || "").trim() || null;
   const last_name = String(formData.get("last_name") || "").trim();
   const suffix = String(formData.get("suffix") || "").trim() || null;
   const student_number =
     String(formData.get("student_number") || "").trim() || null;
-  const section = String(formData.get("section") || "").trim() || null;
   const department_id = Number(formData.get("department_id"));
   const yearLevelRaw = String(formData.get("year_level") || "").trim();
   const year_level = yearLevelRaw ? Number(yearLevelRaw) : NaN;
 
   if (
     !email ||
-    !password ||
     !first_name ||
     !last_name ||
     !student_number ||
     !department_id
   ) {
     return {
-      error:
-        "Email, password, name, student number, and course are required.",
+      error: "Email, name, student number, and course are required.",
     };
-  }
-
-  if (password.length < 8) {
-    return { error: "Password must be at least 8 characters." };
   }
 
   if (Number.isNaN(year_level) || year_level < 1 || year_level > 4) {
@@ -653,7 +642,6 @@ export async function createStudent(
       department_id,
       course,
       year_level,
-      section,
       role: "Student",
     },
   });
@@ -676,7 +664,7 @@ export async function createStudent(
       department_id,
       course,
       year_level,
-      section,
+      section: null,
       role: "Student",
       is_active: true,
     })
@@ -710,7 +698,7 @@ export async function createGuidanceUser(
   ]);
 
   const email = String(formData.get("email") || "").trim();
-  const password = String(formData.get("password") || "");
+  const password = DEFAULT_INITIAL_PASSWORD;
   const first_name = String(formData.get("first_name") || "").trim();
   const middle_name = String(formData.get("middle_name") || "").trim() || null;
   const last_name = String(formData.get("last_name") || "").trim();
@@ -719,12 +707,8 @@ export async function createGuidanceUser(
   const designation =
     String(formData.get("designation") || "").trim() || null;
 
-  if (!email || !password || !first_name || !last_name) {
-    return { error: "Email, password, and name are required." };
-  }
-
-  if (password.length < 8) {
-    return { error: "Password must be at least 8 characters." };
+  if (!email || !first_name || !last_name) {
+    return { error: "Email and name are required." };
   }
 
   let admin;

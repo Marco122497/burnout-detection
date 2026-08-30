@@ -1,9 +1,11 @@
 import type { createClient } from "@/lib/supabase/server";
 import {
-  getScaleOptions,
   QUESTIONNAIRE_KEYS,
   QUESTIONNAIRE_NAMES,
+  type QuestionRow,
 } from "@/lib/student/questionnaires";
+import { getAnswerLabelForQuestion } from "@/lib/student/scale-options";
+import { reconcileMonitoringStudyDisplay } from "@/lib/student/monitoring-display";
 import { getActiveTerm, getCurrentWeekNumber } from "@/lib/student/terms";
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
@@ -134,7 +136,7 @@ export async function getWeeklyMonitoringHistory(
       ? predictionByMfbi.get(mfbi.mfbi_id) ?? null
       : null;
 
-    return {
+    return reconcileMonitoringStudyDisplay({
       monitoring_id: row.monitoring_id,
       week_number: row.week_number,
       stress_score: Number(row.stress_score),
@@ -168,7 +170,7 @@ export async function getWeeklyMonitoringHistory(
             remarks: prediction.remarks,
           }
         : null,
-    } satisfies MonitoringRow;
+    });
   });
 }
 
@@ -236,7 +238,7 @@ export async function getMonitoringAnswers(
   const { data } = await supabase
     .from("weekly_monitoring_answers")
     .select(
-      "monitoring_id, answer_value, questions(question_id, question_text, question_order, questionnaire_id, questionnaires(questionnaire_name))"
+      "monitoring_id, answer_value, questions(question_id, question_text, question_order, questionnaire_id, response_type, scale_options, questionnaires(questionnaire_name))"
     )
     .in("monitoring_id", monitoringIds);
 
@@ -258,10 +260,25 @@ export async function getMonitoringAnswers(
     const questionnaireName = questionnaire?.questionnaire_name ?? "Other";
 
     const key = NAME_TO_KEY.get(questionnaireName);
+    const questionRow = {
+      question_id: question.question_id,
+      questionnaire_id: question.questionnaire_id,
+      question_text: question.question_text,
+      question_order: question.question_order,
+      response_type: (question.response_type ?? "Likert Scale") as QuestionRow["response_type"],
+      reverse_scored: false,
+      is_required: true,
+      is_active: true,
+      scale_options: question.scale_options,
+    } satisfies QuestionRow;
+
     const label = key
-      ? getScaleOptions(key).find(
-          (option) => option.value === Number(row.answer_value)
-        )?.label ?? null
+      ? getAnswerLabelForQuestion(
+          key,
+          questionRow,
+          Number(row.answer_value),
+          questionnaireName
+        )
       : null;
 
     const list = map[row.monitoring_id] ?? [];

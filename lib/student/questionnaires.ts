@@ -1,6 +1,7 @@
 import { cache } from "react";
 
 import type { createClient } from "@/lib/supabase/server";
+import type { ScaleOption } from "@/lib/student/scale-options";
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -29,6 +30,7 @@ export type QuestionRow = {
   reverse_scored: boolean;
   is_required: boolean;
   is_active: boolean;
+  scale_options?: ScaleOption[] | null;
 };
 
 export type QuestionnaireSection = {
@@ -75,17 +77,17 @@ const WORKLOAD_LABELS = [
 export const WORKLOAD_SCALE_DESCRIPTION =
   "5-point Likert scale (1 means Definitely Disagree and 5 means Definitely Agree).";
 
-/** Study Time: hours per day (scores 1–5). */
+/** ST1 fallback labels (weekly hours). Per-question scale_options override in the student form. */
 const STUDY_TIME_LABELS = [
-  { value: 1, label: "Less than 1 hour per day" },
-  { value: 2, label: "1–2 hours per day" },
-  { value: 3, label: "3–4 hours per day" },
-  { value: 4, label: "5–6 hours per day" },
-  { value: 5, label: "More than 6 hours per day" },
+  { value: 1, label: "Less than 5 hours" },
+  { value: 2, label: "5–10 hours" },
+  { value: 3, label: "11–15 hours" },
+  { value: 4, label: "16–20 hours" },
+  { value: 5, label: "More than 20 hours" },
 ] as const;
 
 export const STUDY_TIME_SCALE_DESCRIPTION =
-  "Use the response scale below for every item (Score 1–5).";
+  "Question 1: weekly study hours. Question 2: how often you review (Never to Very Often).";
 
 export function getScaleOptions(sectionKey: QuestionnaireKey) {
   if (sectionKey === "pss") return PSS_LABELS;
@@ -120,7 +122,7 @@ export const getWeeklyMonitoringSections = cache(
   const { data: questions } = await supabase
     .from("questions")
     .select(
-      "question_id, questionnaire_id, question_text, question_order, response_type, reverse_scored, is_required, is_active"
+      "question_id, questionnaire_id, question_text, question_order, response_type, reverse_scored, is_required, is_active, scale_options"
     )
     .in("questionnaire_id", ids)
     .eq("is_active", true)

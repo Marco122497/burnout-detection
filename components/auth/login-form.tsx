@@ -51,7 +51,7 @@ export function LoginForm() {
 
     if (registered) {
       toast.success(
-        "Account created successfully. Sign in with your email and password."
+        "Account created successfully. Sign in with your email or student ID."
       );
     }
   }, [queryError, resetSuccess, registered]);
@@ -61,20 +61,19 @@ export function LoginForm() {
       <CardHeader className="space-y-1">
         <CardTitle className="text-2xl">Sign in</CardTitle>
         <CardDescription>
-          Access the student burnout monitoring system with your school
-          account.
+          Sign in with your school email or student ID number.
         </CardDescription>
       </CardHeader>
       <form action={formAction}>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="identifier">Email or ID number</Label>
             <Input
-              id="email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              placeholder="you@ckcm.edu.ph"
+              id="identifier"
+              name="identifier"
+              type="text"
+              autoComplete="username"
+              placeholder="enter your email or student ID"
               required
             />
           </div>

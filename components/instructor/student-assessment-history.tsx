@@ -22,9 +22,9 @@ import {
 import {
   PredictionLabel,
   RiskLevelText,
-  invertedScoreOverMax,
   scoreOverMax,
 } from "@/components/shared/risk-display";
+import { STUDY_TIME_SCORE_MAX } from "@/lib/student/scale-options";
 import { useNavigationPending } from "@/components/layout/navigation-pending";
 import { Button } from "@/components/ui/button";
 import {
@@ -280,7 +280,7 @@ export function StudentAssessmentHistoryView({
                             {scoreOverMax(row.academic_workload, 10)}
                           </td>
                           <td className="px-2 py-1.5 tabular-nums">
-                            {invertedScoreOverMax(row.study_time, 12)}
+                            {scoreOverMax(row.study_time, STUDY_TIME_SCORE_MAX)}
                           </td>
                           <td className="px-2 py-1.5 tabular-nums">
                             {scoreOverMax(row.sleep_hours, 100)}

@@ -8,6 +8,7 @@ import {
 
 import type { BurnoutFactor } from "@/lib/student/dashboard";
 import { classifyMfbiScore } from "@/lib/student/mfbi";
+import { STUDY_TIME_SCORE_MAX } from "@/lib/student/scale-options";
 import {
   Card,
   CardContent,
@@ -288,14 +289,14 @@ export function BurnoutFactorSection({
         <FactorCard
           icon={<ClockIcon />}
           label="Study Time"
-          description="Time spent studying each day."
+          description="Hours spent studying each week (order 1 question)."
           factor={factors?.studyTime ?? null}
           rawLabel={
             factors
               ? factorScoreLabel(
                   "ST",
                   factors.studyTime.raw,
-                  12,
+                  STUDY_TIME_SCORE_MAX,
                   classifyMfbiScore(factors.studyTime.normalized)
                 )
               : undefined

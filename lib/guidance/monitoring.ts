@@ -6,6 +6,8 @@ import type {
   StudentMonitorRow,
 } from "@/lib/instructor/queries";
 import { formatYearLevel } from "@/lib/utils";
+import { STUDY_TIME_SCORE_MAX } from "@/lib/student/scale-options";
+import { reconcileMonitoringStudyDisplay } from "@/lib/student/monitoring-display";
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -253,7 +255,7 @@ export async function getGuidanceStudentHistory(
     const prediction = mfbi?.mfbi_id
       ? predictionByMfbi.get(mfbi.mfbi_id) ?? null
       : null;
-    return {
+    return reconcileMonitoringStudyDisplay({
       monitoring_id: row.monitoring_id,
       week_number: row.week_number,
       stress_score: Number(row.stress_score),
@@ -279,7 +281,7 @@ export async function getGuidanceStudentHistory(
         mfbi?.normalized_sleep_hours != null
           ? Number(mfbi.normalized_sleep_hours)
           : null,
-    };
+    });
   });
 
   const latest = history[0] ?? null;
@@ -542,7 +544,7 @@ export function getGuidanceAnalytics(
   const normalized = {
     stress: averageStress != null ? Math.min(1, averageStress / 40) : null,
     sleep: averageSleep != null ? Math.min(1, averageSleep / 100) : null,
-    studyTime: averageStudy != null ? Math.min(1, averageStudy / 12) : null,
+    studyTime: averageStudy != null ? Math.min(1, averageStudy / STUDY_TIME_SCORE_MAX) : null,
     workload: averageWorkload != null ? Math.min(1, averageWorkload / 10) : null,
   };
 

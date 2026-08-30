@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { BellIcon, CheckCheckIcon, Loader2 } from "lucide-react";
 
-import { markNotificationRead } from "@/app/actions/student";
+import { markAllNotificationsRead, markNotificationRead } from "@/app/actions/student";
 import { useNavigationPending } from "@/components/layout/navigation-pending";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,6 +14,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { formatDateTime } from "@/lib/auth/roles";
 
 export type NavNotification = {
@@ -36,6 +41,7 @@ export function NavNotifications({
   const [items, setItems] = useState(notifications);
   const [pendingId, setPendingId] = useState<number | null>(null);
   const [markPending, startMarkTransition] = useTransition();
+  const [markAllPending, startMarkAllTransition] = useTransition();
 
   useEffect(() => {
     setItems(notifications);
@@ -59,6 +65,16 @@ export function NavNotifications({
         );
       }
       setPendingId(null);
+    });
+  }
+
+  function markAllAsRead() {
+    if (unreadCount === 0 || markAllPending) return;
+    startMarkAllTransition(async () => {
+      const result = await markAllNotificationsRead({});
+      if (!result.error) {
+        setItems((prev) => prev.map((item) => ({ ...item, isRead: true })));
+      }
     });
   }
 
@@ -86,11 +102,41 @@ export function NavNotifications({
           <DropdownMenuLabel className="font-normal">
             <div className="flex items-center justify-between gap-2 py-0.5">
               <span className="text-sm font-medium">Notifications</span>
-              <span className="text-xs text-muted-foreground">
-                {unreadCount > 0
-                  ? `${unreadCount} unread`
-                  : "All caught up"}
-              </span>
+              <div className="flex items-center gap-1">
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        className="size-7"
+                        aria-label="Mark all as read"
+                        disabled={
+                          unreadCount === 0 || markAllPending || markPending
+                        }
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          markAllAsRead();
+                        }}
+                      >
+                        {markAllPending ? (
+                          <Loader2 className="size-4 animate-spin" />
+                        ) : (
+                          <CheckCheckIcon className="size-4" />
+                        )}
+                      </Button>
+                    }
+                  />
+                  <TooltipContent>Mark all as read</TooltipContent>
+                </Tooltip>
+                <span className="min-w-[4.5rem] text-right text-xs text-muted-foreground">
+                  {unreadCount > 0
+                    ? `${unreadCount} unread`
+                    : "All caught up"}
+                </span>
+              </div>
             </div>
           </DropdownMenuLabel>
         </DropdownMenuGroup>

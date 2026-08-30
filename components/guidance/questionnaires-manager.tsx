@@ -13,10 +13,16 @@ import {
   type QuestionnaireActionState,
 } from "@/app/actions/questionnaires";
 import { useActionToast } from "@/hooks/use-action-toast";
-import type {
-  QuestionRow,
-  QuestionnaireRow,
-} from "@/lib/guidance/questionnaires";
+import type { QuestionRow, QuestionnaireRow } from "@/lib/guidance/questionnaires";
+import {
+  cloneScaleOptions,
+  getDefaultScaleOptions,
+  normalizeScaleOptions,
+  serializeScaleOptions,
+  supportsCustomScaleOptions,
+  type ScaleOption,
+} from "@/lib/student/scale-options";
+import { QuestionScaleOptionsEditor } from "@/components/guidance/question-scale-options-editor";
 import { useNavigationPending } from "@/components/layout/navigation-pending";
 import {
   AlertDialog,
@@ -73,16 +79,50 @@ const textareaClassName =
 
 function QuestionFields({
   question,
+  questionnaireName,
   includeActive,
   includeResponseType = true,
   idPrefix = "",
 }: {
   question?: QuestionRow | null;
+  questionnaireName: string;
   includeActive?: boolean;
   includeResponseType?: boolean;
   idPrefix?: string;
 }) {
   const id = (name: string) => `${idPrefix}${name}`;
+  const initialResponseType = question?.response_type ?? "Likert Scale";
+  const [responseType, setResponseType] =
+    useState<QuestionRow["response_type"]>(initialResponseType);
+  const [scaleOptions, setScaleOptions] = useState<ScaleOption[]>(() => {
+    const custom = normalizeScaleOptions(question?.scale_options);
+    if (custom) return cloneScaleOptions(custom);
+    return getDefaultScaleOptions({
+      questionnaireName,
+      responseType: initialResponseType,
+      questionOrder: question?.question_order,
+    });
+  });
+
+  useEffect(() => {
+    const custom = normalizeScaleOptions(question?.scale_options);
+    const nextResponseType = question?.response_type ?? "Likert Scale";
+    setResponseType(nextResponseType);
+    setScaleOptions(
+      custom ??
+        getDefaultScaleOptions({
+          questionnaireName,
+          responseType: nextResponseType,
+          questionOrder: question?.question_order,
+        })
+    );
+  }, [question, questionnaireName]);
+
+  const effectiveResponseType = includeResponseType
+    ? responseType
+    : (question?.response_type ?? "Likert Scale");
+  const showScaleEditor = supportsCustomScaleOptions(effectiveResponseType);
+  const showNumericValue = effectiveResponseType === "Hours";
 
   return (
     <>
@@ -103,7 +143,18 @@ function QuestionFields({
           <select
             id={id("response_type")}
             name="response_type"
-            defaultValue={question?.response_type ?? "Likert Scale"}
+            value={responseType}
+            onChange={(event) => {
+              const next = event.target.value as QuestionRow["response_type"];
+              setResponseType(next);
+              setScaleOptions(
+                getDefaultScaleOptions({
+                  questionnaireName,
+                  responseType: next,
+                  questionOrder: question?.question_order,
+                })
+              );
+            }}
             className={selectClassName}
           >
             <option value="Likert Scale">Likert Scale</option>
@@ -167,6 +218,23 @@ function QuestionFields({
             <option value="0">Inactive</option>
           </select>
         </div>
+      ) : null}
+      {showScaleEditor ? (
+        <>
+          <QuestionScaleOptionsEditor
+            options={scaleOptions}
+            onChange={setScaleOptions}
+            questionnaireName={questionnaireName}
+            responseType={effectiveResponseType}
+            questionOrder={question?.question_order}
+            showNumericValue={showNumericValue}
+          />
+          <input
+            type="hidden"
+            name="scale_options"
+            value={serializeScaleOptions(scaleOptions)}
+          />
+        </>
       ) : null}
     </>
   );
@@ -482,14 +550,13 @@ export function QuestionnaireDetailManager({
             ) : null}
             {isStudyTimeQuestionnaire ? (
               <div className="space-y-2 rounded-lg border bg-muted/30 p-3 text-sm">
-                <p className="font-medium">Response scale (Study Time)</p>
-                <ul className="mt-1 space-y-0.5 text-muted-foreground">
-                  <li>1 = Less than 1 hour per day</li>
-                  <li>2 = 1–2 hours per day</li>
-                  <li>3 = 3–4 hours per day</li>
-                  <li>4 = 5–6 hours per day</li>
-                  <li>5 = More than 6 hours per day</li>
-                </ul>
+                <p className="font-medium">Likert scale (Study Time)</p>
+                <p className="text-muted-foreground">
+                  Question 1 (weekly hours): 1 = Less than 5 hours · 2 = 5–10
+                  hours · 3 = 11–15 hours · 4 = 16–20 hours · 5 = More than 20
+                  hours. Question 2 (how often): 1 = Never · 2 = Sometimes · 3 =
+                  Often · 4 = Very Often. Order 1 is scored for MFBI.
+                </p>
               </div>
             ) : null}
             {isSleepHoursQuestionnaire ? (
@@ -533,6 +600,14 @@ export function QuestionnaireDetailManager({
                       {q.reverse_scored
                         ? "Scale: 1 = Definitely Agree · 2 = Agree · 3 = Neutral · 4 = Disagree · 5 = Definitely Disagree"
                         : "Scale: 1 = Definitely Disagree · 2 = Disagree · 3 = Neutral · 4 = Agree · 5 = Definitely Agree"}
+                    </p>
+                  ) : null}
+                  {isStudyTimeQuestionnaire &&
+                  q.response_type === "Likert Scale" ? (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {q.question_order === 1
+                        ? "Primary MFBI item: weekly hours → estimated daily hours for normalization."
+                        : "Supporting item: stored with submission, not used in MFBI study time score."}
                     </p>
                   ) : null}
                   {isStudyTimeQuestionnaire && q.response_type === "Hours" ? (
@@ -730,14 +805,14 @@ export function QuestionnaireDetailManager({
       </Card>
 
       <AlertDialog open={addOpen} onOpenChange={closeAddQuestion}>
-        <AlertDialogContent className="max-h-[90vh] overflow-y-auto data-[size=default]:max-w-lg data-[size=default]:sm:max-w-lg">
+        <AlertDialogContent className="max-h-[90vh] overflow-y-auto data-[size=default]:max-w-2xl data-[size=default]:sm:max-w-2xl">
           <AlertDialogHeader>
             <AlertDialogMedia>
               <PlusIcon />
             </AlertDialogMedia>
             <AlertDialogTitle>Add question</AlertDialogTitle>
             <AlertDialogDescription>
-              Configure reverse-scored items for PSS and Likert-scale forms.
+              Configure question text, response choices, and reverse scoring.
             </AlertDialogDescription>
           </AlertDialogHeader>
 
@@ -753,7 +828,10 @@ export function QuestionnaireDetailManager({
                 name="questionnaire_id"
                 value={questionnaire.questionnaire_id}
               />
-              <QuestionFields idPrefix="add-" />
+              <QuestionFields
+                idPrefix="add-"
+                questionnaireName={questionnaire.questionnaire_name}
+              />
             </form>
           ) : null}
 
@@ -775,14 +853,14 @@ export function QuestionnaireDetailManager({
       </AlertDialog>
 
       <AlertDialog open={editDialogOpen} onOpenChange={closeEditQuestion}>
-        <AlertDialogContent className="max-h-[90vh] overflow-y-auto data-[size=default]:max-w-lg data-[size=default]:sm:max-w-lg">
+        <AlertDialogContent className="max-h-[90vh] overflow-y-auto data-[size=default]:max-w-2xl data-[size=default]:sm:max-w-2xl">
           <AlertDialogHeader>
             <AlertDialogMedia>
               <PencilIcon />
             </AlertDialogMedia>
             <AlertDialogTitle>Edit question</AlertDialogTitle>
             <AlertDialogDescription>
-              Update text, scoring, order, and active status for this question.
+              Update text, response choices, scoring, order, and active status.
             </AlertDialogDescription>
           </AlertDialogHeader>
 
@@ -808,6 +886,7 @@ export function QuestionnaireDetailManager({
                 includeActive
                 includeResponseType={false}
                 idPrefix="edit-"
+                questionnaireName={questionnaire.questionnaire_name}
               />
             </form>
           ) : null}

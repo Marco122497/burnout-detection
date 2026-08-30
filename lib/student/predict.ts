@@ -3,6 +3,7 @@ import {
   type BurnoutLevel,
   type MfbiResult,
 } from "@/lib/student/mfbi";
+import { STUDY_TIME_SCORE_MAX } from "@/lib/student/scale-options";
 import type { SectionScores } from "@/lib/student/scoring";
 
 export type PredictionResult = {
@@ -46,7 +47,7 @@ export function predictDecisionTree(
         : "Moderate";
   } else if (mfbi.mfbi_score > 0.39) {
     prediction =
-      sections.study_time_score >= 9 && sections.sleep_hours_score >= 45
+      sections.study_time_score >= 18 && sections.sleep_hours_score >= 45
         ? "High"
         : "Moderate";
   } else {
@@ -71,7 +72,7 @@ export function predictRandomForest(
     classifyMfbiScore(mfbi.mfbi_score),
     classifyMfbiScore(sections.stress_score / 40),
     classifyMfbiScore(sections.academic_workload_score / 10),
-    classifyMfbiScore(sections.study_time_score / 12),
+    classifyMfbiScore(sections.study_time_score / STUDY_TIME_SCORE_MAX),
     classifyMfbiScore(sections.sleep_hours_score / 100),
   ];
 

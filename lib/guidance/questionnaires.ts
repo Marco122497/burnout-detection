@@ -1,4 +1,5 @@
 import type { createClient } from "@/lib/supabase/server";
+import type { ScaleOption } from "@/lib/student/scale-options";
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -23,6 +24,7 @@ export type QuestionRow = {
   reverse_scored: boolean;
   is_required: boolean;
   is_active: boolean;
+  scale_options?: ScaleOption[] | null;
 };
 
 export async function getQuestionnaires(supabase: SupabaseClient) {
@@ -81,7 +83,7 @@ export async function getQuestionsForQuestionnaire(
   const { data } = await supabase
     .from("questions")
     .select(
-      "question_id, questionnaire_id, question_text, question_order, response_type, reverse_scored, is_required, is_active"
+      "question_id, questionnaire_id, question_text, question_order, response_type, reverse_scored, is_required, is_active, scale_options"
     )
     .eq("questionnaire_id", questionnaireId)
     .order("question_order", { ascending: true });

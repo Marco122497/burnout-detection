@@ -51,11 +51,13 @@ function DepartmentFields({
   department,
   includeStatus,
   includeCode = true,
+  includeDescription = true,
   idPrefix = "",
 }: {
   department?: DepartmentWithCounts | null;
   includeStatus?: boolean;
   includeCode?: boolean;
+  includeDescription?: boolean;
   idPrefix?: string;
 }) {
   const id = (name: string) => `${idPrefix}${name}`;
@@ -84,16 +86,18 @@ function DepartmentFields({
           placeholder="Computer Science"
         />
       </div>
-      <div className="space-y-2 sm:col-span-2">
-        <Label htmlFor={id("description")}>Description</Label>
-        <textarea
-          id={id("description")}
-          name="description"
-          rows={3}
-          defaultValue={department?.description ?? ""}
-          className={textareaClassName}
-        />
-      </div>
+      {includeDescription ? (
+        <div className="space-y-2 sm:col-span-2">
+          <Label htmlFor={id("description")}>Description</Label>
+          <textarea
+            id={id("description")}
+            name="description"
+            rows={3}
+            defaultValue={department?.description ?? ""}
+            className={textareaClassName}
+          />
+        </div>
+      ) : null}
       {includeStatus && department ? (
         <div className="space-y-2 sm:col-span-2">
           <Label htmlFor={id("is_active")}>Status</Label>
@@ -362,7 +366,11 @@ export function DepartmentsManager({
               action={createAction}
               className="grid gap-4 sm:grid-cols-2"
             >
-              <DepartmentFields idPrefix="add-" includeCode={false} />
+              <DepartmentFields
+                idPrefix="add-"
+                includeCode={false}
+                includeDescription={false}
+              />
             </form>
           ) : null}
 

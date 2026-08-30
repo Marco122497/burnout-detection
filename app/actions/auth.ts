@@ -29,6 +29,43 @@ async function getRequestMeta() {
   };
 }
 
+async function resolveLoginEmail(identifier: string): Promise<string | null> {
+  const value = identifier.trim();
+  if (!value) return null;
+  if (value.includes("@")) return value;
+
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch {
+    return null;
+  }
+
+  const { data: byStudentNumber } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("student_number", value)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  const profile =
+    byStudentNumber ??
+    (
+      await admin
+        .from("profiles")
+        .select("id")
+        .eq("employee_no", value)
+        .eq("is_active", true)
+        .maybeSingle()
+    ).data;
+
+  if (!profile) return null;
+
+  const { data, error } = await admin.auth.admin.getUserById(profile.id);
+  if (error || !data.user?.email) return null;
+  return data.user.email;
+}
+
 export async function register(
   _prev: AuthActionState,
   formData: FormData
@@ -155,11 +192,16 @@ export async function login(
   _prev: AuthActionState,
   formData: FormData
 ): Promise<AuthActionState> {
-  const email = String(formData.get("email") || "").trim();
+  const identifier = String(formData.get("identifier") || "").trim();
   const password = String(formData.get("password") || "");
 
-  if (!email || !password) {
-    return { error: "Email and password are required." };
+  if (!identifier || !password) {
+    return { error: "Email or ID number and password are required." };
+  }
+
+  const email = await resolveLoginEmail(identifier);
+  if (!email) {
+    return { error: "Invalid email or ID number and password." };
   }
 
   const supabase = await createClient();
@@ -169,7 +211,7 @@ export async function login(
   });
 
   if (error || !data.user) {
-    return { error: error?.message || "Invalid email or password." };
+    return { error: "Invalid email or ID number and password." };
   }
 
   const { data: profile, error: profileError } = await supabase

@@ -12,10 +12,10 @@ import {
 import { useActionToast } from "@/hooks/use-action-toast";
 import type { QuestionnaireSection } from "@/lib/student/questionnaires";
 import {
-  getScaleOptions,
   STUDY_TIME_SCALE_DESCRIPTION,
   WORKLOAD_SCALE_DESCRIPTION,
 } from "@/lib/student/questionnaires";
+import { resolveScaleOptions } from "@/lib/student/scale-options";
 import { PSS_INTRO } from "@/lib/student/pss";
 import type { AcademicTerm } from "@/lib/student/terms";
 import { Button } from "@/components/ui/button";
@@ -247,9 +247,7 @@ export function WeeklyMonitoringForm({
       >
         <input type="hidden" name="week_number" value={currentWeek ?? 1} />
 
-        {sections.map((section) => {
-          const options = getScaleOptions(section.key);
-          return (
+        {sections.map((section) => (
             <Card key={section.key}>
               <CardHeader>
                 <CardTitle className="text-lg">
@@ -265,12 +263,17 @@ export function WeeklyMonitoringForm({
                         : section.key === "sleep"
                           ? "1 = Strongly Disagree · 2 = Disagree · 3 = Neutral · 4 = Agree · 5 = Strongly Agree. Reverse-scored items keep this scale and are reversed during scoring."
                           : section.description ||
-                            "Answer every item using the 1–5 scale."}
+                            "Answer every item using the response scale shown for each question."}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-5">
                 {section.questions.map((question, index) => {
                   const isMissing = unansweredIds.includes(question.question_id);
+                  const options = resolveScaleOptions(
+                    section.key,
+                    question,
+                    section.questionnaire_name
+                  );
                   return (
                     <fieldset
                       key={question.question_id}
@@ -289,7 +292,7 @@ export function WeeklyMonitoringForm({
                           </span>
                         ) : null}
                       </legend>
-                      <div className="grid gap-2 sm:grid-cols-5">
+                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-[repeat(auto-fit,minmax(8rem,1fr))]">
                         {options.map((option) => {
                           const displayScore =
                             section.key === "pss"
@@ -322,8 +325,7 @@ export function WeeklyMonitoringForm({
                 })}
               </CardContent>
             </Card>
-          );
-        })}
+          ))}
 
         <Card>
           <CardContent className="pt-6">
