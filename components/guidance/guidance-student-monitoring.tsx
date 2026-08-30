@@ -8,7 +8,10 @@ import type { Department } from "@/lib/auth/roles";
 import type { GuidanceStudentRow } from "@/lib/guidance/monitoring";
 import { useTablePagination } from "@/hooks/use-table-pagination";
 import { useNavigationPending } from "@/components/layout/navigation-pending";
-import { scoreOverMax } from "@/components/shared/risk-display";
+import {
+  formatNormalizedFactor,
+  normalizeFactorScore,
+} from "@/components/shared/risk-display";
 import { STUDY_TIME_SCORE_MAX } from "@/lib/student/scale-options";
 import { TablePagination } from "@/components/shared/table-pagination";
 import { Button } from "@/components/ui/button";
@@ -246,21 +249,25 @@ export function GuidanceStudentMonitoring({
                           {row.department_name || "—"}
                         </td>
                         <td className="px-2 py-1.5">{row.year_level ?? "—"}</td>
-                        <td className="px-2 py-1.5">
-                          {row.stress_level
-                            ? `${row.stress_level} (${row.stress_score})`
-                            : "—"}
-                        </td>
-                        <td className="px-2 py-1.5">
-                          {row.academic_workload ?? "—"}
+                        <td className="px-2 py-1.5 tabular-nums">
+                          {formatNormalizedFactor(
+                            normalizeFactorScore(row.stress_score, 40)
+                          )}
                         </td>
                         <td className="px-2 py-1.5 tabular-nums">
-                          {scoreOverMax(row.study_time, STUDY_TIME_SCORE_MAX)}
+                          {formatNormalizedFactor(
+                            normalizeFactorScore(row.academic_workload, 10)
+                          )}
                         </td>
-                        <td className="px-2 py-1.5">
-                          {row.sleep_hours != null
-                            ? `${row.sleep_hours}`
-                            : "—"}
+                        <td className="px-2 py-1.5 tabular-nums">
+                          {formatNormalizedFactor(
+                            normalizeFactorScore(row.study_time, STUDY_TIME_SCORE_MAX)
+                          )}
+                        </td>
+                        <td className="px-2 py-1.5 tabular-nums">
+                          {formatNormalizedFactor(
+                            normalizeFactorScore(row.sleep_hours, 100)
+                          )}
                         </td>
                         <td className="px-2 py-1.5">
                           {row.mfbi_score != null

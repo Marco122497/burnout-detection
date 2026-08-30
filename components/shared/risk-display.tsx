@@ -58,6 +58,21 @@ export function scoreOverMax(value: number | null | undefined, max: number) {
   return `${display}/${max}`;
 }
 
+/** Clamp a raw section score to MFBI normalization range (0–1). */
+export function normalizeFactorScore(
+  value: number | null | undefined,
+  max: number
+) {
+  if (value == null || Number.isNaN(Number(value))) return null;
+  return Math.min(1, Math.max(0, Number(value) / max));
+}
+
+/** Display a normalized burnout factor (0–1), e.g. `0.50`. */
+export function formatNormalizedFactor(value: number | null | undefined) {
+  if (value == null || Number.isNaN(Number(value))) return "—";
+  return Number(value).toFixed(2);
+}
+
 /** Flip a load/risk score so a higher displayed value means healthier. */
 export function invertedScoreOverMax(
   riskValue: number | null | undefined,

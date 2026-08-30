@@ -8,7 +8,7 @@ import {
 
 import type { BurnoutFactor } from "@/lib/student/dashboard";
 import { classifyMfbiScore } from "@/lib/student/mfbi";
-import { STUDY_TIME_SCORE_MAX } from "@/lib/student/scale-options";
+import { formatNormalizedFactor } from "@/components/shared/risk-display";
 import {
   Card,
   CardContent,
@@ -123,7 +123,9 @@ export function BurnoutHero({
           <div className="flex items-baseline justify-between text-sm">
             <span className="text-muted-foreground">Burnout index (MFBI)</span>
             <span className="font-medium tabular-nums">
-              {mfbiScore != null ? mfbiScore.toFixed(2) : "—"}
+              {mfbiScore != null
+                ? `${mfbiScore.toFixed(2)} (${mfbiPercent}%)`
+                : "—"}
             </span>
           </div>
           <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
@@ -136,7 +138,6 @@ export function BurnoutHero({
             <span>Low</span>
             <span>Moderate</span>
             <span>High</span>
-            <span>Severe</span>
           </div>
           {children}
         </div>
@@ -151,20 +152,12 @@ function factorTone(normalized: number) {
   return "bg-rose-500";
 }
 
-function formatFactorScore(value: number, max: number) {
-  const display = Number.isInteger(value)
-    ? String(value)
-    : String(Math.round(value * 100) / 100);
-  return `${display}/${max}`;
-}
-
 function factorScoreLabel(
   prefix: string,
-  value: number,
-  max: number,
+  normalized: number,
   level?: string | null
 ) {
-  const score = formatFactorScore(value, max);
+  const score = formatNormalizedFactor(normalized);
   return level ? `${prefix}: ${score} · ${level}` : `${prefix}: ${score}`;
 }
 
@@ -262,9 +255,8 @@ export function BurnoutFactorSection({
           rawLabel={
             factors
               ? factorScoreLabel(
-                  "PSS",
-                  factors.stress.raw,
-                  40,
+                  "SL",
+                  factors.stress.normalized,
                   stressLevel
                 )
               : undefined
@@ -279,8 +271,7 @@ export function BurnoutFactorSection({
             factors
               ? factorScoreLabel(
                   "AW",
-                  factors.workload.raw,
-                  10,
+                  factors.workload.normalized,
                   classifyMfbiScore(factors.workload.normalized)
                 )
               : undefined
@@ -295,8 +286,7 @@ export function BurnoutFactorSection({
             factors
               ? factorScoreLabel(
                   "ST",
-                  factors.studyTime.raw,
-                  STUDY_TIME_SCORE_MAX,
+                  factors.studyTime.normalized,
                   classifyMfbiScore(factors.studyTime.normalized)
                 )
               : undefined
@@ -311,8 +301,7 @@ export function BurnoutFactorSection({
             factors
               ? factorScoreLabel(
                   "Sleep",
-                  factors.sleep.raw,
-                  100,
+                  factors.sleep.normalized,
                   classifyMfbiScore(factors.sleep.normalized)
                 )
               : undefined

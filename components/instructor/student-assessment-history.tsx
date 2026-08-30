@@ -20,9 +20,10 @@ import {
   EarlyWarningOutlookCard,
 } from "@/components/shared/burnout-outlook";
 import {
+  formatNormalizedFactor,
+  normalizeFactorScore,
   PredictionLabel,
   RiskLevelText,
-  scoreOverMax,
 } from "@/components/shared/risk-display";
 import { STUDY_TIME_SCORE_MAX } from "@/lib/student/scale-options";
 import { useNavigationPending } from "@/components/layout/navigation-pending";
@@ -274,16 +275,28 @@ export function StudentAssessmentHistoryView({
                               : "—"}
                           </td>
                           <td className="px-2 py-1.5 tabular-nums">
-                            {scoreOverMax(row.stress_score, 40)}
+                            {formatNormalizedFactor(
+                              row.normalized_stress ??
+                                normalizeFactorScore(row.stress_score, 40)
+                            )}
                           </td>
                           <td className="px-2 py-1.5 tabular-nums">
-                            {scoreOverMax(row.academic_workload, 10)}
+                            {formatNormalizedFactor(
+                              row.normalized_workload ??
+                                normalizeFactorScore(row.academic_workload, 10)
+                            )}
                           </td>
                           <td className="px-2 py-1.5 tabular-nums">
-                            {scoreOverMax(row.study_time, STUDY_TIME_SCORE_MAX)}
+                            {formatNormalizedFactor(
+                              row.normalized_study_time ??
+                                normalizeFactorScore(row.study_time, STUDY_TIME_SCORE_MAX)
+                            )}
                           </td>
                           <td className="px-2 py-1.5 tabular-nums">
-                            {scoreOverMax(row.sleep_hours, 100)}
+                            {formatNormalizedFactor(
+                              row.normalized_sleep ??
+                                normalizeFactorScore(row.sleep_hours, 100)
+                            )}
                           </td>
                           <td className="px-2 py-1.5 tabular-nums">
                             {row.mfbi_score != null

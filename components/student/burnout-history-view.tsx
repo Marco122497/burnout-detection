@@ -11,7 +11,8 @@ import {
   BurnoutHero,
 } from "@/components/shared/burnout-summary";
 import {
-  scoreOverMax,
+  formatNormalizedFactor,
+  normalizeFactorScore,
 } from "@/components/shared/risk-display";
 import { STUDY_TIME_SCORE_MAX } from "@/lib/student/scale-options";
 import { TablePagination } from "@/components/shared/table-pagination";
@@ -431,16 +432,28 @@ export function BurnoutHistoryView({
                                 : "—"}
                             </td>
                             <td className="px-2 py-1.5 tabular-nums">
-                              {scoreOverMax(row.stress_score, 40)}
+                              {formatNormalizedFactor(
+                                result?.normalized_stress ??
+                                  normalizeFactorScore(row.stress_score, 40)
+                              )}
                             </td>
                             <td className="px-2 py-1.5 tabular-nums">
-                              {scoreOverMax(row.academic_workload, 10)}
+                              {formatNormalizedFactor(
+                                result?.normalized_workload ??
+                                  normalizeFactorScore(row.academic_workload, 10)
+                              )}
                             </td>
                             <td className="px-2 py-1.5 tabular-nums">
-                              {scoreOverMax(row.study_time, STUDY_TIME_SCORE_MAX)}
+                              {formatNormalizedFactor(
+                                result?.normalized_study_time ??
+                                  normalizeFactorScore(row.study_time, STUDY_TIME_SCORE_MAX)
+                              )}
                             </td>
                             <td className="px-2 py-1.5 tabular-nums">
-                              {scoreOverMax(row.sleep_hours, 100)}
+                              {formatNormalizedFactor(
+                                result?.normalized_sleep ??
+                                  normalizeFactorScore(row.sleep_hours, 100)
+                              )}
                             </td>
                             <td className="px-2 py-1.5 tabular-nums">
                               {result ? result.mfbi_score.toFixed(2) : "—"}
