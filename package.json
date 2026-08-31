@@ -7,6 +7,10 @@
     "dev:with-ai": "concurrently -k -n next,ai -c cyan,magenta \"next dev\" \"npm run ai\"",
     "ai": "node scripts/run-ai.mjs",
     "train": "node scripts/run-train.mjs",
+    "train:merge": "py burnout-ai/training/merge_real_data.py",
+    "train:export": "py burnout-ai/training/export_real_data.py",
+    "train:prepare": "py burnout-ai/training/merge_real_data.py && py burnout-ai/training/balance_datasets.py",
+    "train:full": "py burnout-ai/training/merge_real_data.py && py burnout-ai/training/balance_datasets.py && node scripts/run-train.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"

@@ -5,7 +5,9 @@ import type {
 } from "@/lib/student/questionnaires";
 import {
   getNumericValueForAnswer,
+  getStudyFrequencyHoursEquivalent,
   getStudyQuestionRole,
+  isStudyWeeklyHoursQuestion,
   isValidAnswerForQuestion,
   STUDY_TIME_SCORE_MAX,
 } from "@/lib/student/scale-options";
@@ -80,7 +82,7 @@ export function scoreWorkloadSection(
 
 /**
  * Study time score as estimated hours/week (0–{STUDY_TIME_SCORE_MAX}).
- * Uses the primary question (order 1) only; other items are stored but not averaged in.
+ * Averages ST1 weekly hours with ST2 review frequency (mapped to the same scale).
  */
 export function scoreStudySection(
   questions: QuestionRow[],
@@ -101,24 +103,54 @@ export function scoreStudySection(
     questions.find((question) => question.question_order === 1) ??
     questions[0];
 
-  const raw = answers[primary.question_id];
-  if (!isValidAnswerForQuestion("study", primary, raw, questionnaireName)) {
+  const rawPrimary = answers[primary.question_id];
+  if (!isValidAnswerForQuestion("study", primary, rawPrimary, questionnaireName)) {
     throw new Error("Please answer the primary Study Time question.");
   }
 
-  const numeric = getNumericValueForAnswer(
+  const primaryHours = getNumericValueForAnswer(
     "study",
     primary,
-    raw,
+    rawPrimary,
     questionnaireName
   );
-  if (numeric == null || !Number.isFinite(numeric)) {
+  if (primaryHours == null || !Number.isFinite(primaryHours)) {
     throw new Error("Study Time score could not be calculated.");
   }
 
+  const componentScores: number[] = [primaryHours];
+
+  for (const question of questions) {
+    if (question.question_id === primary.question_id) continue;
+    if (getStudyQuestionRole(question) !== "supporting") continue;
+
+    const raw = answers[question.question_id];
+    if (!isValidAnswerForQuestion("study", question, raw, questionnaireName)) {
+      continue;
+    }
+
+    if (isStudyWeeklyHoursQuestion("study", question, questionnaireName)) {
+      continue;
+    }
+
+    const frequencyHours = getStudyFrequencyHoursEquivalent(
+      "study",
+      question,
+      raw,
+      questionnaireName
+    );
+    if (frequencyHours != null && Number.isFinite(frequencyHours)) {
+      componentScores.push(frequencyHours);
+    }
+  }
+
+  const average =
+    componentScores.reduce((sum, value) => sum + value, 0) /
+    componentScores.length;
+
   return Math.min(
-    STUDY_TIME_SCORE_MAX + 5,
-    Math.round(numeric * 100) / 100
+    STUDY_TIME_SCORE_MAX,
+    Math.round(average * 100) / 100
   );
 }
 

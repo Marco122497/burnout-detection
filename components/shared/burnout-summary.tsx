@@ -22,32 +22,47 @@ export type RiskTheme = {
   badge: string;
   bar: string;
   ring: string;
+  title: string;
+  card: string;
+  mfbi: string;
   message: string;
 };
 
 const RISK_THEMES: Record<string, RiskTheme> = {
   Low: {
-    badge: "bg-emerald-100 text-emerald-800",
+    badge: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300",
     bar: "bg-emerald-500",
-    ring: "ring-emerald-200",
+    ring: "ring-emerald-200 dark:ring-emerald-900",
+    title: "text-emerald-700 dark:text-emerald-400",
+    card: "bg-emerald-50/50 dark:bg-emerald-950/15",
+    mfbi: "text-emerald-700 dark:text-emerald-400",
     message: "You're doing well. Keep up your healthy routines.",
   },
   Moderate: {
-    badge: "bg-amber-100 text-amber-900",
+    badge: "bg-amber-100 text-amber-900 dark:bg-amber-950/50 dark:text-amber-300",
     bar: "bg-amber-500",
-    ring: "ring-amber-200",
+    ring: "ring-amber-200 dark:ring-amber-900",
+    title: "text-amber-700 dark:text-amber-400",
+    card: "bg-amber-50/50 dark:bg-amber-950/15",
+    mfbi: "text-amber-700 dark:text-amber-400",
     message: "Some warning signs. Check the recommendations below.",
   },
   High: {
-    badge: "bg-orange-100 text-orange-900",
-    bar: "bg-orange-500",
-    ring: "ring-orange-200",
+    badge: "bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-300",
+    bar: "bg-red-500",
+    ring: "ring-red-300 dark:ring-red-800",
+    title: "text-red-700 dark:text-red-400",
+    card: "bg-red-50/80 dark:bg-red-950/25",
+    mfbi: "font-semibold text-red-700 dark:text-red-400",
     message: "Your burnout risk is high. Please review the recommended actions.",
   },
   Severe: {
-    badge: "bg-rose-100 text-rose-900",
-    bar: "bg-rose-500",
-    ring: "ring-rose-200",
+    badge: "bg-red-100 text-red-900 dark:bg-red-950/60 dark:text-red-200",
+    bar: "bg-red-600",
+    ring: "ring-red-400 dark:ring-red-700",
+    title: "text-red-800 dark:text-red-300",
+    card: "bg-red-100/80 dark:bg-red-950/35",
+    mfbi: "font-semibold text-red-800 dark:text-red-300",
     message:
       "Your burnout risk is severe. Consider reaching out to the guidance office.",
   },
@@ -57,6 +72,9 @@ const DEFAULT_RISK_THEME: RiskTheme = {
   badge: "bg-muted text-muted-foreground",
   bar: "bg-primary",
   ring: "ring-foreground/10",
+  title: "text-foreground",
+  card: "",
+  mfbi: "text-foreground",
   message: "Submit your weekly monitoring to see your burnout risk.",
 };
 
@@ -83,7 +101,7 @@ export function BurnoutHero({
   const mfbiPercent = mfbiScore != null ? Math.round(mfbiScore * 100) : null;
 
   return (
-    <Card className={cn("ring-2", theme.ring)}>
+    <Card className={cn("ring-2", theme.ring, theme.card)}>
       <CardContent className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-start gap-4">
           <span
@@ -99,7 +117,12 @@ export function BurnoutHero({
               Current burnout risk
             </p>
             <div className="mt-0.5 flex flex-wrap items-center gap-2">
-              <span className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
+              <span
+                className={cn(
+                  "font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight",
+                  theme.title
+                )}
+              >
                 {level ?? "No data"}
               </span>
               {weekLabel ? (
@@ -122,7 +145,7 @@ export function BurnoutHero({
         <div className="w-full max-w-sm space-y-2">
           <div className="flex items-baseline justify-between text-sm">
             <span className="text-muted-foreground">Burnout index (MFBI)</span>
-            <span className="font-medium tabular-nums">
+            <span className={cn("font-medium tabular-nums", theme.mfbi)}>
               {mfbiScore != null
                 ? `${mfbiScore.toFixed(2)} (${mfbiPercent}%)`
                 : "—"}
@@ -280,7 +303,7 @@ export function BurnoutFactorSection({
         <FactorCard
           icon={<ClockIcon />}
           label="Study Time"
-          description="Hours spent studying each week (order 1 question)."
+          description="Weekly study hours (Q1) and review frequency (Q2), averaged."
           factor={factors?.studyTime ?? null}
           rawLabel={
             factors

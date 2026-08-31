@@ -87,7 +87,7 @@ const STUDY_TIME_LABELS = [
 ] as const;
 
 export const STUDY_TIME_SCALE_DESCRIPTION =
-  "Question 1: weekly study hours. Question 2: how often you review (Never to Very Often).";
+  "Question 1: weekly study hours. Question 2: how often you review (Never to Very Often). Both are averaged for your Study Time score.";
 
 export function getScaleOptions(sectionKey: QuestionnaireKey) {
   if (sectionKey === "pss") return PSS_LABELS;

@@ -39,7 +39,8 @@ import { cn } from "@/lib/utils";
 
 const trendChartConfig = {
   score: { label: "MFBI", color: "#2563eb" },
-  projection: { label: "Projection", color: "#b45309" },
+  nextProjection: { label: "Next week (ML)", color: "#d97706" },
+  week2Projection: { label: "Week 2 trend", color: "#7c3aed" },
 } satisfies ChartConfig;
 
 type TrendRange = "4w" | "8w" | "all";
@@ -90,7 +91,7 @@ function TrendWeekCard({
   level: string | null;
   direction?: string | null;
   delta?: number | null;
-  projected?: boolean;
+  projected?: false | "next" | "trend";
   current?: boolean;
 }) {
   const directionLabel = formatDirectionLabel(direction);
@@ -99,11 +100,13 @@ function TrendWeekCard({
     <div
       className={cn(
         "rounded-lg border px-2.5 py-2",
-        projected
-          ? "border-dashed border-amber-500/40 bg-amber-500/5"
-          : current
-            ? "border-blue-500/40 bg-blue-500/5"
-            : "border-border/70"
+        projected === "next"
+          ? "border-dashed border-amber-500/50 bg-amber-500/8"
+          : projected === "trend"
+            ? "border-dashed border-violet-500/50 bg-violet-500/8"
+            : current
+              ? "border-blue-500/40 bg-blue-500/5"
+              : "border-border/70"
       )}
     >
       <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
@@ -395,7 +398,8 @@ export function BurnoutRiskTrendChart({
     weekLabel: string;
     weekNumber: number;
     score: number | null;
-    projection: number | null;
+    nextProjection: number | null;
+    week2Projection: number | null;
     level: string;
     direction: string | null;
     delta: number | null;
@@ -410,7 +414,12 @@ export function BurnoutRiskTrendChart({
       weekLabel: isLast ? `Week ${point.week} · Current` : `Week ${point.week}`,
       weekNumber: point.week,
       score: point.score ?? 0,
-      projection: isLast && hasProjection ? (point.score ?? 0) : null,
+      nextProjection:
+        isLast && nextScore != null ? (point.score ?? 0) : null,
+      week2Projection:
+        isLast && nextScore == null && week2Score != null
+          ? (point.score ?? 0)
+          : null,
       level: point.level ?? "—",
       direction: point.direction ?? null,
       delta: point.delta ?? null,
@@ -425,7 +434,8 @@ export function BurnoutRiskTrendChart({
       weekLabel: "Next week",
       weekNumber: (latest?.week ?? 0) + 1,
       score: null,
-      projection: nextScore,
+      nextProjection: nextScore,
+      week2Projection: week2Score != null ? nextScore : null,
       level: nextWeekLevel,
       direction: nextDirection,
       delta: nextDelta,
@@ -437,10 +447,11 @@ export function BurnoutRiskTrendChart({
   if (week2Score != null && week2Level) {
     chartData.push({
       week: "W+2",
-      weekLabel: "Week 2",
+      weekLabel: "Week 2 trend",
       weekNumber: (latest?.week ?? 0) + 2,
       score: null,
-      projection: week2Score,
+      nextProjection: null,
+      week2Projection: week2Score,
       level: week2Level,
       direction: week2Direction,
       delta: week2Delta,
@@ -543,8 +554,14 @@ export function BurnoutRiskTrendChart({
                     const point = payload[0]?.payload as ChartPoint | undefined;
                     if (!point) return null;
                     const displayScore =
-                      point.kind === "actual" ? point.score : point.projection;
+                      point.kind === "actual"
+                        ? point.score
+                        : point.kind === "next"
+                          ? point.nextProjection
+                          : point.week2Projection;
                     const directionLabel = formatDirectionLabel(point.direction);
+                    const isNextProjection = point.kind === "next";
+                    const isTrendProjection = point.kind === "week2";
 
                     return (
                       <div
@@ -552,7 +569,11 @@ export function BurnoutRiskTrendChart({
                           "grid min-w-[10.5rem] grid-cols-2 gap-x-3 gap-y-0.5 rounded-lg border bg-background px-2.5 py-2 text-xs shadow-xl",
                           point.isCurrent
                             ? "border-blue-500/40"
-                            : "border-border/50"
+                            : isNextProjection
+                              ? "border-amber-500/40"
+                              : isTrendProjection
+                                ? "border-violet-500/40"
+                                : "border-border/50"
                         )}
                       >
                         <div className="min-w-0">
@@ -563,6 +584,14 @@ export function BurnoutRiskTrendChart({
                             {point.isCurrent ? (
                               <span className="ml-1 font-semibold text-blue-700 dark:text-blue-300">
                                 · Current
+                              </span>
+                            ) : isNextProjection ? (
+                              <span className="ml-1 font-semibold text-amber-700 dark:text-amber-300">
+                                · ML
+                              </span>
+                            ) : isTrendProjection ? (
+                              <span className="ml-1 font-semibold text-violet-700 dark:text-violet-300">
+                                · Trend
                               </span>
                             ) : null}
                           </p>
@@ -613,13 +642,24 @@ export function BurnoutRiskTrendChart({
                   dot={showDots}
                   connectNulls={false}
                 />
-                {hasProjection ? (
+                {nextScore != null ? (
                   <Line
                     type="monotone"
-                    dataKey="projection"
-                    stroke="var(--color-projection)"
+                    dataKey="nextProjection"
+                    stroke="var(--color-nextProjection)"
                     strokeWidth={2}
-                    strokeDasharray="5 4"
+                    strokeDasharray="6 4"
+                    dot={showDots}
+                    connectNulls
+                  />
+                ) : null}
+                {week2Score != null ? (
+                  <Line
+                    type="monotone"
+                    dataKey="week2Projection"
+                    stroke="var(--color-week2Projection)"
+                    strokeWidth={2}
+                    strokeDasharray="4 4"
                     dot={showDots}
                     connectNulls
                   />
@@ -629,8 +669,18 @@ export function BurnoutRiskTrendChart({
 
             {hasProjection ? (
               <p className="text-[11px] text-muted-foreground">
-                Solid line = recorded MFBI. Dashed line = next-week ML risk and
-                week-2 trend projection (mapped to risk midpoints for charting).
+                <span className="font-medium text-blue-600 dark:text-blue-400">
+                  Blue solid
+                </span>{" "}
+                = recorded MFBI.{" "}
+                <span className="font-medium text-amber-600 dark:text-amber-400">
+                  Amber dashed
+                </span>{" "}
+                = next-week ML prediction.{" "}
+                <span className="font-medium text-violet-600 dark:text-violet-400">
+                  Violet dashed
+                </span>{" "}
+                = week-2 trend projection.
               </p>
             ) : null}
 
@@ -655,15 +705,15 @@ export function BurnoutRiskTrendChart({
                 level={nextWeekLevel}
                 direction={nextDirection}
                 delta={nextDelta}
-                projected
+                projected="next"
               />
               <TrendWeekCard
-                label="Week 2"
+                label="Week 2 trend"
                 score={week2Score}
                 level={week2Level}
                 direction={week2Direction}
                 delta={week2Delta}
-                projected
+                projected="trend"
               />
             </div>
           </>

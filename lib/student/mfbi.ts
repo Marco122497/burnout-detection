@@ -45,7 +45,7 @@ export function classifyMfbiScore(score: number): BurnoutLevel {
  * Normalization (0–1), all oriented so higher = greater burnout risk:
  * - Stress (PSS-10): 0–40
  * - Academic workload: 0–10
- * - Study time: 0–25 hours/week (ST1 weekly scale)
+ * - Study time: 0–25 hours/week (average of ST1 weekly hours + ST2 frequency)
  * - Sleep risk: 0–100 (already risk-oriented; no hours inversion)
  */
 export function computeMfbi(input: MfbiInput): MfbiResult {

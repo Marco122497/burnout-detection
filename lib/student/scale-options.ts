@@ -40,7 +40,7 @@ const ST1_WEEKLY_LIKERT_DEFAULTS: ScaleOption[] = [
   { value: 5, label: "More than 20 hours", numeric_value: 25 },
 ];
 
-/** ST2 — review frequency (order 2+, supporting item). */
+/** ST2 — review frequency (order 2+; averaged with ST1 for MFBI). */
 const ST2_FREQUENCY_DEFAULTS: ScaleOption[] = [
   { value: 1, label: "Never" },
   { value: 2, label: "Sometimes" },
@@ -115,6 +115,41 @@ export function getStudyQuestionRole(question: Pick<QuestionRow, "question_text"
 
 function isWeeklyHoursScale(options: ScaleOption[]) {
   return options.some((option) => /\bhours?\b/i.test(option.label));
+}
+
+export function isStudyWeeklyHoursQuestion(
+  sectionKey: QuestionnaireKey,
+  question: QuestionRow,
+  questionnaireName?: string | null
+) {
+  if (sectionKey !== "study") return false;
+  if (getStudyQuestionRole(question) === "primary") return true;
+  return isWeeklyHoursScale(
+    resolveScaleOptions(sectionKey, question, questionnaireName)
+  );
+}
+
+/**
+ * Maps ST2 frequency Likert (e.g. Never → Very Often) to weekly hours equivalent
+ * on the 0–{STUDY_TIME_SCORE_MAX} MFBI scale (higher frequency = higher risk).
+ */
+export function getStudyFrequencyHoursEquivalent(
+  sectionKey: QuestionnaireKey,
+  question: QuestionRow,
+  answerValue: number,
+  questionnaireName?: string | null
+) {
+  const options = resolveScaleOptions(sectionKey, question, questionnaireName);
+  if (!options.length) return null;
+
+  const min = Math.min(...options.map((option) => option.value));
+  const max = Math.max(...options.map((option) => option.value));
+  if (answerValue < min || answerValue > max) return null;
+  if (max === min) return 0;
+
+  return Math.round(
+    ((answerValue - min) / (max - min)) * STUDY_TIME_SCORE_MAX * 100
+  ) / 100;
 }
 
 export function getDefaultScaleOptions(input: {
