@@ -6,6 +6,8 @@ import { headers } from "next/headers";
 import { toAuditLogRow } from "@/lib/audit";
 import { DEFAULT_INITIAL_PASSWORD } from "@/lib/auth/defaults";
 import { getSessionUser, requireRole } from "@/lib/auth/session";
+import type { BulkStudentDraft } from "@/lib/guidance/bulk-students";
+import { fillDepartmentMonitoring } from "@/lib/guidance/fill-department-monitoring";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type GuidanceActionState = {
@@ -569,6 +571,72 @@ export async function assignInstructorDepartment(
   return { success: "Instructor assigned to department." };
 }
 
+type StudentAccountInput = {
+  email: string;
+  first_name: string;
+  middle_name: string | null;
+  last_name: string;
+  suffix: string | null;
+  student_number: string;
+  department_id: number;
+  year_level: number;
+  section?: string | null;
+  course: string | null;
+};
+
+async function provisionStudentAccount(
+  admin: ReturnType<typeof createAdminClient>,
+  input: StudentAccountInput
+): Promise<{ userId: string } | { error: string }> {
+  const { data, error } = await admin.auth.admin.createUser({
+    email: input.email,
+    password: DEFAULT_INITIAL_PASSWORD,
+    email_confirm: true,
+    user_metadata: {
+      first_name: input.first_name,
+      middle_name: input.middle_name,
+      last_name: input.last_name,
+      suffix: input.suffix,
+      student_number: input.student_number,
+      department_id: input.department_id,
+      course: input.course,
+      year_level: input.year_level,
+      role: "Student",
+    },
+  });
+
+  if (error) {
+    if (/already|registered|exists/i.test(error.message)) {
+      return { error: "An account with this email already exists." };
+    }
+    return { error: error.message };
+  }
+
+  if (!data.user) {
+    return { error: "Failed to create student account." };
+  }
+
+  const { error: profileError } = await admin
+    .from("profiles")
+    .update({
+      student_number: input.student_number,
+      department_id: input.department_id,
+      course: input.course,
+      year_level: input.year_level,
+      section: input.section ?? null,
+      role: "Student",
+      is_active: true,
+      enrollment_status: "enrolled",
+    })
+    .eq("id", data.user.id);
+
+  if (profileError) {
+    return { error: profileError.message };
+  }
+
+  return { userId: data.user.id };
+}
+
 export async function createStudent(
   _prev: GuidanceActionState,
   formData: FormData
@@ -629,46 +697,21 @@ export async function createStudent(
   const course =
     department.description?.trim() || department.department_name || null;
 
-  const { data, error } = await admin.auth.admin.createUser({
+  const result = await provisionStudentAccount(admin, {
     email,
-    password,
-    email_confirm: true,
-    user_metadata: {
-      first_name,
-      middle_name,
-      last_name,
-      suffix,
-      student_number,
-      department_id,
-      course,
-      year_level,
-      role: "Student",
-    },
+    first_name,
+    middle_name,
+    last_name,
+    suffix,
+    student_number,
+    department_id,
+    year_level,
+    course,
   });
 
-  if (error) {
-    if (/already|registered|exists/i.test(error.message)) {
-      return { error: "An account with this email already exists." };
-    }
-    return { error: error.message };
+  if ("error" in result) {
+    return { error: result.error };
   }
-
-  if (!data.user) {
-    return { error: "Failed to create student account." };
-  }
-
-  await admin
-    .from("profiles")
-    .update({
-      student_number,
-      department_id,
-      course,
-      year_level,
-      section: null,
-      role: "Student",
-      is_active: true,
-    })
-    .eq("id", data.user.id);
 
   await supabase.from("audit_logs").insert(
     toAuditLogRow({
@@ -677,7 +720,7 @@ export async function createStudent(
       action: "CREATE_STUDENT",
       action_type: "CREATE",
       table_name: "profiles",
-      record_id: data.user.id,
+      record_id: result.userId,
       description: `Created student ${first_name} ${last_name}`,
       ip_address: await getIp(),
     })
@@ -687,6 +730,202 @@ export async function createStudent(
   revalidatePath("/guidance/monitoring");
   revalidatePath("/guidance/departments");
   return { success: "Student account created." };
+}
+
+export async function bulkCreateStudents(
+  _prev: GuidanceActionState,
+  formData: FormData
+): Promise<GuidanceActionState> {
+  const { supabase, user, profile } = await requireRole([
+    "Guidance Counselor",
+  ]);
+
+  const department_id = Number(formData.get("department_id"));
+  const rowsJson = String(formData.get("rows_json") || "").trim();
+
+  if (!department_id || Number.isNaN(department_id)) {
+    return { error: "Please select a course for bulk import." };
+  }
+
+  let rows: BulkStudentDraft[];
+  try {
+    rows = JSON.parse(rowsJson) as BulkStudentDraft[];
+  } catch {
+    return { error: "Invalid student list data." };
+  }
+
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return { error: "Paste at least one student row to import." };
+  }
+
+  if (rows.length > 200) {
+    return { error: "You can import up to 200 students at a time." };
+  }
+
+  const invalidRows = rows.filter((row) => row.errors.length > 0);
+  if (invalidRows.length > 0) {
+    return {
+      error: `Fix ${invalidRows.length} row(s) with errors before importing.`,
+    };
+  }
+
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch {
+    return {
+      error:
+        "Missing SUPABASE_SERVICE_ROLE_KEY. Add it to .env.local to create students.",
+    };
+  }
+
+  const { data: department, error: departmentError } = await admin
+    .from("departments")
+    .select("department_id, department_name, description")
+    .eq("department_id", department_id)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (departmentError || !department) {
+    return { error: "Please select a valid course." };
+  }
+
+  const course =
+    department.description?.trim() || department.department_name || null;
+
+  const failures: string[] = [];
+  let created = 0;
+
+  for (const row of rows) {
+    const result = await provisionStudentAccount(admin, {
+      email: row.email,
+      first_name: row.first_name,
+      middle_name: row.middle_name,
+      last_name: row.last_name,
+      suffix: row.suffix,
+      student_number: row.student_number,
+      department_id,
+      year_level: row.year_level,
+      section: row.section,
+      course,
+    });
+
+    if ("error" in result) {
+      failures.push(
+        `Row ${row.rowNumber} (${row.student_number}): ${result.error}`
+      );
+      continue;
+    }
+
+    created += 1;
+    await supabase.from("audit_logs").insert(
+      toAuditLogRow({
+        user_id: user.id,
+        user_role: profile.role,
+        action: "CREATE_STUDENT",
+        action_type: "CREATE",
+        table_name: "profiles",
+        record_id: result.userId,
+        description: `Bulk created student ${row.first_name} ${row.last_name}`,
+        ip_address: await getIp(),
+      })
+    );
+  }
+
+  revalidatePath("/guidance/students");
+  revalidatePath("/guidance/monitoring");
+  revalidatePath("/guidance/departments");
+
+  if (created === 0) {
+    return {
+      error:
+        failures[0] ??
+        "No students were imported. Check for duplicate emails or student numbers.",
+    };
+  }
+
+  if (failures.length > 0) {
+    return {
+      success: `Imported ${created} student(s). ${failures.length} failed.`,
+      error: failures.slice(0, 5).join(" "),
+    };
+  }
+
+  return { success: `Imported ${created} student(s).` };
+}
+
+export async function generateDepartmentMonitoring(
+  _prev: GuidanceActionState,
+  formData: FormData
+): Promise<GuidanceActionState> {
+  try {
+    const { supabase, user, profile } = await requireRole([
+      "Guidance Counselor",
+    ]);
+
+    const departmentId = Number(formData.get("department_id"));
+    const skipExisting = formData.get("skip_existing") === "1";
+
+    if (!departmentId || Number.isNaN(departmentId)) {
+      return { error: "Select a department first." };
+    }
+
+    const fill = await fillDepartmentMonitoring({
+      supabase,
+      departmentId,
+      skipExisting,
+    });
+
+    if (!fill.ok) {
+      return { error: fill.error };
+    }
+
+    const { result } = fill;
+
+    await supabase.from("audit_logs").insert(
+      toAuditLogRow({
+        user_id: user.id,
+        user_role: profile.role,
+        action: "GENERATE_DEPARTMENT_MONITORING",
+        action_type: "CREATE",
+        table_name: "weekly_monitoring",
+        record_id: null,
+        description: `Auto-filled week ${result.weekNumber} for ${result.departmentName} (${result.created} row(s))`,
+        ip_address: await getIp(),
+      })
+    );
+
+    revalidatePath("/guidance/monitoring");
+    revalidatePath("/guidance/students");
+    revalidatePath("/guidance/analytics");
+    revalidatePath("/student");
+    revalidatePath("/instructor/monitoring");
+
+    const parts = [
+      `Filled week ${result.weekNumber} for ${result.created} student${result.created === 1 ? "" : "s"} in ${result.departmentName}.`,
+    ];
+    if (result.skipped > 0) {
+      parts.push(`${result.skipped} skipped (already submitted).`);
+    }
+    if (result.failures.length > 0) {
+      parts.push(`${result.failures.length} failed.`);
+    }
+
+    return {
+      success: parts.join(" "),
+      error:
+        result.failures.length > 0
+          ? result.failures.slice(0, 3).join(" ")
+          : undefined,
+    };
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to auto-fill monitoring data.",
+    };
+  }
 }
 
 export async function createGuidanceUser(

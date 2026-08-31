@@ -1,7 +1,11 @@
 "use client";
 
 import type { Profile } from "@/lib/auth/roles";
-import { getDashboardPath, isStudentRole } from "@/lib/auth/roles";
+import {
+  getDashboardPath,
+  isGuidanceRole,
+  isStudentRole,
+} from "@/lib/auth/roles";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppBreadcrumb } from "@/components/layout/app-breadcrumb";
 import { AppPageSkeleton } from "@/components/layout/app-page-skeleton";
@@ -37,7 +41,9 @@ function AppShellContent({
     ? "/student/notifications"
     : profile.role === "Instructor"
       ? "/instructor/notifications"
-      : null;
+      : isGuidanceRole(profile.role)
+        ? "/guidance/notifications"
+        : null;
 
   return (
     <>

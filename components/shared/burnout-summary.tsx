@@ -273,7 +273,7 @@ export function BurnoutFactorSection({
         <FactorCard
           icon={<BrainIcon />}
           label="Stress Level"
-          description="How stressed the past week felt (PSS)."
+          description="How stressed the past week felt."
           factor={factors?.stress ?? null}
           rawLabel={
             factors
@@ -303,7 +303,7 @@ export function BurnoutFactorSection({
         <FactorCard
           icon={<ClockIcon />}
           label="Study Time"
-          description="Weekly study hours (Q1) and review frequency (Q2), averaged."
+          description="How heavy your study load feels."
           factor={factors?.studyTime ?? null}
           rawLabel={
             factors

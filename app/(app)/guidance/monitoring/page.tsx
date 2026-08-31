@@ -5,9 +5,9 @@ import { GuidanceStudentMonitoring } from "@/components/guidance/guidance-studen
 import { MonitoringWeekControls } from "@/components/guidance/monitoring-week-controls";
 import { PageHeading } from "@/components/layout/page-heading";
 import { requireRole } from "@/lib/auth/session";
-import { getDepartments } from "@/lib/guidance/queries";
+import { getDepartments, getUserEmails } from "@/lib/guidance/queries";
 import { getGuidanceStudentRows } from "@/lib/guidance/monitoring";
-import { getActiveTerm } from "@/lib/student/terms";
+import { getActiveTerm, getCurrentWeekNumber, isMonitoringOpen } from "@/lib/student/terms";
 
 export const metadata = {
   title: "Student Monitoring",
@@ -15,11 +15,16 @@ export const metadata = {
 
 export default async function GuidanceMonitoringPage() {
   const { supabase } = await requireRole(["Guidance Counselor"]);
-  const [rows, departments, term] = await Promise.all([
+  const [rows, departments, term, emails] = await Promise.all([
     getGuidanceStudentRows(supabase),
     getDepartments(supabase),
     getActiveTerm(supabase),
+    getUserEmails(),
   ]);
+  const rowsWithEmail = rows.map((row) => ({
+    ...row,
+    email: emails[row.id] ?? null,
+  }));
 
   return (
     <div className="space-y-6">
@@ -30,7 +35,12 @@ export default async function GuidanceMonitoringPage() {
       />
       <MonitoringWeekControls term={term} />
       <Suspense fallback={<p className="text-sm text-muted-foreground">Loading…</p>}>
-        <GuidanceStudentMonitoring rows={rows} departments={departments} />
+        <GuidanceStudentMonitoring
+          rows={rowsWithEmail}
+          departments={departments}
+          currentWeek={term ? getCurrentWeekNumber(term) : 1}
+          monitoringOpen={isMonitoringOpen(term)}
+        />
       </Suspense>
     </div>
   );

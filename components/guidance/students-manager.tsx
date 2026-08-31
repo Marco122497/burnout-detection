@@ -11,6 +11,7 @@ import {
   UserRoundCheckIcon,
   UserRoundPlusIcon,
   UserRoundXIcon,
+  UploadIcon,
 } from "lucide-react";
 
 import {
@@ -21,6 +22,7 @@ import {
   updateUser,
   type GuidanceActionState,
 } from "@/app/actions/guidance";
+import { BulkStudentsDialog } from "@/components/guidance/bulk-students-dialog";
 import { DefaultInitialPasswordField } from "@/components/guidance/default-initial-password-field";
 import { DEFAULT_INITIAL_PASSWORD_NOTE } from "@/lib/auth/defaults";
 import { useActionToast } from "@/hooks/use-action-toast";
@@ -86,7 +88,9 @@ export function StudentsManager({
   departments: Department[];
 }) {
   const [search, setSearch] = useState("");
+  const [departmentFilter, setDepartmentFilter] = useState("");
   const [addOpen, setAddOpen] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [resetId, setResetId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -141,9 +145,18 @@ export function StudentsManager({
 
   const filteredStudents = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return students;
-    return students.filter((student) =>
-      [
+
+    return students.filter((student) => {
+      if (
+        departmentFilter &&
+        String(student.department_id ?? "") !== departmentFilter
+      ) {
+        return false;
+      }
+
+      if (!query) return true;
+
+      return [
         student.full_name,
         student.email ?? "",
         student.student_number ?? "",
@@ -153,9 +166,9 @@ export function StudentsManager({
       ]
         .join(" ")
         .toLowerCase()
-        .includes(query)
-    );
-  }, [students, search]);
+        .includes(query);
+    });
+  }, [students, search, departmentFilter]);
 
   const {
     page,
@@ -168,7 +181,7 @@ export function StudentsManager({
 
   useEffect(() => {
     setPage(1);
-  }, [search, setPage]);
+  }, [search, departmentFilter, setPage]);
 
   const editing = students.find((s) => s.id === editingId) ?? null;
   const resetting = students.find((s) => s.id === resetId) ?? null;
@@ -205,31 +218,74 @@ export function StudentsManager({
           <div className="space-y-1.5">
             <CardTitle>Student list</CardTitle>
             <CardDescription>
-              Search, edit, activate/deactivate, reset passwords, or delete
-              students.
+              Filter by department, search, edit, activate/deactivate, reset
+              passwords, or delete students.
             </CardDescription>
           </div>
-          <Button type="button" onClick={() => setAddOpen(true)}>
-            <PlusIcon className="size-4" />
-            Add student
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="outline" onClick={() => setBulkOpen(true)}>
+              <UploadIcon className="size-4" />
+              Bulk add
+            </Button>
+            <Button type="button" onClick={() => setAddOpen(true)}>
+              <PlusIcon className="size-4" />
+              Add student
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="relative">
-            <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search by name, email, student number, section, or course…"
-              className="pl-8"
-            />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <div className="w-full space-y-1.5 sm:max-w-xs">
+              <Label htmlFor="student-department-filter">Department</Label>
+              <select
+                id="student-department-filter"
+                value={departmentFilter}
+                onChange={(event) => setDepartmentFilter(event.target.value)}
+                className={selectClassName}
+              >
+                <option value="">All departments</option>
+                {departments.map((dept) => (
+                  <option key={dept.department_id} value={dept.department_id}>
+                    {dept.department_code} — {dept.department_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="relative w-full flex-1 space-y-1.5">
+              <Label htmlFor="student-search">Search</Label>
+              <div className="relative">
+                <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="student-search"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Name, email, student number, section…"
+                  className="pl-8"
+                />
+              </div>
+            </div>
           </div>
+
+          {filteredStudents.length > 0 ? (
+            <p className="text-xs text-muted-foreground">
+              Showing {filteredStudents.length} of {students.length} students
+              {departmentFilter
+                ? ` in ${
+                    departments.find(
+                      (dept) =>
+                        String(dept.department_id) === departmentFilter
+                    )?.department_name ?? "selected department"
+                  }`
+                : ""}
+              .
+            </p>
+          ) : null}
 
           {filteredStudents.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               {students.length === 0
                 ? "No students yet."
-                : "No students match your search."}
+                : "No students match your filters."}
             </p>
           ) : (
             <>
@@ -395,6 +451,12 @@ export function StudentsManager({
           )}
         </CardContent>
       </Card>
+
+      <BulkStudentsDialog
+        open={bulkOpen}
+        onOpenChange={setBulkOpen}
+        departments={departments}
+      />
 
       <AlertDialog open={addOpen} onOpenChange={closeAdd}>
         <AlertDialogContent className="max-h-[90vh] gap-3 overflow-y-auto data-[size=default]:max-w-lg data-[size=default]:sm:max-w-lg">

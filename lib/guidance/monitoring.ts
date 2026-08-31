@@ -62,42 +62,98 @@ export async function getGuidanceStudentRows(
   if (!students?.length) return [];
 
   const ids = students.map((s) => s.id);
-
-  // Keep select flat (no nested ml_predictions) so primary/fallback types stay compatible.
-  let monitoringQuery = supabase
-    .from("weekly_monitoring")
-    .select(
-      "monitoring_id, student_id, week_number, stress_score, academic_workload_score, study_time_score, sleep_hours_score, submitted_at, term_id, created_at, mfbi_results(mfbi_id, mfbi_score, burnout_risk_level)"
-    )
-    .in("student_id", ids)
-    .order("created_at", { ascending: false });
+  const studentIdSet = new Set(ids);
+  const monitoringList: Array<{
+    monitoring_id: number;
+    student_id: string;
+    week_number: number;
+    stress_score: number;
+    academic_workload_score: number;
+    study_time_score: number;
+    sleep_hours_score: number;
+    submitted_at: string | null;
+    term_id: number;
+    created_at: string;
+    mfbi_results:
+      | {
+          mfbi_id: number;
+          mfbi_score: number;
+          burnout_risk_level: string;
+        }
+      | {
+          mfbi_id: number;
+          mfbi_score: number;
+          burnout_risk_level: string;
+        }[]
+      | null;
+  }> = [];
 
   if (term?.term_id) {
-    monitoringQuery = monitoringQuery.eq("term_id", term.term_id);
+    let from = 0;
+    const pageSize = 1000;
+
+    while (true) {
+      const { data, error } = await supabase
+        .from("weekly_monitoring")
+        .select(
+          "monitoring_id, student_id, week_number, stress_score, academic_workload_score, study_time_score, sleep_hours_score, submitted_at, term_id, created_at, mfbi_results(mfbi_id, mfbi_score, burnout_risk_level)"
+        )
+        .eq("term_id", term.term_id)
+        .order("week_number", { ascending: false })
+        .range(from, from + pageSize - 1);
+
+      if (error) break;
+
+      for (const row of data ?? []) {
+        if (studentIdSet.has(row.student_id)) {
+          monitoringList.push(row);
+        }
+      }
+
+      if (!data?.length || data.length < pageSize) break;
+      from += pageSize;
+    }
   }
 
-  const { data: monitoringRows, error: monitoringError } = await monitoringQuery;
-  const monitoringList = monitoringError ? [] : (monitoringRows ?? []);
   const latestMonitoring = new Map<string, (typeof monitoringList)[number]>();
+  const currentWeekMonitoring = new Map<string, (typeof monitoringList)[number]>();
   const submittedThisWeek = new Set<string>();
   const mfbiIds: number[] = [];
 
   for (const row of monitoringList) {
-    if (!latestMonitoring.has(row.student_id)) {
+    const weekNumber = Number(row.week_number);
+    const existing = latestMonitoring.get(row.student_id);
+    const existingWeek = existing ? Number(existing.week_number) : -1;
+
+    if (!existing || weekNumber > existingWeek) {
       latestMonitoring.set(row.student_id, row);
-      const mfbiRaw = row.mfbi_results;
-      const mfbi = Array.isArray(mfbiRaw) ? mfbiRaw[0] : mfbiRaw;
-      if (mfbi?.mfbi_id) {
-        mfbiIds.push(mfbi.mfbi_id);
-      }
     }
+
     if (
       term &&
       currentWeek &&
       row.term_id === term.term_id &&
-      row.week_number === currentWeek
+      weekNumber === currentWeek
     ) {
+      currentWeekMonitoring.set(row.student_id, row);
       submittedThisWeek.add(row.student_id);
+    }
+  }
+
+  for (const row of currentWeekMonitoring.values()) {
+    const mfbiRaw = row.mfbi_results;
+    const mfbi = Array.isArray(mfbiRaw) ? mfbiRaw[0] : mfbiRaw;
+    if (mfbi?.mfbi_id) {
+      mfbiIds.push(mfbi.mfbi_id);
+    }
+  }
+
+  for (const row of latestMonitoring.values()) {
+    if (currentWeekMonitoring.has(row.student_id)) continue;
+    const mfbiRaw = row.mfbi_results;
+    const mfbi = Array.isArray(mfbiRaw) ? mfbiRaw[0] : mfbiRaw;
+    if (mfbi?.mfbi_id) {
+      mfbiIds.push(mfbi.mfbi_id);
     }
   }
 
@@ -130,7 +186,12 @@ export async function getGuidanceStudentRows(
   }
 
   return students.map((student) => {
-    const monitoring = latestMonitoring.get(student.id) ?? null;
+    const monitoring =
+      (currentWeek != null
+        ? currentWeekMonitoring.get(student.id)
+        : undefined) ??
+      latestMonitoring.get(student.id) ??
+      null;
     const mfbiRaw = monitoring?.mfbi_results;
     const mfbi = Array.isArray(mfbiRaw) ? mfbiRaw[0] : mfbiRaw;
     const stressScore =

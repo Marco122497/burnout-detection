@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
+import { GenerateMonitoringButton } from "@/components/guidance/generate-monitoring-button";
 import type { Department } from "@/lib/auth/roles";
 import type { GuidanceStudentRow } from "@/lib/guidance/monitoring";
 import { useTablePagination } from "@/hooks/use-table-pagination";
@@ -31,9 +32,13 @@ const selectClassName =
 export function GuidanceStudentMonitoring({
   rows,
   departments,
+  currentWeek,
+  monitoringOpen,
 }: {
   rows: GuidanceStudentRow[];
   departments: Department[];
+  currentWeek: number;
+  monitoringOpen: boolean;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -64,7 +69,7 @@ export function GuidanceStudentMonitoring({
     return rows.filter((row) => {
       const query = q.trim().toLowerCase();
       if (query) {
-        const haystack = [row.full_name, row.student_number]
+        const haystack = [row.full_name, row.student_number, row.email]
           .filter(Boolean)
           .join(" ")
           .toLowerCase();
@@ -99,6 +104,16 @@ export function GuidanceStudentMonitoring({
       return true;
     });
   }, [rows, q, departmentId, course, yearLevel, section, risk]);
+
+  const selectedDepartment = departments.find(
+    (dept) => String(dept.department_id) === departmentId
+  );
+  const departmentStudentCount = useMemo(() => {
+    if (!departmentId) return 0;
+    return rows.filter(
+      (row) => String(row.department_id) === departmentId
+    ).length;
+  }, [rows, departmentId]);
 
   const {
     page,
@@ -149,7 +164,7 @@ export function GuidanceStudentMonitoring({
                 id="q"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                placeholder="Name or student number"
+                placeholder="Name, student number, or email"
               />
             </div>
             <div className="w-full space-y-2 lg:w-56 lg:shrink-0">
@@ -184,8 +199,21 @@ export function GuidanceStudentMonitoring({
                 ))}
               </select>
             </div>
-            <div className="flex shrink-0 gap-2">
+            <div className="flex shrink-0 flex-wrap gap-2">
               <Button type="submit">Apply filters</Button>
+              {departmentId ? (
+                <GenerateMonitoringButton
+                  departmentId={departmentId}
+                  departmentLabel={
+                    selectedDepartment
+                      ? `${selectedDepartment.department_code} — ${selectedDepartment.department_name}`
+                      : "Selected department"
+                  }
+                  currentWeek={currentWeek}
+                  monitoringOpen={monitoringOpen}
+                  studentCount={departmentStudentCount}
+                />
+              ) : null}
               <Button
                 type="button"
                 variant="outline"
@@ -242,7 +270,9 @@ export function GuidanceStudentMonitoring({
                         <td className="px-2 py-1.5">
                           <p className="font-medium">{row.full_name}</p>
                           <p className="text-xs text-muted-foreground">
-                            {row.student_number || "—"}
+                            {row.email
+                              ? `${row.student_number || "—"} | ${row.email}`
+                              : row.student_number || "—"}
                           </p>
                         </td>
                         <td className="px-2 py-1.5">

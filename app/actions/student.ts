@@ -452,6 +452,8 @@ export async function markNotificationRead(
   revalidatePath("/student/notifications");
   revalidatePath("/instructor");
   revalidatePath("/instructor/notifications");
+  revalidatePath("/guidance");
+  revalidatePath("/guidance/notifications");
   return { success: "Notification marked as read." };
 }
 
@@ -478,5 +480,7 @@ export async function markAllNotificationsRead(
   revalidatePath("/student/notifications");
   revalidatePath("/instructor");
   revalidatePath("/instructor/notifications");
+  revalidatePath("/guidance");
+  revalidatePath("/guidance/notifications");
   return { success: "All notifications marked as read." };
 }
