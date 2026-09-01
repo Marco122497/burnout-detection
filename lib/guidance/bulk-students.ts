@@ -231,3 +231,79 @@ export function parseBulkStudentText(text: string): BulkStudentDraft[] {
     return validateDraft(draft);
   });
 }
+
+const EXISTING_EMAIL_ERROR = "Email already registered.";
+const EXISTING_STUDENT_NUMBER_ERROR = "Student number already registered.";
+const DUPLICATE_EMAIL_ERROR = "Duplicate email in this paste.";
+const DUPLICATE_STUDENT_NUMBER_ERROR = "Duplicate student number in this paste.";
+
+export function isSkippableBulkConflict(error: string) {
+  return (
+    error === EXISTING_EMAIL_ERROR || error === EXISTING_STUDENT_NUMBER_ERROR
+  );
+}
+
+export function enrichBulkDrafts(
+  drafts: BulkStudentDraft[],
+  options?: {
+    existingEmails?: Iterable<string>;
+    existingStudentNumbers?: Iterable<string>;
+  }
+): BulkStudentDraft[] {
+  const existingEmails = new Set(
+    [...(options?.existingEmails ?? [])].map((email) => email.toLowerCase())
+  );
+  const existingStudentNumbers = new Set(options?.existingStudentNumbers ?? []);
+
+  const emailCounts = new Map<string, number>();
+  const studentNumberCounts = new Map<string, number>();
+
+  for (const draft of drafts) {
+    if (draft.email) {
+      emailCounts.set(draft.email, (emailCounts.get(draft.email) ?? 0) + 1);
+    }
+    if (draft.student_number) {
+      studentNumberCounts.set(
+        draft.student_number,
+        (studentNumberCounts.get(draft.student_number) ?? 0) + 1
+      );
+    }
+  }
+
+  return drafts.map((draft) => {
+    const errors = [...draft.errors];
+
+    if (draft.email && (emailCounts.get(draft.email) ?? 0) > 1) {
+      errors.push(DUPLICATE_EMAIL_ERROR);
+    }
+    if (
+      draft.student_number &&
+      (studentNumberCounts.get(draft.student_number) ?? 0) > 1
+    ) {
+      errors.push(DUPLICATE_STUDENT_NUMBER_ERROR);
+    }
+    if (draft.email && existingEmails.has(draft.email)) {
+      errors.push(EXISTING_EMAIL_ERROR);
+    }
+    if (
+      draft.student_number &&
+      existingStudentNumbers.has(draft.student_number)
+    ) {
+      errors.push(EXISTING_STUDENT_NUMBER_ERROR);
+    }
+
+    return { ...draft, errors: [...new Set(errors)] };
+  });
+}
+
+export function getImportableBulkDrafts(
+  drafts: BulkStudentDraft[],
+  skipExisting: boolean
+) {
+  return drafts.filter((row) => {
+    const blockingErrors = skipExisting
+      ? row.errors.filter((error) => !isSkippableBulkConflict(error))
+      : row.errors;
+    return blockingErrors.length === 0;
+  });
+}

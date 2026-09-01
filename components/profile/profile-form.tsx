@@ -14,6 +14,7 @@ import {
   formatDateTime,
   isStudentRole,
 } from "@/lib/auth/roles";
+import { formatYearLevel } from "@/lib/utils";
 import { useActionToast } from "@/hooks/use-action-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,8 @@ const initialState: ProfileActionState = {};
 
 const selectClassName =
   "h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+
+const readOnlyClassName = "bg-muted/40";
 
 function initials(profile: Profile) {
   return `${profile.first_name?.[0] || ""}${profile.last_name?.[0] || ""}`.toUpperCase();
@@ -85,7 +88,6 @@ export function ProfileForm({
   const student = isStudentRole(profile.role);
   const instructor = profile.role === "Instructor";
   const computedAge = calculateAge(form.birth_date || null);
-  const activeDepartments = departments.filter((d) => d.is_active);
   const assignedDepartment = departments.find(
     (d) => d.department_id === profile.department_id
   );
@@ -162,8 +164,9 @@ export function ProfileForm({
         <CardHeader>
           <CardTitle>Personal information</CardTitle>
           <CardDescription>
-            Keep your profile up to date. Role and account status are managed by
-            the Guidance Counselor.
+            {student
+              ? "Update your contact details and profile picture. Name, student number, and course details are managed by the Guidance Counselor."
+              : "Keep your profile up to date. Role and account status are managed by the Guidance Counselor."}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -187,13 +190,14 @@ export function ProfileForm({
                   <Label htmlFor="student_number">Student Number</Label>
                   <Input
                     id="student_number"
-                    name="student_number"
-                    value={form.student_number}
-                    onChange={(event) =>
-                      updateField("student_number", event.target.value)
-                    }
-                    placeholder="2026-0001"
+                    value={form.student_number || "—"}
+                    readOnly
+                    className={readOnlyClassName}
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Student number is assigned by the Guidance Counselor and
+                    cannot be changed here.
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-2 sm:col-span-2">
@@ -216,45 +220,66 @@ export function ProfileForm({
                 <Label htmlFor="first_name">First Name</Label>
                 <Input
                   id="first_name"
-                  name="first_name"
+                  name={student ? undefined : "first_name"}
                   value={form.first_name}
-                  onChange={(event) =>
-                    updateField("first_name", event.target.value)
+                  onChange={
+                    student
+                      ? undefined
+                      : (event) =>
+                          updateField("first_name", event.target.value)
                   }
-                  required
+                  readOnly={student}
+                  className={student ? readOnlyClassName : undefined}
+                  required={!student}
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="middle_name">Middle Name</Label>
                 <Input
                   id="middle_name"
-                  name="middle_name"
+                  name={student ? undefined : "middle_name"}
                   value={form.middle_name}
-                  onChange={(event) =>
-                    updateField("middle_name", event.target.value)
+                  onChange={
+                    student
+                      ? undefined
+                      : (event) =>
+                          updateField("middle_name", event.target.value)
                   }
+                  readOnly={student}
+                  className={student ? readOnlyClassName : undefined}
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="last_name">Last Name</Label>
                 <Input
                   id="last_name"
-                  name="last_name"
+                  name={student ? undefined : "last_name"}
                   value={form.last_name}
-                  onChange={(event) =>
-                    updateField("last_name", event.target.value)
+                  onChange={
+                    student
+                      ? undefined
+                      : (event) =>
+                          updateField("last_name", event.target.value)
                   }
-                  required
+                  readOnly={student}
+                  className={student ? readOnlyClassName : undefined}
+                  required={!student}
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="suffix">Suffix</Label>
                 <Input
                   id="suffix"
-                  name="suffix"
+                  name={student ? undefined : "suffix"}
                   value={form.suffix}
-                  onChange={(event) => updateField("suffix", event.target.value)}
-                  placeholder="Jr., Sr., III"
+                  onChange={
+                    student
+                      ? undefined
+                      : (event) => updateField("suffix", event.target.value)
+                  }
+                  placeholder={student ? undefined : "Jr., Sr., III"}
+                  readOnly={student}
+                  className={student ? readOnlyClassName : undefined}
                 />
               </div>
               <div className="space-y-2">
@@ -324,56 +349,42 @@ export function ProfileForm({
                 <Separator />
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2 sm:col-span-2">
-                    <Label htmlFor="department_id">Course</Label>
-                    <select
-                      id="department_id"
-                      name="department_id"
-                      value={form.department_id}
-                      onChange={(event) =>
-                        updateField("department_id", event.target.value)
+                    <Label htmlFor="course">Course</Label>
+                    <Input
+                      id="course"
+                      value={
+                        assignedDepartment
+                          ? assignedDepartment.description ||
+                            assignedDepartment.department_name
+                          : profile.course || "—"
                       }
-                      className={selectClassName}
-                      required
-                    >
-                      <option value="">Select course</option>
-                      {activeDepartments.map((dept) => (
-                        <option
-                          key={dept.department_id}
-                          value={dept.department_id}
-                        >
-                          {dept.description || dept.department_name}
-                        </option>
-                      ))}
-                    </select>
+                      readOnly
+                      className={readOnlyClassName}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Course assignment is managed by the Guidance Counselor.
+                    </p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="year_level">Year Level</Label>
-                    <select
+                    <Input
                       id="year_level"
-                      name="year_level"
-                      value={form.year_level}
-                      onChange={(event) =>
-                        updateField("year_level", event.target.value)
+                      value={
+                        profile.year_level
+                          ? formatYearLevel(profile.year_level)
+                          : "—"
                       }
-                      className={selectClassName}
-                    >
-                      <option value="">Select</option>
-                      {[1, 2, 3, 4, 5, 6].map((year) => (
-                        <option key={year} value={year}>
-                          {year}
-                        </option>
-                      ))}
-                    </select>
+                      readOnly
+                      className={readOnlyClassName}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="section">Section</Label>
                     <Input
                       id="section"
-                      name="section"
-                      value={form.section}
-                      onChange={(event) =>
-                        updateField("section", event.target.value)
-                      }
+                      value={form.section || "—"}
+                      readOnly
+                      className={readOnlyClassName}
                     />
                   </div>
                 </div>

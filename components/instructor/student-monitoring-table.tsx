@@ -133,7 +133,7 @@ export function StudentMonitoringTable({
                 className={selectClassName}
               >
                 <option value="">All</option>
-                {[1, 2, 3, 4, 5, 6].map((year) => (
+                {[1, 2, 3, 4].map((year) => (
                   <option key={year} value={year}>
                     {year}
                   </option>
@@ -151,7 +151,7 @@ export function StudentMonitoringTable({
                 <option value="">All</option>
                 <option value="Low">Low</option>
                 <option value="Moderate">Moderate</option>
-                <option value="High">High / Severe</option>
+                <option value="High">High</option>
               </select>
             </div>
             <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-4">

@@ -7,6 +7,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { login, type AuthActionState } from "@/app/actions/auth";
+import { useActionRedirect } from "@/hooks/use-action-redirect";
 import { useActionToast } from "@/hooks/use-action-toast";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,6 +28,7 @@ export function LoginForm() {
   const searchParams = useSearchParams();
   const [state, formAction, pending] = useActionState(login, initialState);
   useActionToast(state);
+  useActionRedirect(state);
 
   const queryError = searchParams.get("error");
   const resetSuccess = searchParams.get("reset") === "success";

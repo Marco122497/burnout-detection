@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { APP_BUILD_TIME, APP_COMPANY, APP_VERSION } from "@/lib/app-meta";
+import { APP_BUILD_TIME, APP_DEVELOPER, APP_VERSION } from "@/lib/app-meta";
 import { cn } from "@/lib/utils";
 
 function formatBuiltAgo(iso: string) {
@@ -35,6 +35,15 @@ function formatBuiltAgo(iso: string) {
   return `${years} year${years === 1 ? "" : "s"} ago`;
 }
 
+export function DeveloperCredit({ className }: { className?: string }) {
+  return (
+    <p className={cn("text-xs text-muted-foreground", className)}>
+      Made by{" "}
+      <span className="font-semibold text-primary">{APP_DEVELOPER}</span>
+    </p>
+  );
+}
+
 export function AppMetaFooter({ className }: { className?: string }) {
   const [builtAgo, setBuiltAgo] = useState(() => formatBuiltAgo(APP_BUILD_TIME));
 
@@ -50,9 +59,7 @@ export function AppMetaFooter({ className }: { className?: string }) {
       <p>
         v{APP_VERSION} · built {builtAgo}
       </p>
-      <p>
-        © {new Date().getFullYear()} {APP_COMPANY}
-      </p>
+      <DeveloperCredit />
     </div>
   );
 }

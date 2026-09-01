@@ -15,6 +15,7 @@ import {
 } from "@/components/shared/risk-display";
 import { STUDY_TIME_SCORE_MAX } from "@/lib/student/scale-options";
 import { TablePagination } from "@/components/shared/table-pagination";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,6 +29,15 @@ import {
 
 const selectClassName =
   "h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+
+function nameInitials(name: string) {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+}
 
 export function GuidanceStudentMonitoring({
   rows,
@@ -108,11 +118,16 @@ export function GuidanceStudentMonitoring({
   const selectedDepartment = departments.find(
     (dept) => String(dept.department_id) === departmentId
   );
-  const departmentStudentCount = useMemo(() => {
-    if (!departmentId) return 0;
-    return rows.filter(
-      (row) => String(row.department_id) === departmentId
-    ).length;
+  const departmentStudents = useMemo(() => {
+    if (!departmentId) return [];
+    return rows
+      .filter((row) => String(row.department_id) === departmentId)
+      .map((row) => ({
+        id: row.id,
+        full_name: row.full_name,
+        student_number: row.student_number,
+        week_number: row.week_number,
+      }));
   }, [rows, departmentId]);
 
   const {
@@ -211,7 +226,7 @@ export function GuidanceStudentMonitoring({
                   }
                   currentWeek={currentWeek}
                   monitoringOpen={monitoringOpen}
-                  studentCount={departmentStudentCount}
+                  students={departmentStudents}
                 />
               ) : null}
               <Button
@@ -268,12 +283,27 @@ export function GuidanceStudentMonitoring({
                     {pageItems.map((row) => (
                       <tr key={row.id} className="border-b last:border-0">
                         <td className="px-2 py-1.5">
-                          <p className="font-medium">{row.full_name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {row.email
-                              ? `${row.student_number || "—"} | ${row.email}`
-                              : row.student_number || "—"}
-                          </p>
+                          <div className="flex items-start gap-2.5">
+                            <Avatar className="size-8 shrink-0">
+                              {row.profile_picture ? (
+                                <AvatarImage
+                                  src={row.profile_picture}
+                                  alt={row.full_name}
+                                />
+                              ) : null}
+                              <AvatarFallback className="text-xs">
+                                {nameInitials(row.full_name) || "?"}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0">
+                              <p className="font-medium">{row.full_name}</p>
+                              <p className="truncate text-xs text-muted-foreground">
+                                {row.email
+                                  ? `${row.student_number || "—"} | ${row.email}`
+                                  : row.student_number || "—"}
+                              </p>
+                            </div>
+                          </div>
                         </td>
                         <td className="px-2 py-1.5">
                           {row.department_name || "—"}

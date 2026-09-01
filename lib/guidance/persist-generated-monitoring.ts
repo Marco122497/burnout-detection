@@ -1,6 +1,6 @@
 import { classifyTrendDirection } from "@/lib/student/burnout-trends";
 import { computeMfbi } from "@/lib/student/mfbi";
-import { predictBurnoutRisk } from "@/lib/student/predict";
+import { predictBurnoutRiskWithAi } from "@/lib/student/predict";
 import type { AnswerMap, SectionScores } from "@/lib/student/scoring";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -22,6 +22,7 @@ export async function persistGeneratedMonitoringRow(input: {
   answers: AnswerMap;
   priorWeek: PriorWeekScores | null;
   historyMfbi: number[];
+  historyLevels: string[];
   skipExisting: boolean;
   departmentCode?: string | null;
 }) {
@@ -123,7 +124,12 @@ export async function persistGeneratedMonitoringRow(input: {
     };
   }
 
-  const prediction = predictBurnoutRisk(mfbi, scores);
+  const prediction = await predictBurnoutRiskWithAi(mfbi, scores, {
+    studentId: input.studentId,
+    priorWeek: input.priorWeek,
+    historyLevels: [...input.historyLevels, mfbi.burnout_risk_level],
+    historyMfbi: [...input.historyMfbi, Number(mfbiRow.mfbi_score)],
+  });
   const { error: predictionError } = await admin.from("ml_predictions").insert({
     mfbi_id: mfbiRow.mfbi_id,
     ...prediction,

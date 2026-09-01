@@ -87,10 +87,22 @@ export function NavigationPendingProvider({
 
 export function useNavigationPending() {
   const context = useContext(NavigationPendingContext);
-  if (!context) {
-    throw new Error(
-      "useNavigationPending must be used within NavigationPendingProvider"
-    );
-  }
-  return context;
+  const router = useRouter();
+
+  const navigate = useCallback(
+    (url: string) => {
+      router.push(url);
+    },
+    [router]
+  );
+
+  return useMemo(
+    () =>
+      context ?? {
+        isPending: false,
+        pendingHref: null,
+        navigate,
+      },
+    [context, navigate]
+  );
 }

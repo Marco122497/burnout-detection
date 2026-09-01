@@ -1,7 +1,6 @@
 "use server";
 
 import { headers } from "next/headers";
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
 import {
@@ -16,6 +15,7 @@ import { createClient } from "@/lib/supabase/server";
 export type AuthActionState = {
   error?: string;
   success?: string;
+  redirectTo?: string;
 };
 
 async function getRequestMeta() {
@@ -185,88 +185,101 @@ export async function register(
     })
   );
 
-  redirect("/login?registered=1");
+  return { redirectTo: "/login?registered=1" };
 }
 
 export async function login(
   _prev: AuthActionState,
   formData: FormData
 ): Promise<AuthActionState> {
-  const identifier = String(formData.get("identifier") || "").trim();
-  const password = String(formData.get("password") || "");
+  try {
+    const identifier = String(formData.get("identifier") || "").trim();
+    const password = String(formData.get("password") || "");
 
-  if (!identifier || !password) {
-    return { error: "Email or ID number and password are required." };
-  }
+    if (!identifier || !password) {
+      return { error: "Email or ID number and password are required." };
+    }
 
-  const email = await resolveLoginEmail(identifier);
-  if (!email) {
-    return { error: "Invalid email or ID number and password." };
-  }
+    const email = await resolveLoginEmail(identifier);
+    if (!email) {
+      return { error: "Invalid email or ID number and password." };
+    }
 
-  const supabase = await createClient();
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
+    const supabase = await createClient();
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-  if (error || !data.user) {
-    return { error: "Invalid email or ID number and password." };
-  }
+    if (error || !data.user) {
+      return { error: "Invalid email or ID number and password." };
+    }
 
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("role, is_active")
-    .eq("id", data.user.id)
-    .maybeSingle();
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("role, is_active")
+      .eq("id", data.user.id)
+      .maybeSingle();
 
-  if (profileError || !profile) {
-    await supabase.auth.signOut();
+    if (profileError || !profile) {
+      await supabase.auth.signOut();
+      return {
+        error:
+          "Your account has no profile yet. Contact the Guidance Office for access.",
+      };
+    }
+
+    if (!profile.is_active) {
+      await supabase.auth.signOut();
+      return {
+        error: "Your account is deactivated. Contact the Guidance Office.",
+      };
+    }
+
+    const meta = await getRequestMeta();
+    const now = new Date().toISOString();
+
+    try {
+      await supabase
+        .from("profiles")
+        .update({ last_login: now })
+        .eq("id", data.user.id);
+
+      await supabase.from("login_history").insert({
+        user_id: data.user.id,
+        email,
+        login_status: "Success",
+        login_time: now,
+        ip_address: meta.ip,
+        user_agent: meta.device,
+      });
+
+      await supabase.from("audit_logs").insert(
+        toAuditLogRow({
+          user_id: data.user.id,
+          user_role: profile.role as UserRole,
+          action: "LOGIN",
+          action_type: "LOGIN",
+          table_name: "profiles",
+          record_id: data.user.id,
+          description: "User signed in",
+          ip_address: meta.ip,
+          user_agent: meta.device,
+        })
+      );
+    } catch {
+      // Login should succeed even if audit/history writes fail.
+    }
+
+    return { redirectTo: getDashboardPath(profile.role as UserRole) };
+  } catch (error) {
     return {
       error:
-        "Your account has no profile yet. Contact the Guidance Office for access.",
+        error instanceof Error
+          ? error.message
+          : "Sign in failed. Please try again.",
     };
   }
-
-  if (!profile.is_active) {
-    await supabase.auth.signOut();
-    return {
-      error: "Your account is deactivated. Contact the Guidance Office.",
-    };
-  }
-
-  const meta = await getRequestMeta();
-  const now = new Date().toISOString();
-
-  await supabase
-    .from("profiles")
-    .update({ last_login: now })
-    .eq("id", data.user.id);
-
-  await supabase.from("login_history").insert({
-    user_id: data.user.id,
-    email,
-    login_status: "Success",
-    login_time: now,
-    ip_address: meta.ip,
-    user_agent: meta.device,
-  });
-
-  await supabase.from("audit_logs").insert(
-    toAuditLogRow({
-      user_id: data.user.id,
-      user_role: profile.role as UserRole,
-      action: "LOGIN",
-      action_type: "LOGIN",
-      table_name: "profiles",
-      record_id: data.user.id,
-      description: "User signed in",
-      ip_address: meta.ip,
-      user_agent: meta.device,
-    })
-  );
-
-  redirect(getDashboardPath(profile.role));
 }
 
 export async function logout() {
@@ -475,9 +488,9 @@ export async function resetPassword(
     );
 
     if (profile?.role) {
-      redirect(getDashboardPath(profile.role));
+      return { redirectTo: getDashboardPath(profile.role as UserRole) };
     }
   }
 
-  redirect("/login?reset=success");
+  return { redirectTo: "/login?reset=success" };
 }

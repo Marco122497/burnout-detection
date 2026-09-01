@@ -1,6 +1,12 @@
 "use client";
 
-import { startTransition, useActionState, useEffect, useState } from "react";
+import {
+  startTransition,
+  useActionState,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useRouter } from "next/navigation";
 import { SparklesIcon, Loader2 } from "lucide-react";
 
@@ -20,25 +26,41 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 const initialState: GuidanceActionState = {};
+
+export type GenerateMonitoringStudent = {
+  id: string;
+  full_name: string;
+  student_number: string | null;
+  week_number: number | null;
+};
 
 export function GenerateMonitoringButton({
   departmentId,
   departmentLabel,
   currentWeek,
   monitoringOpen,
-  studentCount,
+  students,
 }: {
   departmentId: string;
   departmentLabel: string;
   currentWeek: number;
   monitoringOpen: boolean;
-  studentCount: number;
+  students: GenerateMonitoringStudent[];
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [skipExisting, setSkipExisting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
 
   const [generateState, generateAction, generatePending] = useActionState(
     generateDepartmentMonitoring,
@@ -53,6 +75,42 @@ export function GenerateMonitoringButton({
       router.refresh();
     }
   }, [generateState.success, router]);
+
+  useEffect(() => {
+    if (open) {
+      setSelectedIds(new Set(students.map((student) => student.id)));
+    }
+  }, [open, students]);
+
+  const selectedStudents = useMemo(
+    () => students.filter((student) => selectedIds.has(student.id)),
+    [students, selectedIds]
+  );
+
+  const allSelected =
+    students.length > 0 &&
+    students.every((student) => selectedIds.has(student.id));
+  const someSelected = students.some((student) => selectedIds.has(student.id));
+
+  function toggleStudent(studentId: string, checked: boolean) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (checked) {
+        next.add(studentId);
+      } else {
+        next.delete(studentId);
+      }
+      return next;
+    });
+  }
+
+  function toggleSelectAll(checked: boolean) {
+    if (checked) {
+      setSelectedIds(new Set(students.map((student) => student.id)));
+      return;
+    }
+    setSelectedIds(new Set());
+  }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -69,7 +127,7 @@ export function GenerateMonitoringButton({
       <Button
         type="button"
         onClick={() => setOpen(true)}
-        disabled={generatePending || studentCount === 0}
+        disabled={generatePending || students.length === 0}
       >
         {generatePending ? (
           <>
@@ -90,7 +148,7 @@ export function GenerateMonitoringButton({
           if (!generatePending) setOpen(nextOpen);
         }}
       >
-        <AlertDialogContent className="data-[size=default]:max-w-md data-[size=default]:sm:max-w-md">
+        <AlertDialogContent className="max-h-[90vh] gap-3 overflow-y-auto data-[size=default]:max-w-2xl data-[size=default]:sm:max-w-2xl">
           <form onSubmit={handleSubmit}>
             <AlertDialogHeader>
               <AlertDialogMedia>
@@ -98,8 +156,8 @@ export function GenerateMonitoringButton({
               </AlertDialogMedia>
               <AlertDialogTitle>Auto-fill weekly monitoring</AlertDialogTitle>
               <AlertDialogDescription>
-                Randomly answer the weekly monitoring questionnaire for every
-                student in{" "}
+                Randomly answer the weekly monitoring questionnaire for selected
+                students in{" "}
                 <span className="font-medium text-foreground">
                   {departmentLabel}
                 </span>{" "}
@@ -117,6 +175,84 @@ export function GenerateMonitoringButton({
               name="skip_existing"
               value={skipExisting ? "1" : "0"}
             />
+            <input
+              type="hidden"
+              name="student_ids"
+              value={JSON.stringify(selectedStudents.map((student) => student.id))}
+              readOnly
+            />
+
+            {students.length > 0 ? (
+              <div className="mt-4 space-y-2">
+                <p className="text-sm font-medium">
+                  Select students — {selectedStudents.length} of {students.length}{" "}
+                  chosen
+                </p>
+                <div className="max-h-56 overflow-auto rounded-lg border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-10">
+                          <input
+                            type="checkbox"
+                            aria-label="Select all students"
+                            checked={allSelected}
+                            ref={(element) => {
+                              if (element) {
+                                element.indeterminate =
+                                  someSelected && !allSelected;
+                              }
+                            }}
+                            disabled={generatePending || students.length === 0}
+                            onChange={(event) =>
+                              toggleSelectAll(event.target.checked)
+                            }
+                          />
+                        </TableHead>
+                        <TableHead>Student no.</TableHead>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {students.map((student) => {
+                        const submittedThisWeek =
+                          student.week_number === currentWeek;
+                        return (
+                          <TableRow key={student.id}>
+                            <TableCell>
+                              <input
+                                type="checkbox"
+                                aria-label={`Select ${student.full_name}`}
+                                checked={selectedIds.has(student.id)}
+                                disabled={generatePending}
+                                onChange={(event) =>
+                                  toggleStudent(
+                                    student.id,
+                                    event.target.checked
+                                  )
+                                }
+                              />
+                            </TableCell>
+                            <TableCell>
+                              {student.student_number || "—"}
+                            </TableCell>
+                            <TableCell className="max-w-[14rem] truncate">
+                              {student.full_name}
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              {submittedThisWeek
+                                ? `Week ${currentWeek} submitted`
+                                : "No submission this week"}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            ) : null}
 
             <label className="mt-3 flex items-center gap-2 text-sm">
               <input
@@ -129,7 +265,9 @@ export function GenerateMonitoringButton({
             </label>
 
             {generateState.error ? (
-              <p className="mt-3 text-sm text-destructive">{generateState.error}</p>
+              <p className="mt-3 text-sm text-destructive">
+                {generateState.error}
+              </p>
             ) : null}
             {generateState.success ? (
               <p className="mt-3 text-sm text-emerald-600 dark:text-emerald-400">
@@ -143,7 +281,11 @@ export function GenerateMonitoringButton({
               </AlertDialogCancel>
               <Button
                 type="submit"
-                disabled={generatePending || studentCount === 0}
+                disabled={
+                  generatePending ||
+                  students.length === 0 ||
+                  selectedStudents.length === 0
+                }
               >
                 {generatePending ? (
                   <>
@@ -151,7 +293,7 @@ export function GenerateMonitoringButton({
                     Filling…
                   </>
                 ) : (
-                  `Fill ${studentCount} student${studentCount === 1 ? "" : "s"}`
+                  `Fill ${selectedStudents.length} student${selectedStudents.length === 1 ? "" : "s"}`
                 )}
               </Button>
             </AlertDialogFooter>

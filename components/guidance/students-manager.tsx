@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import {
+  bulkDeleteManagedUsers,
   createStudent,
   deleteManagedUser,
   resetUserPassword,
@@ -94,6 +95,8 @@ export function StudentsManager({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [resetId, setResetId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const [createState, createAction, createPending] = useActionState(
@@ -116,12 +119,17 @@ export function StudentsManager({
     deleteManagedUser,
     initialState
   );
+  const [bulkDeleteState, bulkDeleteAction, bulkDeletePending] = useActionState(
+    bulkDeleteManagedUsers,
+    initialState
+  );
 
   useActionToast(createState);
   useActionToast(updateState);
   useActionToast(toggleState);
   useActionToast(resetState);
   useActionToast(deleteState);
+  useActionToast(bulkDeleteState);
 
   useEffect(() => {
     if (createState.success) setAddOpen(false);
@@ -138,6 +146,13 @@ export function StudentsManager({
   useEffect(() => {
     if (deleteState.success) setDeletingId(null);
   }, [deleteState.success]);
+
+  useEffect(() => {
+    if (bulkDeleteState.success) {
+      setBulkDeleteOpen(false);
+      setSelectedIds(new Set());
+    }
+  }, [bulkDeleteState.success]);
 
   useEffect(() => {
     if (toggleState.success) setTogglingId(null);
@@ -188,8 +203,56 @@ export function StudentsManager({
   const deleting = students.find((s) => s.id === deletingId) ?? null;
   const toggling = students.find((s) => s.id === togglingId) ?? null;
   const deleteFormId = `delete-student-${deletingId ?? "none"}`;
+  const bulkDeleteFormId = "bulk-delete-students";
   const toggleFormId = `toggle-student-${togglingId ?? "none"}`;
   const activeDepartments = departments.filter((d) => d.is_active);
+  const existingEmails = useMemo(
+    () =>
+      students
+        .map((student) => student.email?.trim().toLowerCase())
+        .filter((email): email is string => Boolean(email)),
+    [students]
+  );
+  const existingStudentNumbers = useMemo(
+    () =>
+      students
+        .map((student) => student.student_number?.trim())
+        .filter((studentNumber): studentNumber is string =>
+          Boolean(studentNumber)
+        ),
+    [students]
+  );
+  const pageItemIds = pageItems.map((student) => student.id);
+  const allPageSelected =
+    pageItemIds.length > 0 &&
+    pageItemIds.every((id) => selectedIds.has(id));
+  const somePageSelected = pageItemIds.some((id) => selectedIds.has(id));
+
+  function toggleStudentSelection(studentId: string, checked: boolean) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (checked) {
+        next.add(studentId);
+      } else {
+        next.delete(studentId);
+      }
+      return next;
+    });
+  }
+
+  function toggleSelectAllOnPage(checked: boolean) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      for (const id of pageItemIds) {
+        if (checked) {
+          next.add(id);
+        } else {
+          next.delete(id);
+        }
+      }
+      return next;
+    });
+  }
 
   function closeAdd(open: boolean) {
     setAddOpen(open);
@@ -223,6 +286,16 @@ export function StudentsManager({
             </CardDescription>
           </div>
           <div className="flex flex-wrap gap-2">
+            {selectedIds.size > 0 ? (
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={() => setBulkDeleteOpen(true)}
+              >
+                <Trash2Icon className="size-4" />
+                Delete selected ({selectedIds.size})
+              </Button>
+            ) : null}
             <Button type="button" variant="outline" onClick={() => setBulkOpen(true)}>
               <UploadIcon className="size-4" />
               Bulk add
@@ -292,6 +365,23 @@ export function StudentsManager({
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-10">
+                      <input
+                        type="checkbox"
+                        aria-label="Select all students on this page"
+                        checked={allPageSelected}
+                        ref={(element) => {
+                          if (element) {
+                            element.indeterminate =
+                              somePageSelected && !allPageSelected;
+                          }
+                        }}
+                        disabled={pageItemIds.length === 0}
+                        onChange={(event) =>
+                          toggleSelectAllOnPage(event.target.checked)
+                        }
+                      />
+                    </TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead>Student no.</TableHead>
                     <TableHead>Course</TableHead>
@@ -303,6 +393,19 @@ export function StudentsManager({
                 <TableBody>
                   {pageItems.map((student) => (
                     <TableRow key={student.id}>
+                      <TableCell>
+                        <input
+                          type="checkbox"
+                          aria-label={`Select ${student.full_name}`}
+                          checked={selectedIds.has(student.id)}
+                          onChange={(event) =>
+                            toggleStudentSelection(
+                              student.id,
+                              event.target.checked
+                            )
+                          }
+                        />
+                      </TableCell>
                       <TableCell>
                         <div className="flex items-start gap-2.5">
                           <Avatar className="size-8 shrink-0">
@@ -456,6 +559,8 @@ export function StudentsManager({
         open={bulkOpen}
         onOpenChange={setBulkOpen}
         departments={departments}
+        existingEmails={existingEmails}
+        existingStudentNumbers={existingStudentNumbers}
       />
 
       <AlertDialog open={addOpen} onOpenChange={closeAdd}>
@@ -883,6 +988,23 @@ export function StudentsManager({
             <input type="hidden" name="role" value="Student" />
           </>
         ) : null}
+      </DeleteConfirmDialog>
+
+      <DeleteConfirmDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        pending={bulkDeletePending}
+        title={`Delete ${selectedIds.size} student${selectedIds.size === 1 ? "" : "s"}?`}
+        description="This will permanently remove the selected students. Students with monitoring or counseling records cannot be deleted — deactivate them instead."
+        formId={bulkDeleteFormId}
+        formAction={bulkDeleteAction}
+        confirmLabel={`Delete ${selectedIds.size}`}
+      >
+        <input
+          type="hidden"
+          name="user_ids"
+          value={JSON.stringify([...selectedIds])}
+        />
       </DeleteConfirmDialog>
     </div>
   );

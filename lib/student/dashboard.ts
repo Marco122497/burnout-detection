@@ -13,8 +13,11 @@ import {
 import { getActiveTerm, getCurrentWeekNumber } from "@/lib/student/terms";
 import type { BurnoutLevel } from "@/lib/student/mfbi";
 import {
+  buildStudentFactors,
   getFactorRecommendations,
   getOverallRecommendation,
+  resolveRecommendationLevel,
+  resolveRecommendationTrend,
   type FactorRecommendation,
 } from "@/lib/student/tips";
 
@@ -61,6 +64,8 @@ export type StudentDashboardData = {
     description: string;
     burnout_level: string;
     recommended_action: string | null;
+    basis: "next_week" | "current";
+    trend: string | null;
   } | null;
   factorRecommendations: FactorRecommendation[];
   announcements: {
@@ -119,9 +124,29 @@ export async function getStudentDashboardData(
   const burnoutLevel =
     latest?.prediction?.final_prediction ?? mfbi?.burnout_level ?? null;
   const mfbiScore = mfbi?.mfbi_score ?? null;
+  const previousMfbiRaw = history[1]?.mfbi_results
+    ? Array.isArray(history[1].mfbi_results)
+      ? history[1].mfbi_results[0]
+      : history[1].mfbi_results
+    : null;
+  const previousMfbiScore =
+    previousMfbiRaw?.mfbi_score != null
+      ? Number(previousMfbiRaw.mfbi_score)
+      : null;
   const earlyWarning = parseEarlyWarningRemarks(
     latest?.prediction?.remarks ?? null
   );
+  const recommendationTrend = resolveRecommendationTrend(
+    earlyWarning?.trend,
+    mfbiScore,
+    previousMfbiScore
+  );
+  const { level: recommendationLevel, basis: recommendationBasis, trend } =
+    resolveRecommendationLevel(
+      (burnoutLevel as BurnoutLevel | null) ?? null,
+      earlyWarning?.next_week_risk ?? null,
+      { trend: recommendationTrend }
+    );
   const selectedModel = latest?.prediction?.selected_model ?? null;
   const decisionTreeConfidence =
     latest?.prediction?.decision_tree_confidence != null
@@ -163,15 +188,18 @@ export async function getStudentDashboardData(
       ),
     ]);
 
-  const overall = getOverallRecommendation(
-    (burnoutLevel as BurnoutLevel | null) ?? null
-  );
+  const overall = getOverallRecommendation(recommendationLevel, {
+    trend,
+    currentMfbi: mfbiScore,
+  });
   const recommendation: StudentDashboardData["recommendation"] = overall
     ? {
         title: overall.title,
         description: overall.description,
         burnout_level: overall.burnout_level,
         recommended_action: overall.recommended_action,
+        basis: recommendationBasis === "next_week" ? "next_week" : "current",
+        trend,
       }
     : null;
 
@@ -229,28 +257,11 @@ export async function getStudentDashboardData(
           : "High";
 
   const factors =
-    latest && mfbi
-      ? {
-          stress: {
-            raw: latest.stress_score,
-            normalized: mfbi.normalized_stress,
-          },
-          workload: {
-            raw: latest.academic_workload,
-            normalized: mfbi.normalized_workload,
-          },
-          studyTime: {
-            raw: latest.study_time,
-            normalized: mfbi.normalized_study_time,
-          },
-          sleep: {
-            raw: latest.sleep_hours,
-            normalized: mfbi.normalized_sleep,
-          },
-        }
-      : null;
+    latest && mfbi ? buildStudentFactors(latest, mfbi) : null;
 
-  const factorRecommendations = getFactorRecommendations(factors);
+  const factorRecommendations = getFactorRecommendations(factors, {
+    trend,
+  });
 
   return {
     burnoutLevel,

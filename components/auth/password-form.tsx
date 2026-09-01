@@ -8,6 +8,7 @@ import {
   resetPassword,
   type AuthActionState,
 } from "@/app/actions/auth";
+import { useActionRedirect } from "@/hooks/use-action-redirect";
 import { useActionToast } from "@/hooks/use-action-toast";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,6 +33,7 @@ export function PasswordForm({ mode }: PasswordFormProps) {
   const action = mode === "change" ? changePassword : resetPassword;
   const [state, formAction, pending] = useActionState(action, initialState);
   useActionToast(state);
+  useActionRedirect(state);
 
   return (
     <Card className="w-full max-w-md border-border/80 shadow-sm">

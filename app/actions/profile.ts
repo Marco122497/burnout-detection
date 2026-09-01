@@ -27,91 +27,73 @@ export async function updateProfile(
   const contact_number =
     String(formData.get("contact_number") || "").trim() || null;
   const address = String(formData.get("address") || "").trim() || null;
-  const student_number =
-    String(formData.get("student_number") || "").trim() || null;
   const employee_no = String(formData.get("employee_no") || "").trim() || null;
-  const section = String(formData.get("section") || "").trim() || null;
-  const yearLevelRaw = String(formData.get("year_level") || "").trim();
-  const departmentRaw = String(formData.get("department_id") || "").trim();
   const designation = String(formData.get("designation") || "").trim() || null;
-
-  if (!first_name || !last_name) {
-    return { error: "First name and last name are required." };
-  }
+  const departmentRaw = String(formData.get("department_id") || "").trim();
+  const yearLevelRaw = String(formData.get("year_level") || "").trim();
 
   const sex = sexRaw === "Male" || sexRaw === "Female" ? sexRaw : null;
-  const year_level = yearLevelRaw ? Number(yearLevelRaw) : null;
-  const department_id = departmentRaw ? Number(departmentRaw) : null;
-
-  if (
-    year_level !== null &&
-    (Number.isNaN(year_level) || year_level < 1 || year_level > 6)
-  ) {
-    return { error: "Year level must be between 1 and 6." };
-  }
-
-  if (
-    isStudentRole(profile.role) &&
-    (department_id === null || Number.isNaN(department_id))
-  ) {
-    return { error: "Please select a valid course." };
-  }
-
   const age = calculateAge(birth_date);
 
-  const payload: Record<string, unknown> = {
-    first_name,
-    middle_name,
-    last_name,
-    suffix,
-    sex,
-    birth_date,
-    age,
-    contact_number,
-    address,
-  };
-
   if (isStudentRole(profile.role)) {
-    const { data: department } = await supabase
-      .from("departments")
-      .select("department_name, description, is_active")
-      .eq("department_id", department_id)
-      .eq("is_active", true)
-      .maybeSingle();
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        sex,
+        birth_date,
+        age,
+        contact_number,
+        address,
+      })
+      .eq("id", user.id);
 
-    if (!department) {
-      return { error: "Please select a valid course." };
+    if (error) {
+      return { error: error.message };
+    }
+  } else {
+    if (!first_name || !last_name) {
+      return { error: "First name and last name are required." };
     }
 
-    payload.student_number = student_number;
-    payload.course =
-      department.description?.trim() || department.department_name || null;
-    payload.year_level = year_level;
-    payload.section = section;
-    payload.department_id = department_id;
-  } else {
-    payload.employee_no = employee_no;
-    payload.designation = designation;
-    // Department assignment for instructors is managed by Guidance Counselor
+    const year_level = yearLevelRaw ? Number(yearLevelRaw) : null;
+    const department_id = departmentRaw ? Number(departmentRaw) : null;
+
+    if (
+      year_level !== null &&
+      (Number.isNaN(year_level) || year_level < 1 || year_level > 6)
+    ) {
+      return { error: "Year level must be between 1 and 6." };
+    }
+
+    const payload: Record<string, unknown> = {
+      first_name,
+      middle_name,
+      last_name,
+      suffix,
+      sex,
+      birth_date,
+      age,
+      contact_number,
+      address,
+      employee_no,
+      designation,
+    };
+
     if (profile.role === "Guidance Counselor" && department_id) {
       payload.department_id = department_id;
     }
-  }
 
-  const { error } = await supabase
-    .from("profiles")
-    .update(payload)
-    .eq("id", user.id);
+    const { error } = await supabase
+      .from("profiles")
+      .update(payload)
+      .eq("id", user.id);
 
-  if (error) {
-    if (error.code === "23505") {
-      return {
-        error: isStudentRole(profile.role)
-          ? "Student number is already in use."
-          : "Employee number is already in use.",
-      };
+    if (error) {
+      if (error.code === "23505") {
+        return { error: "Employee number is already in use." };
+      }
+      return { error: error.message };
     }
-    return { error: error.message };
   }
 
   const headerStore = await headers();

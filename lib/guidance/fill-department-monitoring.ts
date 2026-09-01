@@ -29,11 +29,19 @@ async function loadDepartmentWeekContexts(
 ) {
   const contexts = new Map<
     string,
-    { priorWeek: PriorWeekScores | null; historyMfbi: number[] }
+    {
+      priorWeek: PriorWeekScores | null;
+      historyMfbi: number[];
+      historyLevels: string[];
+    }
   >();
 
   for (const studentId of studentIds) {
-    contexts.set(studentId, { priorWeek: null, historyMfbi: [] });
+    contexts.set(studentId, {
+      priorWeek: null,
+      historyMfbi: [],
+      historyLevels: [],
+    });
   }
 
   const chunkSize = 100;
@@ -42,7 +50,7 @@ async function loadDepartmentWeekContexts(
     const { data: rows } = await admin
       .from("weekly_monitoring")
       .select(
-        "student_id, week_number, stress_score, academic_workload_score, study_time_score, sleep_hours_score, mfbi_results(mfbi_score)"
+        "student_id, week_number, stress_score, academic_workload_score, study_time_score, sleep_hours_score, mfbi_results(mfbi_score, burnout_risk_level)"
       )
       .eq("term_id", termId)
       .in("student_id", chunk)
@@ -57,6 +65,9 @@ async function loadDepartmentWeekContexts(
       const mfbi = Array.isArray(mfbiRaw) ? mfbiRaw[0] : mfbiRaw;
       if (mfbi?.mfbi_score != null) {
         context.historyMfbi.push(Number(mfbi.mfbi_score));
+      }
+      if (mfbi?.burnout_risk_level) {
+        context.historyLevels.push(String(mfbi.burnout_risk_level));
       }
 
       context.priorWeek = {
@@ -75,6 +86,7 @@ export async function fillDepartmentMonitoring(input: {
   supabase: SupabaseClient;
   departmentId: number;
   skipExisting: boolean;
+  studentIds?: string[];
 }): Promise<
   | { ok: true; result: FillDepartmentResult }
   | { ok: false; error: string; result?: Partial<FillDepartmentResult> }
@@ -119,18 +131,28 @@ export async function fillDepartmentMonitoring(input: {
     return { ok: false, error: "Department not found." };
   }
 
-  const { data: students } = await admin
+  const { data: allStudents } = await admin
     .from("profiles")
     .select("id, student_number")
     .eq("role", "Student")
     .eq("is_active", true)
     .eq("department_id", input.departmentId);
 
-  if (!students?.length) {
+  if (!allStudents?.length) {
     return {
       ok: false,
       error: `No active students in ${department.department_name ?? "this department"}.`,
     };
+  }
+
+  let students = allStudents;
+  if (input.studentIds?.length) {
+    const allowed = new Set(input.studentIds);
+    students = allStudents.filter((student) => allowed.has(student.id));
+  }
+
+  if (!students.length) {
+    return { ok: false, error: "Select at least one student to fill." };
   }
 
   if (students.length > 500) {
@@ -158,6 +180,7 @@ export async function fillDepartmentMonitoring(input: {
     const context = contexts.get(student.id) ?? {
       priorWeek: null,
       historyMfbi: [],
+      historyLevels: [],
     };
 
     let answers;
@@ -185,6 +208,7 @@ export async function fillDepartmentMonitoring(input: {
       answers,
       priorWeek: context.priorWeek,
       historyMfbi: context.historyMfbi,
+      historyLevels: context.historyLevels,
       skipExisting: input.skipExisting,
       departmentCode: department.department_code,
     });

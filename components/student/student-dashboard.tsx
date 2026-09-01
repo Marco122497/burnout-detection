@@ -136,15 +136,19 @@ export function StudentDashboard({
               Counseling recommendation
             </CardTitle>
             <CardDescription>
-              Simple tips based on your burnout score, stress, schoolwork, study
-              time, and sleep.
+              Tips aligned with your next-week early warning outlook when
+              available, plus stress, schoolwork, study time, and sleep.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {data.recommendation ? (
               <>
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  From your burnout score
+                  {data.recommendation.trend === "decreasing"
+                    ? "From decreasing trend · current warning"
+                    : data.recommendation.basis === "next_week"
+                      ? "From next-week early warning"
+                      : "From your burnout score"}
                   {data.recommendation.burnout_level
                     ? ` · ${data.recommendation.burnout_level}`
                     : ""}

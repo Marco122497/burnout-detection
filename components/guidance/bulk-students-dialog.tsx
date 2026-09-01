@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useState } from "react";
-import { Loader2, UploadIcon } from "lucide-react";
+import { Loader2, Trash2Icon, UploadIcon } from "lucide-react";
 
 import {
   bulkCreateStudents,
@@ -10,10 +10,14 @@ import {
 import { DEFAULT_INITIAL_PASSWORD_NOTE } from "@/lib/auth/defaults";
 import type { Department } from "@/lib/auth/roles";
 import {
+  enrichBulkDrafts,
+  getImportableBulkDrafts,
+  isSkippableBulkConflict,
   parseBulkStudentText,
   type BulkStudentDraft,
 } from "@/lib/guidance/bulk-students";
 import { useActionToast } from "@/hooks/use-action-toast";
+import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -60,10 +64,14 @@ export function BulkStudentsDialog({
   open,
   onOpenChange,
   departments,
+  existingEmails = [],
+  existingStudentNumbers = [],
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   departments: Department[];
+  existingEmails?: string[];
+  existingStudentNumbers?: string[];
 }) {
   const activeDepartments = departments.filter((dept) => dept.is_active);
   const defaultDepartment = findEnglishStudiesDepartment(activeDepartments);
@@ -71,6 +79,13 @@ export function BulkStudentsDialog({
     defaultDepartment?.department_id.toString() ?? ""
   );
   const [pasteText, setPasteText] = useState("");
+  const [removedRowNumbers, setRemovedRowNumbers] = useState<Set<number>>(
+    () => new Set()
+  );
+  const [selectedRowNumbers, setSelectedRowNumbers] = useState<Set<number>>(
+    () => new Set()
+  );
+  const [skipExisting, setSkipExisting] = useState(true);
 
   const [bulkState, bulkAction, bulkPending] = useActionState(
     bulkCreateStudents,
@@ -83,6 +98,8 @@ export function BulkStudentsDialog({
     if (bulkState.success) {
       onOpenChange(false);
       setPasteText("");
+      setRemovedRowNumbers(new Set());
+      setSelectedRowNumbers(new Set());
     }
   }, [bulkState.success, onOpenChange]);
 
@@ -92,17 +109,81 @@ export function BulkStudentsDialog({
     }
   }, [open, defaultDepartment, departmentId]);
 
-  const drafts = useMemo(
-    () => (pasteText.trim() ? parseBulkStudentText(pasteText) : []),
-    [pasteText]
+  const drafts = useMemo(() => {
+    if (!pasteText.trim()) return [];
+    const parsed = parseBulkStudentText(pasteText);
+    const enriched = enrichBulkDrafts(parsed, {
+      existingEmails,
+      existingStudentNumbers,
+    });
+    return enriched.filter((row) => !removedRowNumbers.has(row.rowNumber));
+  }, [pasteText, removedRowNumbers, existingEmails, existingStudentNumbers]);
+
+  useEffect(() => {
+    setRemovedRowNumbers(new Set());
+    setSelectedRowNumbers(new Set());
+  }, [pasteText]);
+
+  const importableDrafts = useMemo(
+    () => getImportableBulkDrafts(drafts, skipExisting),
+    [drafts, skipExisting]
+  );
+  const importCount = importableDrafts.length;
+  const skippedCount = drafts.filter(
+    (row) =>
+      row.errors.length > 0 &&
+      row.errors.every((error) => isSkippableBulkConflict(error))
+  ).length;
+  const invalidCount = drafts.filter((row) => {
+    const blockingErrors = skipExisting
+      ? row.errors.filter((error) => !isSkippableBulkConflict(error))
+      : row.errors;
+    return blockingErrors.length > 0;
+  }).length;
+
+  const selectableRowNumbers = importableDrafts.map((row) => row.rowNumber);
+  const allSelectableSelected =
+    selectableRowNumbers.length > 0 &&
+    selectableRowNumbers.every((rowNumber) =>
+      selectedRowNumbers.has(rowNumber)
+    );
+  const someSelectableSelected = selectableRowNumbers.some((rowNumber) =>
+    selectedRowNumbers.has(rowNumber)
   );
 
-  const validCount = drafts.filter((row) => row.errors.length === 0).length;
-  const invalidCount = drafts.length - validCount;
+  const rowsJson = JSON.stringify(importableDrafts);
 
-  const rowsJson = JSON.stringify(
-    drafts.filter((row) => row.errors.length === 0)
-  );
+  function toggleRowSelection(rowNumber: number, checked: boolean) {
+    setSelectedRowNumbers((current) => {
+      const next = new Set(current);
+      if (checked) {
+        next.add(rowNumber);
+      } else {
+        next.delete(rowNumber);
+      }
+      return next;
+    });
+  }
+
+  function toggleSelectAll(checked: boolean) {
+    if (checked) {
+      setSelectedRowNumbers(new Set(selectableRowNumbers));
+      return;
+    }
+    setSelectedRowNumbers(new Set());
+  }
+
+  function removeSelectedRows() {
+    if (selectedRowNumbers.size === 0) return;
+    setRemovedRowNumbers((current) => {
+      const next = new Set(current);
+      for (const rowNumber of selectedRowNumbers) {
+        next.add(rowNumber);
+      }
+      return next;
+    });
+    setSelectedRowNumbers(new Set());
+  }
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -126,6 +207,12 @@ export function BulkStudentsDialog({
             className="space-y-4"
           >
             <input type="hidden" name="rows_json" value={rowsJson} readOnly />
+            <input
+              type="hidden"
+              name="skip_existing"
+              value={skipExisting ? "1" : "0"}
+              readOnly
+            />
             <div className="space-y-1.5">
               <Label htmlFor="bulk-department_id">Course</Label>
               <select
@@ -167,14 +254,45 @@ export function BulkStudentsDialog({
 
             {drafts.length > 0 ? (
               <div className="space-y-2">
-                <p className="text-sm font-medium">
-                  Preview — {validCount} ready
-                  {invalidCount > 0 ? `, ${invalidCount} with errors` : ""}
-                </p>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-medium">
+                    Preview — {importCount} to import
+                    {skippedCount > 0 ? `, ${skippedCount} already registered` : ""}
+                    {invalidCount > 0 ? `, ${invalidCount} with errors` : ""}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={selectedRowNumbers.size === 0}
+                    onClick={removeSelectedRows}
+                  >
+                    <Trash2Icon className="size-4" />
+                    Remove selected ({selectedRowNumbers.size})
+                  </Button>
+                </div>
                 <div className="max-h-56 overflow-auto rounded-lg border">
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="w-10">
+                          <input
+                            type="checkbox"
+                            aria-label="Select all valid rows"
+                            checked={allSelectableSelected}
+                            ref={(element) => {
+                              if (element) {
+                                element.indeterminate =
+                                  someSelectableSelected &&
+                                  !allSelectableSelected;
+                              }
+                            }}
+                            disabled={selectableRowNumbers.length === 0}
+                            onChange={(event) =>
+                              toggleSelectAll(event.target.checked)
+                            }
+                          />
+                        </TableHead>
                         <TableHead>Row</TableHead>
                         <TableHead>Student no.</TableHead>
                         <TableHead>Name</TableHead>
@@ -185,12 +303,41 @@ export function BulkStudentsDialog({
                     </TableHeader>
                     <TableBody>
                       {drafts.map((row) => (
-                        <PreviewRow key={`${row.rowNumber}-${row.email}`} row={row} />
+                        <PreviewRow
+                          key={`${row.rowNumber}-${row.email}`}
+                          row={row}
+                          skipExisting={skipExisting}
+                          selected={selectedRowNumbers.has(row.rowNumber)}
+                          onSelectChange={(checked) =>
+                            toggleRowSelection(row.rowNumber, checked)
+                          }
+                        />
                       ))}
                     </TableBody>
                   </Table>
                 </div>
               </div>
+            ) : null}
+
+            {drafts.length > 0 ? (
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={skipExisting}
+                  disabled={bulkPending}
+                  onChange={(event) => setSkipExisting(event.target.checked)}
+                />
+                Skip students whose email or student number is already registered
+              </label>
+            ) : null}
+
+            {bulkState.error ? (
+              <p className="text-sm text-destructive">{bulkState.error}</p>
+            ) : null}
+            {bulkState.success ? (
+              <p className="text-sm text-green-600 dark:text-green-400">
+                {bulkState.success}
+              </p>
             ) : null}
           </form>
         ) : null}
@@ -201,7 +348,10 @@ export function BulkStudentsDialog({
             type="submit"
             form="bulk-students-form"
             disabled={
-              bulkPending || validCount === 0 || !departmentId || invalidCount > 0
+              bulkPending ||
+              importCount === 0 ||
+              !departmentId ||
+              invalidCount > 0
             }
           >
             {bulkPending ? (
@@ -210,7 +360,7 @@ export function BulkStudentsDialog({
                 Importing…
               </>
             ) : (
-              `Import ${validCount || ""} student${validCount === 1 ? "" : "s"}`
+              `Import ${importCount || ""} student${importCount === 1 ? "" : "s"}`
             )}
           </AlertDialogAction>
         </AlertDialogFooter>
@@ -219,14 +369,48 @@ export function BulkStudentsDialog({
   );
 }
 
-function PreviewRow({ row }: { row: BulkStudentDraft }) {
+function PreviewRow({
+  row,
+  skipExisting,
+  selected,
+  onSelectChange,
+}: {
+  row: BulkStudentDraft;
+  skipExisting: boolean;
+  selected: boolean;
+  onSelectChange: (checked: boolean) => void;
+}) {
   const fullName = [row.first_name, row.middle_name, row.last_name]
     .filter(Boolean)
     .join(" ");
-  const hasErrors = row.errors.length > 0;
+  const blockingErrors = skipExisting
+    ? row.errors.filter((error) => !isSkippableBulkConflict(error))
+    : row.errors;
+  const skippableOnly =
+    row.errors.length > 0 &&
+    blockingErrors.length === 0 &&
+    row.errors.every((error) => isSkippableBulkConflict(error));
+  const hasErrors = blockingErrors.length > 0;
 
   return (
-    <TableRow className={hasErrors ? "bg-destructive/5" : undefined}>
+    <TableRow
+      className={
+        hasErrors
+          ? "bg-destructive/5"
+          : skippableOnly
+            ? "bg-muted/40"
+            : undefined
+      }
+    >
+      <TableCell>
+        <input
+          type="checkbox"
+          aria-label={`Select row ${row.rowNumber}`}
+          checked={selected}
+          disabled={hasErrors}
+          onChange={(event) => onSelectChange(event.target.checked)}
+        />
+      </TableCell>
       <TableCell>{row.rowNumber}</TableCell>
       <TableCell>{row.student_number || "—"}</TableCell>
       <TableCell className="max-w-[10rem] truncate">{fullName || "—"}</TableCell>
@@ -237,7 +421,13 @@ function PreviewRow({ row }: { row: BulkStudentDraft }) {
           : formatYearLevel(row.year_level)}
       </TableCell>
       <TableCell className="text-xs text-muted-foreground">
-        {hasErrors ? row.errors.join(" ") : "Ready"}
+        {hasErrors
+          ? blockingErrors.join(" ")
+          : skippableOnly
+            ? skipExisting
+              ? "Already registered (will skip)"
+              : row.errors.join(" ")
+            : "Ready"}
       </TableCell>
     </TableRow>
   );

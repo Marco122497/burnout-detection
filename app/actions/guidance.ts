@@ -626,7 +626,7 @@ async function provisionStudentAccount(
       section: input.section ?? null,
       role: "Student",
       is_active: true,
-      enrollment_status: "enrolled",
+      enrollment_status: "Regular",
     })
     .eq("id", data.user.id);
 
@@ -742,6 +742,7 @@ export async function bulkCreateStudents(
 
   const department_id = Number(formData.get("department_id"));
   const rowsJson = String(formData.get("rows_json") || "").trim();
+  const skipExisting = String(formData.get("skip_existing") || "") === "1";
 
   if (!department_id || Number.isNaN(department_id)) {
     return { error: "Please select a course for bulk import." };
@@ -795,6 +796,7 @@ export async function bulkCreateStudents(
 
   const failures: string[] = [];
   let created = 0;
+  let skipped = 0;
 
   for (const row of rows) {
     const result = await provisionStudentAccount(admin, {
@@ -811,6 +813,13 @@ export async function bulkCreateStudents(
     });
 
     if ("error" in result) {
+      if (
+        skipExisting &&
+        result.error === "An account with this email already exists."
+      ) {
+        skipped += 1;
+        continue;
+      }
       failures.push(
         `Row ${row.rowNumber} (${row.student_number}): ${result.error}`
       );
@@ -837,6 +846,11 @@ export async function bulkCreateStudents(
   revalidatePath("/guidance/departments");
 
   if (created === 0) {
+    if (skipped > 0 && failures.length === 0) {
+      return {
+        success: `All ${skipped} student(s) were already registered and skipped.`,
+      };
+    }
     return {
       error:
         failures[0] ??
@@ -844,11 +858,15 @@ export async function bulkCreateStudents(
     };
   }
 
-  if (failures.length > 0) {
-    return {
-      success: `Imported ${created} student(s). ${failures.length} failed.`,
-      error: failures.slice(0, 5).join(" "),
-    };
+  if (failures.length > 0 || skipped > 0) {
+    const parts = [`Imported ${created} student(s).`];
+    if (skipped > 0) {
+      parts.push(`${skipped} already registered and skipped.`);
+    }
+    if (failures.length > 0) {
+      parts.push(`${failures.length} failed: ${failures.slice(0, 3).join(" ")}`);
+    }
+    return { success: parts.join(" ") };
   }
 
   return { success: `Imported ${created} student(s).` };
@@ -865,6 +883,26 @@ export async function generateDepartmentMonitoring(
 
     const departmentId = Number(formData.get("department_id"));
     const skipExisting = formData.get("skip_existing") === "1";
+    const studentIdsRaw = String(formData.get("student_ids") || "").trim();
+
+    let studentIds: string[] | undefined;
+    if (studentIdsRaw) {
+      try {
+        const parsed: unknown = JSON.parse(studentIdsRaw);
+        if (!Array.isArray(parsed)) {
+          return { error: "Invalid student selection." };
+        }
+        studentIds = parsed
+          .map((id) => String(id ?? "").trim())
+          .filter((id) => id.length > 0);
+      } catch {
+        return { error: "Invalid student selection." };
+      }
+
+      if (studentIds.length === 0) {
+        return { error: "Select at least one student to fill." };
+      }
+    }
 
     if (!departmentId || Number.isNaN(departmentId)) {
       return { error: "Select a department first." };
@@ -874,6 +912,7 @@ export async function generateDepartmentMonitoring(
       supabase,
       departmentId,
       skipExisting,
+      studentIds,
     });
 
     if (!fill.ok) {
@@ -1353,6 +1392,66 @@ export async function deleteManagedUser(
   revalidatePath("/guidance/monitoring");
   revalidatePath("/guidance");
   return { success: `${target.role} deleted.` };
+}
+
+export async function bulkDeleteManagedUsers(
+  _prev: GuidanceActionState,
+  formData: FormData
+): Promise<GuidanceActionState> {
+  const { user } = await requireRole(["Guidance Counselor"]);
+
+  const raw = String(formData.get("user_ids") || "[]");
+  let userIds: string[];
+
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return { error: "Invalid selection." };
+    }
+    userIds = parsed
+      .map((id) => String(id ?? "").trim())
+      .filter((id) => id.length > 0);
+  } catch {
+    return { error: "Invalid selection." };
+  }
+
+  if (userIds.length === 0) {
+    return { error: "Select at least one student to delete." };
+  }
+
+  const uniqueIds = [...new Set(userIds)].filter((id) => id !== user.id);
+  if (uniqueIds.length === 0) {
+    return { error: "You cannot delete your own account." };
+  }
+
+  let deleted = 0;
+  const failures: string[] = [];
+
+  for (const user_id of uniqueIds) {
+    const innerForm = new FormData();
+    innerForm.set("user_id", user_id);
+    innerForm.set("role", "Student");
+    const result = await deleteManagedUser({}, innerForm);
+    if (result.error) {
+      failures.push(result.error);
+    } else {
+      deleted += 1;
+    }
+  }
+
+  if (deleted === 0) {
+    return { error: failures[0] ?? "No students were deleted." };
+  }
+
+  if (failures.length > 0) {
+    return {
+      success: `Deleted ${deleted} student(s). ${failures.length} could not be deleted.`,
+    };
+  }
+
+  return {
+    success: `Deleted ${deleted} student${deleted === 1 ? "" : "s"}.`,
+  };
 }
 
 export async function openNextMonitoringWeek(

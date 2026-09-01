@@ -6,6 +6,7 @@ import { Loader2 } from "lucide-react";
 
 import { register, type AuthActionState } from "@/app/actions/auth";
 import type { Department } from "@/lib/auth/roles";
+import { useActionRedirect } from "@/hooks/use-action-redirect";
 import { useActionToast } from "@/hooks/use-action-toast";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,6 +33,7 @@ export function RegisterForm({
 }) {
   const [state, formAction, pending] = useActionState(register, initialState);
   useActionToast(state);
+  useActionRedirect(state);
 
   return (
     <Card className="w-full max-w-lg border-border/80 shadow-sm">

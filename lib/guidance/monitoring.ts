@@ -53,7 +53,7 @@ export async function getGuidanceStudentRows(
   const { data: students } = await supabase
     .from("profiles")
     .select(
-      "id, first_name, middle_name, last_name, suffix, student_number, course, year_level, section, is_active, department_id, departments(department_code, department_name, description)"
+      "id, first_name, middle_name, last_name, suffix, student_number, course, year_level, section, is_active, department_id, profile_picture, departments(department_code, department_name, description)"
     )
     .eq("role", "Student")
     .eq("is_active", true)
@@ -218,6 +218,7 @@ export async function getGuidanceStudentRows(
       id: student.id,
       full_name: buildFullName(student),
       student_number: student.student_number,
+      profile_picture: student.profile_picture ?? null,
       course: student.course,
       year_level: student.year_level,
       section: student.section,
