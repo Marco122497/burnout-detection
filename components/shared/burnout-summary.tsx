@@ -170,9 +170,7 @@ export function BurnoutHero({
 }
 
 function factorTone(normalized: number) {
-  if (normalized < 1 / 3) return "bg-emerald-500";
-  if (normalized < 2 / 3) return "bg-amber-500";
-  return "bg-rose-500";
+  return getRiskTheme(classifyMfbiScore(normalized)).bar;
 }
 
 function factorScoreLabel(
