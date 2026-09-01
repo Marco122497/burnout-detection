@@ -292,7 +292,7 @@ export function WeeklyMonitoringForm({
                           </span>
                         ) : null}
                       </legend>
-                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-[repeat(auto-fit,minmax(8rem,1fr))]">
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-[repeat(auto-fit,minmax(8rem,1fr))]">
                         {options.map((option) => {
                           const displayScore =
                             section.key === "pss"
