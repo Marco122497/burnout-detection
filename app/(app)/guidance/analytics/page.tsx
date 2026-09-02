@@ -4,13 +4,12 @@ import { GuidanceAnalyticsView } from "@/components/guidance/guidance-analytics"
 import { PageHeading } from "@/components/layout/page-heading";
 import { requireRole } from "@/lib/auth/session";
 import { buildFormalName } from "@/lib/auth/roles";
-import { getModelEvaluation } from "@/lib/guidance/model-metrics";
+import { getAiModelStatus } from "@/lib/guidance/model-metrics";
 import {
   getGuidanceAnalytics,
   getGuidanceStudentRows,
   getUniversityWeeklySeries,
 } from "@/lib/guidance/monitoring";
-import { checkBurnoutAiHealth } from "@/lib/student/ai-client";
 
 export const metadata = {
   title: "Analytics",
@@ -18,11 +17,10 @@ export const metadata = {
 
 export default async function GuidanceAnalyticsPage() {
   const { supabase, profile } = await requireRole(["Guidance Counselor"]);
-  const [rows, weeklyTrends, modelEvaluation, aiHealthy] = await Promise.all([
+  const [rows, weeklyTrends, aiStatus] = await Promise.all([
     getGuidanceStudentRows(supabase),
     getUniversityWeeklySeries(supabase),
-    getModelEvaluation(),
-    checkBurnoutAiHealth(),
+    getAiModelStatus(),
   ]);
   const data = getGuidanceAnalytics(rows, weeklyTrends);
 
@@ -35,8 +33,9 @@ export default async function GuidanceAnalyticsPage() {
       />
       <GuidanceAnalyticsView
         data={data}
-        modelEvaluation={modelEvaluation}
-        aiHealthy={aiHealthy}
+        modelEvaluation={aiStatus.modelEvaluation}
+        aiHealthy={aiStatus.aiHealthy}
+        metricsSource={aiStatus.metricsSource}
         preparedBy={buildFormalName(profile) || profile.role}
         preparedRole={profile.role}
       />

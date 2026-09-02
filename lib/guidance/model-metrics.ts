@@ -6,6 +6,8 @@
  * when metrics have not been generated yet.
  */
 
+import { unstable_cache } from "next/cache";
+
 export type ModelEvalBlock = {
   label: string;
   accuracy: number;
@@ -19,6 +21,12 @@ export type ModelEvaluationSnapshot = {
   randomForest: ModelEvalBlock;
   modelVersion: string;
   source: "trained" | "unavailable";
+};
+
+export type AiModelStatus = {
+  modelEvaluation: ModelEvaluationSnapshot;
+  aiHealthy: boolean;
+  metricsSource: "live" | "file" | "unavailable";
 };
 
 const PLACEHOLDER: ModelEvaluationSnapshot = {
@@ -109,13 +117,7 @@ export function mapAiMetrics(raw: unknown): ModelEvaluationSnapshot | null {
 /** Client-safe constant for existing imports; prefer getModelEvaluation(). */
 export const MODEL_EVALUATION = PLACEHOLDER;
 
-export async function getModelEvaluation(): Promise<ModelEvaluationSnapshot> {
-  const { fetchBurnoutAiMetrics } = await import("@/lib/student/ai-client");
-  const live = await fetchBurnoutAiMetrics();
-  const mapped = mapAiMetrics(live);
-  if (mapped) return mapped;
-
-  // Fallback: read metrics.json from disk when AI service is down but train ran.
+async function readMetricsFromFile(): Promise<ModelEvaluationSnapshot | null> {
   try {
     const fs = await import("node:fs/promises");
     const path = await import("node:path");
@@ -126,11 +128,49 @@ export async function getModelEvaluation(): Promise<ModelEvaluationSnapshot> {
       "metrics.json"
     );
     const text = await fs.readFile(file, "utf8");
-    const mappedFile = mapAiMetrics(JSON.parse(text));
-    if (mappedFile) return mappedFile;
+    return mapAiMetrics(JSON.parse(text));
   } catch {
-    // ignore
+    return null;
+  }
+}
+
+async function loadAiModelStatus(): Promise<AiModelStatus> {
+  const { fetchBurnoutAiMetrics } = await import("@/lib/student/ai-client");
+
+  const liveMetrics = await fetchBurnoutAiMetrics();
+
+  const liveMapped = mapAiMetrics(liveMetrics);
+  if (liveMapped) {
+    return {
+      modelEvaluation: liveMapped,
+      aiHealthy: true,
+      metricsSource: "live",
+    };
   }
 
-  return PLACEHOLDER;
+  const fileMapped = await readMetricsFromFile();
+  if (fileMapped) {
+    return {
+      modelEvaluation: fileMapped,
+      aiHealthy: false,
+      metricsSource: "file",
+    };
+  }
+
+  return {
+    modelEvaluation: PLACEHOLDER,
+    aiHealthy: false,
+    metricsSource: "unavailable",
+  };
+}
+
+export const getAiModelStatus = unstable_cache(
+  loadAiModelStatus,
+  ["burnout-ai-model-status"],
+  { revalidate: 60 }
+);
+
+export async function getModelEvaluation(): Promise<ModelEvaluationSnapshot> {
+  const status = await getAiModelStatus();
+  return status.modelEvaluation;
 }

@@ -90,7 +90,7 @@ export function LoginForm() {
               />
             </div>
             <p className="text-center text-xs text-muted-foreground">
-              Forgot password? Contact your administrator.
+              Forgot password? Contact the administrator.
             </p>
           </div>
         </CardContent>

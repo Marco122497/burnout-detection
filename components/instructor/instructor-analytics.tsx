@@ -47,7 +47,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { ModelEvaluationSnapshot } from "@/lib/guidance/model-metrics";
+import type {
+  AiModelStatus,
+  ModelEvaluationSnapshot,
+} from "@/lib/guidance/model-metrics";
 import type { getInstructorAnalytics } from "@/lib/instructor/queries";
 import { cn } from "@/lib/utils";
 
@@ -145,11 +148,13 @@ export function InstructorAnalyticsView({
   departmentName,
   modelEvaluation,
   aiHealthy,
+  metricsSource,
 }: {
   data: Analytics;
   departmentName: string | null;
   modelEvaluation: ModelEvaluationSnapshot;
   aiHealthy: boolean;
+  metricsSource?: AiModelStatus["metricsSource"];
 }) {
   const { navigate, isPending, pendingHref } = useNavigationPending();
   const [yearFilter, setYearFilter] = React.useState("all");
@@ -792,6 +797,7 @@ export function InstructorAnalyticsView({
       <AiModelStatusCard
         modelEvaluation={modelEvaluation}
         aiHealthy={aiHealthy}
+        metricsSource={metricsSource}
       />
     </div>
   );

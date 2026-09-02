@@ -43,7 +43,10 @@ import {
 } from "@/components/ui/chart";
 import { openPrintReport } from "@/lib/instructor/export";
 import type { getGuidanceAnalytics } from "@/lib/guidance/monitoring";
-import type { ModelEvaluationSnapshot } from "@/lib/guidance/model-metrics";
+import type {
+  AiModelStatus,
+  ModelEvaluationSnapshot,
+} from "@/lib/guidance/model-metrics";
 import { cn, formatYearLevel } from "@/lib/utils";
 
 type Analytics = ReturnType<typeof getGuidanceAnalytics>;
@@ -126,12 +129,14 @@ export function GuidanceAnalyticsView({
   data,
   modelEvaluation,
   aiHealthy,
+  metricsSource,
   preparedBy,
   preparedRole = "Guidance Counselor",
 }: {
   data: Analytics;
   modelEvaluation: ModelEvaluationSnapshot;
   aiHealthy: boolean;
+  metricsSource?: AiModelStatus["metricsSource"];
   preparedBy?: string;
   preparedRole?: string;
 }) {
@@ -841,6 +846,7 @@ export function GuidanceAnalyticsView({
         <AiModelStatusCard
           modelEvaluation={modelEvaluation}
           aiHealthy={aiHealthy}
+          metricsSource={metricsSource}
         />
       </section>
 

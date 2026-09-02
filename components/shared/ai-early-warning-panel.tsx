@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import type { ModelEvaluationSnapshot } from "@/lib/guidance/model-metrics";
+import type { AiModelStatus, ModelEvaluationSnapshot } from "@/lib/guidance/model-metrics";
 import { cn, formatYearLevel } from "@/lib/utils";
 
 export type AiEarlyWarningRow = {
@@ -179,9 +179,11 @@ function pct(value: number) {
 export function AiModelStatusCard({
   modelEvaluation,
   aiHealthy,
+  metricsSource,
 }: {
   modelEvaluation: ModelEvaluationSnapshot;
   aiHealthy: boolean;
+  metricsSource?: AiModelStatus["metricsSource"];
 }) {
   const dt = modelEvaluation.decisionTree;
   const rf = modelEvaluation.randomForest;
@@ -202,7 +204,9 @@ export function AiModelStatusCard({
           {modelEvaluation.modelVersion}
           {modelEvaluation.source === "unavailable"
             ? " — run npm run train"
-            : ""}
+            : metricsSource === "file"
+              ? " — local training file"
+              : ""}
           ).
         </CardDescription>
       </CardHeader>

@@ -33,7 +33,10 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart";
 import { formatDateTime } from "@/lib/auth/roles";
-import type { ModelEvaluationSnapshot } from "@/lib/guidance/model-metrics";
+import type {
+  AiModelStatus,
+  ModelEvaluationSnapshot,
+} from "@/lib/guidance/model-metrics";
 import type { getGuidanceAnalytics } from "@/lib/guidance/monitoring";
 import { cn, formatYearLevel } from "@/lib/utils";
 
@@ -92,11 +95,13 @@ export function GuidanceDashboard({
   data,
   modelEvaluation,
   aiHealthy,
+  metricsSource,
 }: {
   firstName: string;
   data: Analytics;
   modelEvaluation: ModelEvaluationSnapshot;
   aiHealthy: boolean;
+  metricsSource?: AiModelStatus["metricsSource"];
 }) {
   const { navigate, isPending, pendingHref } = useNavigationPending();
 
@@ -439,6 +444,7 @@ export function GuidanceDashboard({
         <AiModelStatusCard
           modelEvaluation={modelEvaluation}
           aiHealthy={aiHealthy}
+          metricsSource={metricsSource}
         />
       </div>
     </div>

@@ -47,7 +47,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatDateTime } from "@/lib/auth/roles";
-import type { ModelEvaluationSnapshot } from "@/lib/guidance/model-metrics";
+import type {
+  AiModelStatus,
+  ModelEvaluationSnapshot,
+} from "@/lib/guidance/model-metrics";
 import type { InstructorDashboardData } from "@/lib/instructor/queries";
 import { cn } from "@/lib/utils";
 
@@ -141,11 +144,13 @@ export function InstructorDashboard({
   data,
   modelEvaluation,
   aiHealthy,
+  metricsSource,
 }: {
   firstName?: string;
   data: InstructorDashboardData;
   modelEvaluation: ModelEvaluationSnapshot;
   aiHealthy: boolean;
+  metricsSource?: AiModelStatus["metricsSource"];
 }) {
   const { navigate, isPending, pendingHref } = useNavigationPending();
   const [yearFilter, setYearFilter] = React.useState("all");
@@ -703,6 +708,7 @@ export function InstructorDashboard({
       <AiModelStatusCard
         modelEvaluation={modelEvaluation}
         aiHealthy={aiHealthy}
+        metricsSource={metricsSource}
       />
     </div>
   );
