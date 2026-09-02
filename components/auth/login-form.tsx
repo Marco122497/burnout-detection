@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useActionState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -80,15 +79,7 @@ export function LoginForm() {
             />
           </div>
           <div className="space-y-2">
-            <div className="flex items-center justify-between gap-2">
-              <Label htmlFor="password">Password</Label>
-              <Link
-                href="/forgot-password"
-                className="text-xs text-muted-foreground underline-offset-4 hover:underline"
-              >
-                Forgot password?
-              </Link>
-            </div>
+            <Label htmlFor="password">Password</Label>
             <div className="relative">
               <PasswordInput
                 id="password"
@@ -98,6 +89,9 @@ export function LoginForm() {
                 required
               />
             </div>
+            <p className="text-center text-xs text-muted-foreground">
+              Forgot password? Contact your administrator.
+            </p>
           </div>
         </CardContent>
         <CardFooter className="flex flex-col gap-3">
