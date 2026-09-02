@@ -208,24 +208,6 @@
 }
 
 @media print {
-  @page {
-    margin: 14mm 16mm 18mm;
-
-    @bottom-left {
-      content: "Generated from Burnout Detection System (v1.0.0)";
-      font-family: var(--font-aptos-narrow);
-      font-size: 9px;
-      color: #6b7280;
-    }
-
-    @bottom-right {
-      content: "Page " counter(page) " of " counter(pages);
-      font-family: var(--font-aptos-narrow);
-      font-size: 9px;
-      color: #6b7280;
-    }
-  }
-
   html,
   body {
     background: white !important;
@@ -305,9 +287,5 @@
   .formal-report h3 {
     break-after: avoid;
     page-break-after: avoid;
-  }
-
-  .report-doc-footer {
-    display: none !important;
   }
 }

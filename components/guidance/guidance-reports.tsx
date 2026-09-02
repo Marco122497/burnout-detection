@@ -18,18 +18,219 @@ import {
   filterRowsByMonitoringDate,
   formatReportPeriodLabel,
 } from "@/lib/reports-range";
+import {
+  formatMfbiScore,
+  mfbiRiskBucket,
+} from "@/lib/student/mfbi";
+import { formatYearLevel } from "@/lib/utils";
 
-function riskBucket(level: string | null | undefined) {
-  if (!level) return null;
-  const n = level.toLowerCase();
-  if (n.includes("low")) return "Low" as const;
-  if (n.includes("mod")) return "Moderate" as const;
-  if (n.includes("high") || n.includes("severe")) return "High" as const;
-  return null;
+const YEAR_LEVELS = [1, 2, 3, 4] as const;
+
+const DEPARTMENT_YEAR_LEVEL_COLUMNS = [
+  { key: "year", label: "Year Level" },
+  { key: "students", label: "Students", align: "right" as const },
+  { key: "low", label: "Low", align: "right" as const },
+  { key: "moderate", label: "Moderate", align: "right" as const },
+  { key: "high", label: "High", align: "right" as const },
+  { key: "attention", label: "Attention", align: "right" as const },
+  { key: "mfbi", label: "Avg MFBI", align: "right" as const },
+];
+
+const DEPARTMENT_YEAR_LEVEL_CSV_HEADER = [
+  "Department",
+  "Year Level",
+  "Students",
+  "Low",
+  "Moderate",
+  "High",
+  "Requiring Attention",
+  "Avg MFBI",
+];
+
+type RiskStats = {
+  total: number;
+  low: number;
+  moderate: number;
+  high: number;
+  scores: number[];
+  attention: number;
+};
+
+type MfbiRiskBucket = "Low" | "Moderate" | "High";
+
+function rowMfbiRiskBucket(row: GuidanceStudentRow): MfbiRiskBucket | null {
+  return mfbiRiskBucket(row.mfbi_score, row.burnout_level);
+}
+
+function rowMfbiRiskLabel(row: GuidanceStudentRow) {
+  const bucket = rowMfbiRiskBucket(row);
+  if (!bucket) return "—";
+  if (row.early_warning_attention) return `${bucket} (EW)`;
+  return bucket;
+}
+
+function interventionRowCells(row: GuidanceStudentRow, rowNumber: number) {
+  return [
+    String(rowNumber),
+    row.full_name,
+    row.student_number ?? "",
+    rowMfbiRiskLabel(row),
+    formatMfbiScore(row.mfbi_score),
+    interventionStatus(row),
+    followUpStatus(row),
+  ];
+}
+
+function emptyRiskStats(): RiskStats {
+  return {
+    total: 0,
+    low: 0,
+    moderate: 0,
+    high: 0,
+    scores: [],
+    attention: 0,
+  };
+}
+
+function accumulateRiskStats(entry: RiskStats, row: GuidanceStudentRow) {
+  entry.total += 1;
+  if (row.mfbi_score != null) entry.scores.push(row.mfbi_score);
+  const bucket = rowMfbiRiskBucket(row);
+  if (bucket === "Low") entry.low += 1;
+  else if (bucket === "Moderate") entry.moderate += 1;
+  else if (bucket === "High") entry.high += 1;
+  if (bucket === "High" || row.early_warning_attention) {
+    entry.attention += 1;
+  }
+}
+
+function statsToRow(entry: RiskStats, yearLabel: string) {
+  const average =
+    entry.scores.length > 0
+      ? entry.scores.reduce((a, b) => a + b, 0) / entry.scores.length
+      : null;
+
+  return [
+    yearLabel,
+    String(entry.total),
+    String(entry.low),
+    String(entry.moderate),
+    String(entry.high),
+    String(entry.attention),
+    average != null ? average.toFixed(2) : "—",
+  ];
+}
+
+function getDepartmentNames(
+  rows: GuidanceStudentRow[],
+  departments: Department[]
+) {
+  const names = departments.map((department) => department.department_name);
+  if (rows.some((row) => !row.department_name)) {
+    names.push("Unassigned");
+  }
+  return [...new Set(names)].sort((a, b) => a.localeCompare(b));
+}
+
+function buildDepartmentYearLevelGroups(
+  rows: GuidanceStudentRow[],
+  departments: Department[]
+) {
+  return getDepartmentNames(rows, departments).map((department) => {
+    const deptRows = rows.filter(
+      (row) => (row.department_name || "Unassigned") === department
+    );
+
+    const yearRows = YEAR_LEVELS.map((year) => {
+      const entry = emptyRiskStats();
+      for (const row of deptRows) {
+        if (row.year_level !== year) continue;
+        accumulateRiskStats(entry, row);
+      }
+      return statsToRow(entry, formatYearLevel(year));
+    });
+
+    const deptTotalEntry = emptyRiskStats();
+    for (const row of deptRows) {
+      accumulateRiskStats(deptTotalEntry, row);
+    }
+
+    const deptTotal = deptRows.length;
+
+    return {
+      title: `${department} (${deptTotal} student${deptTotal === 1 ? "" : "s"})`,
+      rows: [...yearRows, statsToRow(deptTotalEntry, "Total")],
+    };
+  });
+}
+
+function buildInstitutionalTotalsGroup(rows: GuidanceStudentRow[]) {
+  const entry = emptyRiskStats();
+  for (const row of rows) {
+    accumulateRiskStats(entry, row);
+  }
+
+  return {
+    title: "Institutional Total (All Departments)",
+    rows: [statsToRow(entry, "Total")],
+  };
+}
+
+function buildInterventionSectionGroups(
+  students: GuidanceStudentRow[],
+  departments: Department[]
+) {
+  return getDepartmentNames(students, departments)
+    .map((department) => {
+      const deptStudents = students.filter(
+        (row) => (row.department_name || "Unassigned") === department
+      );
+      if (deptStudents.length === 0) return null;
+
+      const yearMap = new Map<number | "unassigned", GuidanceStudentRow[]>();
+      for (const year of YEAR_LEVELS) {
+        yearMap.set(year, []);
+      }
+
+      for (const student of deptStudents) {
+        const key = student.year_level ?? "unassigned";
+        const list = yearMap.get(key) ?? [];
+        list.push(student);
+        yearMap.set(key, list);
+      }
+
+      const sections = YEAR_LEVELS.map((year) => {
+        const group = yearMap.get(year) ?? [];
+        return {
+          title: formatYearLevel(year),
+          rows: [...group]
+            .sort((a, b) => (b.mfbi_score ?? 0) - (a.mfbi_score ?? 0))
+            .map((row, index) => interventionRowCells(row, index + 1)),
+        };
+      });
+
+      const unassigned = yearMap.get("unassigned") ?? [];
+      if (unassigned.length > 0) {
+        sections.push({
+          title: "Unassigned Year Level",
+          rows: [...unassigned]
+            .sort((a, b) => (b.mfbi_score ?? 0) - (a.mfbi_score ?? 0))
+            .map((row, index) => interventionRowCells(row, index + 1)),
+        });
+      }
+
+      return {
+        title: `${department} (${deptStudents.length} student${
+          deptStudents.length === 1 ? "" : "s"
+        })`,
+        sections,
+      };
+    })
+    .filter((group): group is NonNullable<typeof group> => group != null);
 }
 
 function interventionStatus(row: GuidanceStudentRow) {
-  const bucket = riskBucket(row.prediction || row.burnout_level);
+  const bucket = rowMfbiRiskBucket(row);
   if (row.early_warning_attention && bucket === "High") {
     return "Counseling (EW)";
   }
@@ -40,10 +241,7 @@ function interventionStatus(row: GuidanceStudentRow) {
 }
 
 function followUpStatus(row: GuidanceStudentRow) {
-  if (
-    row.early_warning_attention ||
-    riskBucket(row.prediction || row.burnout_level) === "High"
-  ) {
+  if (row.early_warning_attention || rowMfbiRiskBucket(row) === "High") {
     if (row.submittedThisWeek) return "Pending follow-up";
     return "Overdue — no submit";
   }
@@ -82,69 +280,25 @@ export function GuidanceReportsPanel({
     [filteredRows]
   );
 
-  const departmentRiskRows = useMemo(() => {
-    type DeptStats = {
-      total: number;
-      low: number;
-      moderate: number;
-      high: number;
-      scores: number[];
-      attention: number;
-    };
-
-    const emptyStats = (): DeptStats => ({
-      total: 0,
-      low: 0,
-      moderate: 0,
-      high: 0,
-      scores: [],
-      attention: 0,
-    });
-
-    const map = new Map<string, DeptStats>();
-
-    // Include every department even when there is no burnout data.
-    for (const dept of departments) {
-      map.set(dept.department_name, emptyStats());
-    }
-
-    for (const row of filteredRows) {
-      const label = row.department_name || "Unassigned";
-      const entry = map.get(label) ?? emptyStats();
-      entry.total += 1;
-      if (row.mfbi_score != null) entry.scores.push(row.mfbi_score);
-      const bucket = riskBucket(row.prediction || row.burnout_level);
-      if (bucket === "Low") entry.low += 1;
-      else if (bucket === "Moderate") entry.moderate += 1;
-      else if (bucket === "High") entry.high += 1;
-      if (bucket === "High" || row.early_warning_attention) {
-        entry.attention += 1;
-      }
-      map.set(label, entry);
-    }
-
-    return [...map.entries()]
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([department, entry]) => ({
-        department,
-        ...entry,
-        average:
-          entry.scores.length > 0
-            ? entry.scores.reduce((a, b) => a + b, 0) / entry.scores.length
-            : null,
-      }));
-  }, [filteredRows, departments]);
-
   const attentionStudents = useMemo(
     () =>
       filteredRows
         .filter(
           (r) =>
-            riskBucket(r.prediction || r.burnout_level) === "High" ||
-            r.early_warning_attention
+            rowMfbiRiskBucket(r) === "High" || r.early_warning_attention
         )
         .sort((a, b) => (b.mfbi_score ?? 0) - (a.mfbi_score ?? 0)),
     [filteredRows]
+  );
+
+  const departmentYearLevelGroups = useMemo(
+    () => buildDepartmentYearLevelGroups(filteredRows, departments),
+    [filteredRows, departments]
+  );
+
+  const interventionSectionGroups = useMemo(
+    () => buildInterventionSectionGroups(attentionStudents, departments),
+    [attentionStudents, departments]
   );
 
   const report = useMemo(() => {
@@ -153,9 +307,26 @@ export function GuidanceReportsPanel({
     const high = analytics.riskOverview.find((r) => r.label === "High");
 
     switch (reportType) {
+      case "year-level": {
+        return {
+          title: "Burnout by Department & Year Level",
+          tableTitle:
+            "Department & Year Level Risk Overview (Sections Combined)",
+          filename: "burnout-by-department-year-level.csv",
+          columns: DEPARTMENT_YEAR_LEVEL_COLUMNS,
+          csvHeader: DEPARTMENT_YEAR_LEVEL_CSV_HEADER,
+          rows: [],
+          sectionGroups: departmentYearLevelGroups,
+          total: filteredRows.length,
+          totalLabel: "Total students",
+          emptyMessage:
+            "No department or year level burnout data in this date range.",
+        };
+      }
+
       case "institutional":
         return {
-          title: "Institutional Burnout Summary",
+          title: "Institutional Summary by Department & Year Level",
           tableTitle: "Institutional Overview",
           filename: "institutional-burnout-summary.csv",
           columns: [
@@ -207,48 +378,36 @@ export function GuidanceReportsPanel({
               `${analytics.submittedCount} (${analytics.completionPercent}%)`,
               currentWeek != null ? `Week ${currentWeek}` : "Current week",
             ],
+            [
+              "Departments covered",
+              String(departmentYearLevelGroups.length),
+              "Breakdown by year level follows below",
+            ],
           ],
+          sectionGroups: [
+            ...departmentYearLevelGroups,
+            buildInstitutionalTotalsGroup(filteredRows),
+          ],
+          sectionGroupColumns: DEPARTMENT_YEAR_LEVEL_COLUMNS,
           total: analytics.totalStudents,
           totalLabel: "Total students",
           emptyMessage: "No institutional burnout data in this date range.",
         };
 
-      case "department":
+      case "department": {
         return {
-          title: "Burnout by Department",
-          tableTitle: "Department Comparison",
-          filename: "burnout-by-department.csv",
-          columns: [
-            { key: "department", label: "Department" },
-            { key: "students", label: "Students", align: "right" as const },
-            { key: "low", label: "Low", align: "right" as const },
-            { key: "moderate", label: "Moderate", align: "right" as const },
-            { key: "high", label: "High", align: "right" as const },
-            { key: "attention", label: "Attention", align: "right" as const },
-            { key: "mfbi", label: "Avg MFBI", align: "right" as const },
-          ],
-          csvHeader: [
-            "Department",
-            "Students",
-            "Low",
-            "Moderate",
-            "High",
-            "Requiring Attention",
-            "Avg MFBI",
-          ],
-          rows: departmentRiskRows.map((d) => [
-            d.department,
-            String(d.total),
-            String(d.low),
-            String(d.moderate),
-            String(d.high),
-            String(d.attention),
-            d.average != null ? d.average.toFixed(2) : "—",
-          ]),
-          total: departmentRiskRows.length,
+          title: "Department Comparison by Year Level",
+          tableTitle: "Department Comparison by Year Level",
+          filename: "department-comparison-by-year-level.csv",
+          columns: DEPARTMENT_YEAR_LEVEL_COLUMNS,
+          csvHeader: DEPARTMENT_YEAR_LEVEL_CSV_HEADER,
+          rows: [],
+          sectionGroups: departmentYearLevelGroups,
+          total: departmentYearLevelGroups.length,
           totalLabel: "Total departments",
           emptyMessage: "No department data in this date range.",
         };
+      }
 
       case "factors": {
         const factorRows = [
@@ -313,51 +472,47 @@ export function GuidanceReportsPanel({
         };
       }
 
-      case "intervention":
+      case "intervention": {
         return {
-          title: "Intervention & Follow-up",
-          tableTitle: "High-risk & Attention List",
-          filename: "intervention-follow-up.csv",
+          title: "Intervention & Follow-up by Department & Year Level",
+          tableTitle: "High-Risk & Attention List",
+          filename: "intervention-follow-up-by-department-year-level.csv",
           columns: [
+            { key: "no", label: "No.", align: "right" as const },
             { key: "student", label: "Student" },
-            { key: "no", label: "No." },
-            { key: "department", label: "Dept." },
+            { key: "studentNo", label: "Student No." },
             { key: "risk", label: "Risk" },
             { key: "mfbi", label: "MFBI", align: "right" as const },
             { key: "intervention", label: "Intervention" },
             { key: "followup", label: "Follow-up" },
           ],
           csvHeader: [
+            "Department",
+            "Year Level",
+            "No.",
             "Student",
             "Student Number",
-            "Department",
             "Risk",
             "MFBI",
             "Intervention",
             "Follow-up",
           ],
-          rows: attentionStudents.map((r) => [
-            r.full_name,
-            r.student_number ?? "",
-            r.department_name ?? "",
-            r.early_warning_attention
-              ? `${r.prediction || r.burnout_level || "Elevated"} (EW)`
-              : r.prediction || r.burnout_level || "High",
-            r.mfbi_score != null ? r.mfbi_score.toFixed(2) : "—",
-            interventionStatus(r),
-            followUpStatus(r),
-          ]),
+          rows: [],
+          sectionGroups: interventionSectionGroups,
           total: attentionStudents.length,
           totalLabel: "Total students",
           emptyMessage:
             "No high-risk or early-warning students in this date range.",
         };
+      }
     }
   }, [
     reportType,
     analytics,
     attentionStudents,
-    departmentRiskRows,
+    departmentYearLevelGroups,
+    interventionSectionGroups,
+    filteredRows.length,
     currentWeek,
   ]);
 
@@ -379,6 +534,12 @@ export function GuidanceReportsPanel({
         tableTitle={report.tableTitle}
         columns={report.columns}
         rows={report.rows}
+        sectionGroups={
+          "sectionGroups" in report ? report.sectionGroups : undefined
+        }
+        sectionGroupColumns={
+          "sectionGroupColumns" in report ? report.sectionGroupColumns : undefined
+        }
         generatedBy={preparedBy || preparedRole}
         generatedRole={preparedRole}
         generatedAt={generatedAt}

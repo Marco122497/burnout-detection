@@ -58,6 +58,13 @@ const YEAR_FILTER_OPTIONS = [
   { value: "4", label: "4th Year" },
 ] as const;
 
+function yearLevelChartLabel(yearLevel: number) {
+  return (
+    YEAR_FILTER_OPTIONS.find((option) => option.value === String(yearLevel))
+      ?.label ?? `${yearLevel}th Year`
+  );
+}
+
 const riskConfig = {
   low: { label: "Low Risk", color: "oklch(0.72 0.15 160)" },
   moderate: { label: "Moderate Risk", color: "oklch(0.8 0.15 85)" },
@@ -185,12 +192,17 @@ export function InstructorDashboard({
       ? Math.round((scoped.monitoredCount / scoped.totalStudents) * 1000) / 10
       : 0;
 
-  const filteredRiskByClass =
+  const yearChartData = (
     yearFilter === "all"
-      ? data.riskByClass
-      : data.riskByClass.filter(
-          (item) => item.year_level === Number(yearFilter)
-        );
+      ? data.yearStats
+      : data.yearStats.filter((item) => item.year_level === Number(yearFilter))
+  ).map((item) => ({
+    label: yearLevelChartLabel(item.year_level),
+    year_level: item.year_level,
+    low: item.low,
+    moderate: item.moderate,
+    high: item.high,
+  }));
 
   const filteredAttention =
     yearFilter === "all"
@@ -198,10 +210,6 @@ export function InstructorDashboard({
       : data.attentionStudents.filter(
           (s) => s.year_level === Number(yearFilter)
         );
-
-  const classChartData = filteredRiskByClass.map((item) => ({
-    ...item,
-  }));
 
   const trendData = data.weeklyTrends.map((item) => ({
     weekLabel: `Week ${item.week}`,
@@ -318,15 +326,16 @@ export function InstructorDashboard({
       <div className="grid min-w-0 gap-4 lg:grid-cols-2">
         <Card className="min-w-0 overflow-hidden">
           <CardHeader>
-            <CardTitle className="text-lg">Burnout Risk by Class</CardTitle>
+            <CardTitle className="text-lg">Burnout Risk by Year Level</CardTitle>
             <CardDescription>
-              Compare Low, Moderate, and High risk across your sections.
+              Low, Moderate, and High risk counts combined across all sections
+              in each year level.
             </CardDescription>
           </CardHeader>
           <CardContent className="min-w-0 overflow-hidden">
-            {classChartData.length === 0 ? (
+            {yearChartData.length === 0 ? (
               <p className="flex h-56 items-center justify-center text-sm text-muted-foreground">
-                No class risk data yet.
+                No year-level risk data yet.
               </p>
             ) : (
               <ChartContainer
@@ -334,7 +343,7 @@ export function InstructorDashboard({
                 className="aspect-auto h-[260px] w-full sm:h-[280px]"
               >
                 <BarChart
-                  data={classChartData}
+                  data={yearChartData}
                   layout="vertical"
                   margin={{ left: 0, right: 8, top: 4, bottom: 0 }}
                 >
@@ -348,12 +357,9 @@ export function InstructorDashboard({
                   <YAxis
                     type="category"
                     dataKey="label"
-                    width={72}
+                    width={80}
                     tickLine={false}
                     axisLine={false}
-                    tickFormatter={(value: string) =>
-                      value.length > 8 ? `${value.slice(0, 8)}…` : value
-                    }
                   />
                   <ChartTooltip content={<ChartTooltipContent />} />
                   <Bar

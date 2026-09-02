@@ -53,7 +53,7 @@ export default async function StudentRecommendationsPage() {
     trend,
     currentMfbi: mfbi?.mfbi_score ?? null,
   });
-  const factorRecommendations = getFactorRecommendations(factors, { trend });
+  const factorRecommendations = getFactorRecommendations(factors);
   const guidance = overall
     ? {
         title: overall.title,
@@ -67,7 +67,7 @@ export default async function StudentRecommendationsPage() {
     <div className="space-y-6">
       <PageHeading
         title="Recommendations"
-        description="Tips that follow your early-warning trend — including when risk is decreasing — plus stress, schoolwork, study time, and sleep."
+        description="Next-week early warning outlook, plus what to do this week for stress, schoolwork, study time, and sleep."
         icon={LightbulbIcon}
       />
       <RecommendationsView

@@ -35,6 +35,7 @@ import {
 import { riskLevelToChartScore, riskTone } from "@/components/shared/risk-display";
 import type { EarlyWarningPayload } from "@/lib/student/ai-client";
 import { classifyTrendDirection } from "@/lib/student/burnout-trends";
+import { resolveMfbiBurnoutLevel } from "@/lib/student/mfbi";
 import { cn } from "@/lib/utils";
 
 const trendChartConfig = {
@@ -277,9 +278,9 @@ export function EarlyWarningOutlookCard({
           Early warning outlook
         </CardTitle>
         <CardDescription>
-          Current risk is from trained same-week models. Next-week uses the
-          trained next-week model when history exists. Week-2 is a
-          trend-based projection, not a guaranteed forecast.
+          Current risk is from your MFBI score. Next-week uses the trained
+          next-week model when history exists. Week-2 is a trend-based
+          projection, not a guaranteed forecast.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -355,17 +356,29 @@ export function BurnoutRiskTrendChart({
 
   const latest = visibleData[visibleData.length - 1];
   const pointsWithMovement = visibleData.map((point, index) => {
-    if (point.direction && point.direction !== "insufficient_history") {
-      return point;
+    const mfbiLevel = resolveMfbiBurnoutLevel(point.score, point.level);
+    const normalizedPoint = {
+      ...point,
+      level: mfbiLevel ?? point.level,
+    };
+    if (normalizedPoint.direction && normalizedPoint.direction !== "insufficient_history") {
+      return normalizedPoint;
     }
     const previousScore = index > 0 ? visibleData[index - 1]?.score : null;
-    if (point.score == null) return point;
-    const direction = classifyTrendDirection(point.score, previousScore ?? null);
+    if (normalizedPoint.score == null) return normalizedPoint;
+    const direction = classifyTrendDirection(
+      normalizedPoint.score,
+      previousScore ?? null
+    );
     const delta =
       previousScore != null
-        ? Math.round((point.score - previousScore) * 100) / 100
+        ? Math.round((normalizedPoint.score - previousScore) * 100) / 100
         : null;
-    return { ...point, direction, delta: point.delta ?? delta };
+    return {
+      ...normalizedPoint,
+      direction,
+      delta: normalizedPoint.delta ?? delta,
+    };
   });
   const recentCards = pointsWithMovement.slice(-4);
   const nextWeekLevel = earlyWarning?.next_week_risk ?? null;

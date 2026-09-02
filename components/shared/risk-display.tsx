@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { resolveMfbiBurnoutLevel } from "@/lib/student/mfbi";
 
 export function riskTone(level: string | null | undefined) {
   if (level === "High" || level === "Severe") {
@@ -27,10 +28,11 @@ export function RiskLevelText({
   /** Optional value shown beside the level, e.g. MFBI `0.47`. */
   score?: number | null;
 }) {
-  if (!level) return <span className="text-muted-foreground">—</span>;
+  const displayLevel = resolveMfbiBurnoutLevel(score ?? null, level);
+  if (!displayLevel) return <span className="text-muted-foreground">—</span>;
   return (
-    <span className={cn("font-medium tabular-nums", riskTone(level))}>
-      {level}
+    <span className={cn("font-medium tabular-nums", riskTone(displayLevel))}>
+      {displayLevel}
       {score != null && !Number.isNaN(Number(score))
         ? ` (${Number(score).toFixed(2)})`
         : ""}

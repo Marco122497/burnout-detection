@@ -11,7 +11,7 @@ import {
   getWeeklyMonitoringHistory,
 } from "@/lib/student/queries";
 import { getActiveTerm, getCurrentWeekNumber } from "@/lib/student/terms";
-import type { BurnoutLevel } from "@/lib/student/mfbi";
+import { resolveMfbiBurnoutLevel } from "@/lib/student/mfbi";
 import {
   buildStudentFactors,
   getFactorRecommendations,
@@ -30,6 +30,8 @@ export type BurnoutFactor = {
 
 export type StudentDashboardData = {
   burnoutLevel: string | null;
+  /** ML same-week prediction (Decision Tree / Random Forest). */
+  predictedRisk: string | null;
   mfbiScore: number | null;
   /** Selected-model prediction confidence as a percent (0–100). */
   modelConfidence: number | null;
@@ -121,9 +123,12 @@ export async function getStudentDashboardData(
       : latest.mfbi_results
     : null;
 
-  const burnoutLevel =
-    latest?.prediction?.final_prediction ?? mfbi?.burnout_level ?? null;
   const mfbiScore = mfbi?.mfbi_score ?? null;
+  const burnoutLevel = resolveMfbiBurnoutLevel(
+    mfbiScore,
+    mfbi?.burnout_level ?? null
+  );
+  const predictedRisk = latest?.prediction?.final_prediction ?? null;
   const previousMfbiRaw = history[1]?.mfbi_results
     ? Array.isArray(history[1].mfbi_results)
       ? history[1].mfbi_results[0]
@@ -143,7 +148,7 @@ export async function getStudentDashboardData(
   );
   const { level: recommendationLevel, basis: recommendationBasis, trend } =
     resolveRecommendationLevel(
-      (burnoutLevel as BurnoutLevel | null) ?? null,
+      burnoutLevel,
       earlyWarning?.next_week_risk ?? null,
       { trend: recommendationTrend }
     );
@@ -226,8 +231,10 @@ export async function getStudentDashboardData(
       return {
         week: row.week_number,
         score: result.mfbi_score,
-        level:
-          row.prediction?.final_prediction ?? result.burnout_level ?? null,
+        level: resolveMfbiBurnoutLevel(
+          result.mfbi_score,
+          result.burnout_level ?? null
+        ),
         delta: null as number | null,
         direction: null as string | null,
       };
@@ -240,7 +247,8 @@ export async function getStudentDashboardData(
       ? savedTrends.slice(-12).map((point) => ({
           week: point.week,
           score: point.score,
-          level: point.level,
+          level:
+            resolveMfbiBurnoutLevel(point.score, point.level) ?? point.level,
           delta: point.delta,
           direction: point.direction,
         }))
@@ -259,12 +267,11 @@ export async function getStudentDashboardData(
   const factors =
     latest && mfbi ? buildStudentFactors(latest, mfbi) : null;
 
-  const factorRecommendations = getFactorRecommendations(factors, {
-    trend,
-  });
+  const factorRecommendations = getFactorRecommendations(factors);
 
   return {
     burnoutLevel,
+    predictedRisk,
     mfbiScore,
     modelConfidence,
     decisionTreeConfidence,

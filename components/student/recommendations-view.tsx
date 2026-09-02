@@ -59,7 +59,7 @@ export function RecommendationsView({
           action: item.recommended_action,
           normalized: item.normalized,
         }))
-    : getTipsForLevel(burnoutLevel, { trend: recommendationTrend }).map((item) => ({
+    : getTipsForLevel(burnoutLevel).map((item) => ({
         ...item,
         level: burnoutLevel,
         action: null as string | null,
@@ -143,7 +143,17 @@ export function RecommendationsView({
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="space-y-3">
+        <div>
+          <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight">
+            What to do this week
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Practical steps from your latest stress, schoolwork, study time, and
+            sleep scores.
+          </p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
         {tips.map((tip) => (
           <Card key={tip.category}>
             <CardHeader>
@@ -169,6 +179,7 @@ export function RecommendationsView({
             </CardContent>
           </Card>
         ))}
+        </div>
       </div>
     </div>
   );

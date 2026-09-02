@@ -8,6 +8,10 @@ import type {
 import { formatYearLevel } from "@/lib/utils";
 import { STUDY_TIME_SCORE_MAX } from "@/lib/student/scale-options";
 import { reconcileMonitoringStudyDisplay } from "@/lib/student/monitoring-display";
+import {
+  classifyMfbiScore,
+  mfbiRiskBucket,
+} from "@/lib/student/mfbi";
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -426,7 +430,10 @@ export async function getUniversityWeeklySeries(supabase: SupabaseClient) {
       entry.scores.push(Number(mfbi.mfbi_score));
     }
 
-    const bucket = riskBucket(mfbi?.burnout_risk_level ?? null);
+    const bucket =
+      mfbi?.mfbi_score != null
+        ? classifyMfbiScore(Number(mfbi.mfbi_score))
+        : riskBucket(mfbi?.burnout_risk_level ?? null);
     if (bucket === "Low") entry.low += 1;
     else if (bucket === "Moderate") entry.moderate += 1;
     else if (bucket === "High") entry.high += 1;
@@ -446,6 +453,27 @@ export async function getUniversityWeeklySeries(supabase: SupabaseClient) {
       moderateCount: entry.moderate,
       highCount: entry.high,
     }));
+}
+
+function rowMfbiRiskBucket(
+  row: Pick<GuidanceStudentRow, "mfbi_score" | "burnout_level">
+): "Low" | "Moderate" | "High" | null {
+  return mfbiRiskBucket(row.mfbi_score, row.burnout_level);
+}
+
+function rowMfbiRiskLabel(
+  row: Pick<
+    GuidanceStudentRow,
+    "mfbi_score" | "burnout_level" | "early_warning_attention"
+  >,
+  options?: { withEarlyWarning?: boolean }
+) {
+  const bucket = rowMfbiRiskBucket(row);
+  if (!bucket) return "—";
+  if (options?.withEarlyWarning !== false && row.early_warning_attention) {
+    return `${bucket} (early warning)`;
+  }
+  return bucket;
 }
 
 function riskBucket(level: string | null | undefined): "Low" | "Moderate" | "High" | null {
@@ -494,14 +522,14 @@ export function getGuidanceAnalytics(
 
   const burnoutDistribution = countBy(
     rows
-      .map((r) => r.prediction || r.burnout_level)
+      .map((r) => rowMfbiRiskBucket(r))
       .filter(Boolean) as string[]
   );
 
   const classified = rows
     .map((r) => ({
       row: r,
-      bucket: riskBucket(r.prediction || r.burnout_level),
+      bucket: rowMfbiRiskBucket(r),
     }))
     .filter(
       (item): item is { row: GuidanceStudentRow; bucket: "Low" | "Moderate" | "High" } =>
@@ -550,7 +578,7 @@ export function getGuidanceAnalytics(
     };
     entry.total += 1;
     if (row.mfbi_score != null) entry.scores.push(row.mfbi_score);
-    const bucket = riskBucket(row.prediction || row.burnout_level);
+    const bucket = rowMfbiRiskBucket(row);
     if (bucket === "High") entry.highRisk += 1;
     yearMap.set(row.year_level, entry);
   }
@@ -580,7 +608,7 @@ export function getGuidanceAnalytics(
     };
     entry.total += 1;
     if (row.mfbi_score != null) entry.scores.push(row.mfbi_score);
-    const bucket = riskBucket(row.prediction || row.burnout_level);
+    const bucket = rowMfbiRiskBucket(row);
     if (bucket === "Low") entry.low += 1;
     else if (bucket === "Moderate") entry.moderate += 1;
     else if (bucket === "High") entry.high += 1;
@@ -685,8 +713,7 @@ export function getGuidanceAnalytics(
   const highRiskStudents = rows
     .filter(
       (r) =>
-        riskBucket(r.prediction || r.burnout_level) === "High" ||
-        r.early_warning_attention
+        rowMfbiRiskBucket(r) === "High" || r.early_warning_attention
     )
     .sort((a, b) => (b.mfbi_score ?? 0) - (a.mfbi_score ?? 0))
     .slice(0, 15)
@@ -697,9 +724,7 @@ export function getGuidanceAnalytics(
       course: r.course,
       year_level: r.year_level,
       mfbi_score: r.mfbi_score,
-      risk: r.early_warning_attention
-        ? `${r.prediction || r.burnout_level || "Elevated"} (early warning)`
-        : ((r.prediction || r.burnout_level || "High") as string),
+      risk: rowMfbiRiskLabel(r),
       status: r.early_warning_attention
         ? "Early Warning"
         : "Needs Attention",
@@ -720,7 +745,7 @@ export function getGuidanceAnalytics(
       course: r.course,
       year_level: r.year_level,
       mfbi_score: r.mfbi_score,
-      current_risk: (r.prediction || r.burnout_level || "—") as string,
+      current_risk: rowMfbiRiskLabel(r, { withEarlyWarning: false }),
       next_week_risk: r.next_week_risk ?? null,
       week2_risk: r.week2_risk ?? null,
       trend: r.early_warning_trend ?? null,
@@ -889,11 +914,7 @@ export async function getInstructorMonitoringRows(
       student_count: deptStudents.length,
       submitted_count: deptStudents.filter((s) => s.submittedThisWeek).length,
       high_risk_count: deptStudents.filter(
-        (s) =>
-          s.burnout_level === "High" ||
-          s.burnout_level === "Severe" ||
-          s.prediction === "High" ||
-          s.prediction === "Severe"
+        (s) => rowMfbiRiskBucket(s) === "High"
       ).length,
       average_mfbi: mfbiValues.length
         ? mfbiValues.reduce((a, b) => a + b, 0) / mfbiValues.length
@@ -938,10 +959,10 @@ export function filterGuidanceStudentRows(
       }
     }
     if (filters.risk) {
-      const level = row.prediction || row.burnout_level;
+      const bucket = rowMfbiRiskBucket(row);
       if (filters.risk === "High") {
-        if (level !== "High" && level !== "Severe") return false;
-      } else if (level !== filters.risk) {
+        if (bucket !== "High") return false;
+      } else if (bucket !== filters.risk) {
         return false;
       }
     }

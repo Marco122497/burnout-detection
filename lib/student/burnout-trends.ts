@@ -1,5 +1,6 @@
 import type { createClient } from "@/lib/supabase/server";
 import type { BurnoutLevel } from "@/lib/student/mfbi";
+import { resolveMfbiBurnoutLevel } from "@/lib/student/mfbi";
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -93,14 +94,19 @@ export async function getStudentBurnoutTrends(
     return [];
   }
 
-  return data.map((row) => ({
-    week: Number(row.week_number),
-    score: Number(row.mfbi_score),
-    level: String(row.risk_level),
-    delta: row.mfbi_delta != null ? Number(row.mfbi_delta) : null,
-    direction: String(row.trend_direction),
-    recordedAt: row.created_at ?? null,
-  }));
+  return data.map((row) => {
+    const score = Number(row.mfbi_score);
+    return {
+      week: Number(row.week_number),
+      score,
+      level:
+        resolveMfbiBurnoutLevel(score, row.risk_level) ??
+        String(row.risk_level),
+      delta: row.mfbi_delta != null ? Number(row.mfbi_delta) : null,
+      direction: String(row.trend_direction),
+      recordedAt: row.created_at ?? null,
+    };
+  });
 }
 
 /** Backfill trend rows from existing MFBI history (idempotent). */

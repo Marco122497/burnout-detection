@@ -17,6 +17,8 @@ import {
   filterRowsByMonitoringDate,
   formatReportPeriodLabel,
 } from "@/lib/reports-range";
+import { formatYearLevel } from "@/lib/utils";
+import { formatMfbiScore } from "@/lib/student/mfbi";
 
 type WeeklyTrend = {
   week: number;
@@ -58,6 +60,78 @@ function overallTrendDirection(weeklyTrends: WeeklyTrend[]) {
   return `Stable (Week ${previous.week} → Week ${latest.week})`;
 }
 
+type AttentionStudent = {
+  full_name: string;
+  year_level: number | null;
+  mfbi_score: number | null;
+  risk: string;
+  early_warning_trend?: string | null;
+  trend?: string | null;
+  mainFactor?: string;
+};
+
+function groupAttentionStudentsByYearLevel(
+  students: AttentionStudent[],
+  yearLevels: number[] = []
+) {
+  const map = new Map<number | "unassigned", AttentionStudent[]>();
+
+  for (const year of yearLevels) {
+    map.set(year, []);
+  }
+
+  for (const student of students) {
+    const key = student.year_level ?? "unassigned";
+    const list = map.get(key) ?? [];
+    list.push(student);
+    map.set(key, list);
+  }
+
+  const orderedYears = [
+    ...yearLevels,
+    ...[...map.keys()].filter(
+      (key): key is number =>
+        typeof key === "number" && !yearLevels.includes(key)
+    ),
+  ].sort((a, b) => a - b);
+
+  const sections = orderedYears.map((year) => {
+    const group = map.get(year) ?? [];
+    return {
+      title: formatYearLevel(year),
+      rows: [...group]
+        .sort((a, b) => (b.mfbi_score ?? 0) - (a.mfbi_score ?? 0))
+        .map((student, index) => [
+          String(index + 1),
+          student.full_name,
+          student.mfbi_score != null ? formatMfbiScore(student.mfbi_score) : "—",
+          student.risk,
+          formatTrendLabel(student.early_warning_trend || student.trend),
+          student.mainFactor || "—",
+        ]),
+    };
+  });
+
+  const unassigned = map.get("unassigned") ?? [];
+  if (unassigned.length > 0) {
+    sections.push({
+      title: "Unassigned Year Level",
+      rows: [...unassigned]
+        .sort((a, b) => (b.mfbi_score ?? 0) - (a.mfbi_score ?? 0))
+        .map((student, index) => [
+          String(index + 1),
+          student.full_name,
+          student.mfbi_score != null ? formatMfbiScore(student.mfbi_score) : "—",
+          student.risk,
+          formatTrendLabel(student.early_warning_trend || student.trend),
+          student.mainFactor || "—",
+        ]),
+    });
+  }
+
+  return sections;
+}
+
 export function InstructorReportsPanel({
   rows,
   weeklyTrends = [],
@@ -97,10 +171,47 @@ export function InstructorReportsPanel({
     const high = analytics.riskOverview.find((r) => r.label === "High");
 
     switch (reportType) {
+      case "year-level":
+        return {
+          title: `Burnout by Year Level — ${deptLabel}`,
+          tableTitle: "Year Level Risk Overview",
+          filename: "burnout-by-year-level.csv",
+          columns: [
+            { key: "year", label: "Year Level" },
+            { key: "students", label: "Students", align: "right" as const },
+            { key: "monitored", label: "Monitored", align: "right" as const },
+            { key: "low", label: "Low", align: "right" as const },
+            { key: "moderate", label: "Moderate", align: "right" as const },
+            { key: "high", label: "High", align: "right" as const },
+            { key: "submitted", label: "Submitted", align: "right" as const },
+          ],
+          csvHeader: [
+            "Year Level",
+            "Students",
+            "Monitored",
+            "Low",
+            "Moderate",
+            "High",
+            "Submitted",
+          ],
+          rows: analytics.yearStats.map((item) => [
+            formatYearLevel(item.year_level),
+            String(item.total),
+            String(item.monitored),
+            String(item.low),
+            String(item.moderate),
+            String(item.high),
+            String(item.submitted),
+          ]),
+          total: analytics.yearStats.length,
+          totalLabel: "Total year levels",
+          emptyMessage: "No year level burnout data in this date range.",
+        };
+
       case "summary":
         return {
-          title: `Department Burnout Summary — ${deptLabel}`,
-          tableTitle: "Department Overview",
+          title: `Department Summary by Year Level — ${deptLabel}`,
+          tableTitle: "Department Overview (Sections Combined per Year Level)",
           filename: "department-burnout-summary.csv",
           columns: [
             { key: "metric", label: "Metric" },
@@ -139,6 +250,23 @@ export function InstructorReportsPanel({
               `${analytics.submittedCount} (${analytics.completionPercent}%)`,
               currentWeek != null ? `Week ${currentWeek}` : "Current week",
             ],
+            ...(analytics.yearStats.length > 0
+              ? [
+                  ["", "", ""],
+                  [
+                    "Year levels covered",
+                    String(analytics.yearStats.length),
+                    "Sections combined per year level",
+                  ],
+                  ...analytics.yearStats.flatMap((item) => [
+                    [
+                      `${formatYearLevel(item.year_level)} — students`,
+                      String(item.total),
+                      `${item.low} Low · ${item.moderate} Moderate · ${item.high} High`,
+                    ],
+                  ]),
+                ]
+              : []),
           ],
           total: analytics.totalStudents,
           totalLabel: "Total students",
@@ -215,12 +343,18 @@ export function InstructorReportsPanel({
         };
       }
 
-      case "at-risk":
+      case "at-risk": {
+        const atRiskSections = groupAttentionStudentsByYearLevel(
+          analytics.attentionStudents,
+          analytics.yearStats.map((item) => item.year_level)
+        );
+
         return {
-          title: `Students at Risk — ${deptLabel}`,
-          tableTitle: "At-Risk Students",
-          filename: "students-at-risk.csv",
+          title: `High-Risk Students by Year Level — ${deptLabel}`,
+          tableTitle: "High-Risk Students by Year Level",
+          filename: "high-risk-students-by-year-level.csv",
           columns: [
+            { key: "no", label: "No.", align: "right" as const },
             { key: "student", label: "Student" },
             { key: "mfbi", label: "MFBI Score", align: "right" as const },
             { key: "risk", label: "Risk Level" },
@@ -228,23 +362,23 @@ export function InstructorReportsPanel({
             { key: "factor", label: "Main Contributing Factor" },
           ],
           csvHeader: [
+            "Year Level",
+            "No.",
             "Student",
             "MFBI Score",
             "Risk Level",
             "Trend",
             "Main Contributing Factor",
           ],
-          rows: analytics.attentionStudents.map((s) => [
-            s.full_name,
-            s.mfbi_score != null ? s.mfbi_score.toFixed(2) : "—",
-            s.risk,
-            formatTrendLabel(s.early_warning_trend || s.trend),
-            s.mainFactor || "—",
-          ]),
+          rows: atRiskSections.flatMap((section) =>
+            section.rows.map((row) => [section.title, ...row])
+          ),
+          sections: atRiskSections,
           total: analytics.attentionStudents.length,
-          totalLabel: "Total students at risk",
-          emptyMessage: "No students at risk in this date range.",
+          totalLabel: "Total high-risk students",
+          emptyMessage: "No high-risk students in this date range.",
         };
+      }
     }
   }, [
     reportType,
@@ -272,6 +406,7 @@ export function InstructorReportsPanel({
         tableTitle={report.tableTitle}
         columns={report.columns}
         rows={report.rows}
+        sections={"sections" in report ? report.sections : undefined}
         generatedBy={preparedBy || preparedRole}
         generatedRole={preparedRole}
         generatedAt={generatedAt}

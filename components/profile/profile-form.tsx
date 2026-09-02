@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
-import { Camera, Loader2 } from "lucide-react";
+import { createPortal } from "react-dom";
+import { Camera, Loader2, XIcon } from "lucide-react";
 
 import {
   updateProfile,
@@ -65,6 +66,101 @@ function profileToForm(profile: Profile) {
   };
 }
 
+function ProfilePicturePreview({
+  open,
+  onClose,
+  src,
+  alt,
+  fallback,
+}: {
+  open: boolean;
+  onClose: () => void;
+  src: string;
+  alt: string;
+  fallback: string;
+}) {
+  useEffect(() => {
+    if (!open) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+
+    const scrollbarWidth =
+      window.innerWidth - document.documentElement.clientWidth;
+    const previousOverflow = document.body.style.overflow;
+    const previousPaddingRight = document.body.style.paddingRight;
+
+    document.body.style.overflow = "hidden";
+    if (scrollbarWidth > 0) {
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.body.style.paddingRight = previousPaddingRight;
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open, onClose]);
+
+  if (!open || typeof document === "undefined") return null;
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Profile picture preview"
+    >
+      <button
+        type="button"
+        className="absolute inset-0 bg-black/60"
+        aria-label="Close profile picture preview"
+        onPointerDown={(event) => {
+          event.preventDefault();
+          onClose();
+        }}
+      />
+      <div
+        className="relative z-10 flex w-full max-w-lg flex-col items-center gap-4 rounded-xl bg-popover p-6 ring-1 ring-foreground/10 shadow-lg"
+        onPointerDown={(event) => event.stopPropagation()}
+      >
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          className="absolute top-3 right-3"
+          aria-label="Close profile picture preview"
+          onClick={onClose}
+        >
+          <XIcon className="size-4" />
+        </Button>
+        <div className="pt-1 text-center">
+          <p className="font-medium">Profile picture</p>
+          <p className="text-xs text-muted-foreground">
+            Close to exit
+          </p>
+        </div>
+        <Avatar className="size-72 sm:size-96">
+          <AvatarImage src={src} alt={alt} />
+          <AvatarFallback className="text-5xl">{fallback}</AvatarFallback>
+        </Avatar>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="w-full sm:w-auto"
+          onClick={onClose}
+        >
+          Close
+        </Button>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 export function ProfileForm({
   profile,
   departments,
@@ -84,6 +180,7 @@ export function ProfileForm({
     uploadProfilePicture,
     initialState
   );
+  const [picturePreviewOpen, setPicturePreviewOpen] = useState(false);
 
   const student = isStudentRole(profile.role);
   const instructor = profile.role === "Instructor";
@@ -116,17 +213,47 @@ export function ProfileForm({
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center">
-          <Avatar className="size-20">
+          <div className="flex flex-col items-start gap-1.5">
             {profile.profile_picture ? (
-              <AvatarImage
-                src={profile.profile_picture}
-                alt={profile.full_name}
-              />
-            ) : null}
-            <AvatarFallback className="text-lg">
-              {initials(profile)}
-            </AvatarFallback>
-          </Avatar>
+              <>
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    setPicturePreviewOpen(true);
+                  }}
+                  className="rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                  aria-label={`View profile picture for ${profile.full_name}`}
+                >
+                  <Avatar className="size-20 cursor-pointer transition-opacity hover:opacity-90">
+                    <AvatarImage
+                      src={profile.profile_picture}
+                      alt={profile.full_name}
+                    />
+                    <AvatarFallback className="text-lg">
+                      {initials(profile)}
+                    </AvatarFallback>
+                  </Avatar>
+                </button>
+                <p className="text-xs text-muted-foreground">
+                  Click picture for preview
+                </p>
+                <ProfilePicturePreview
+                  open={picturePreviewOpen}
+                  onClose={() => setPicturePreviewOpen(false)}
+                  src={profile.profile_picture}
+                  alt={profile.full_name}
+                  fallback={initials(profile)}
+                />
+              </>
+            ) : (
+              <Avatar className="size-20">
+                <AvatarFallback className="text-lg">
+                  {initials(profile)}
+                </AvatarFallback>
+              </Avatar>
+            )}
+          </div>
           <form action={pictureAction} className="flex flex-1 flex-col gap-3">
             <input
               ref={fileInputRef}

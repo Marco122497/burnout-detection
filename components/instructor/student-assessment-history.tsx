@@ -36,6 +36,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { parseEarlyWarningRemarks } from "@/lib/student/ai-client";
+import { resolveMfbiBurnoutLevel } from "@/lib/student/mfbi";
 import { cn, formatYearLevel } from "@/lib/utils";
 
 function AnswersPanel({ answers }: { answers: MonitoringAnswer[] }) {
@@ -130,6 +131,11 @@ export function StudentAssessmentHistoryView({
         }
       : null;
 
+  const currentBurnoutLevel = resolveMfbiBurnoutLevel(
+    student.mfbi_score,
+    student.burnout_level
+  );
+
   const chronological = [...history].sort(
     (a, b) => a.week_number - b.week_number
   );
@@ -142,7 +148,7 @@ export function StudentAssessmentHistoryView({
     return {
       week: row.week_number,
       score: row.mfbi_score,
-      level: row.prediction || row.burnout_level,
+      level: resolveMfbiBurnoutLevel(row.mfbi_score, row.burnout_level),
       delta,
       direction:
         delta == null
@@ -197,7 +203,7 @@ export function StudentAssessmentHistoryView({
       </div>
 
       <BurnoutHero
-        level={student.prediction || student.burnout_level || null}
+        level={currentBurnoutLevel}
         mfbiScore={student.mfbi_score}
         weekLabel={
           student.week_number != null ? `Week ${student.week_number}` : null
@@ -222,7 +228,7 @@ export function StudentAssessmentHistoryView({
       <EarlyWarningOutlookCard
         earlyWarning={earlyWarning}
         mfbiScore={student.mfbi_score}
-        burnoutLevel={student.prediction || student.burnout_level || null}
+        burnoutLevel={currentBurnoutLevel}
       />
 
       <BurnoutRiskTrendCard

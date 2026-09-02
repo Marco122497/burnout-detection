@@ -24,7 +24,7 @@ function resolveInstructorReportType(
   value: string | undefined
 ): InstructorReportType {
   const match = INSTRUCTOR_REPORT_TYPES.find((item) => item.id === value);
-  return match?.id ?? "summary";
+  return match?.id ?? "year-level";
 }
 
 export default async function InstructorReportsPage({
@@ -50,7 +50,7 @@ export default async function InstructorReportsPage({
       <div className="print:hidden">
         <PageHeading
           title="Reports"
-          description="Filter by date range, then print or export the formal instructor report."
+          description="Filter by date range, then print or export formal reports with burnout breakdown by year level."
           icon={FileBarChartIcon}
         />
       </div>

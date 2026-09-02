@@ -12,7 +12,9 @@ import { useNavigationPending } from "@/components/layout/navigation-pending";
 import {
   formatNormalizedFactor,
   normalizeFactorScore,
+  RiskLevelText,
 } from "@/components/shared/risk-display";
+import { resolveMfbiBurnoutLevel } from "@/lib/student/mfbi";
 import { STUDY_TIME_SCORE_MAX } from "@/lib/student/scale-options";
 import { TablePagination } from "@/components/shared/table-pagination";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -104,7 +106,7 @@ export function GuidanceStudentMonitoring({
         return false;
       }
       if (risk) {
-        const level = row.prediction || row.burnout_level;
+        const level = resolveMfbiBurnoutLevel(row.mfbi_score, row.burnout_level);
         if (risk === "High") {
           if (level !== "High" && level !== "Severe") return false;
         } else if (level !== risk) {
@@ -335,7 +337,10 @@ export function GuidanceStudentMonitoring({
                             : "—"}
                         </td>
                         <td className="px-2 py-1.5">
-                          {row.prediction || row.burnout_level || "—"}
+                          <RiskLevelText
+                            level={row.burnout_level}
+                            score={row.mfbi_score}
+                          />
                         </td>
                         <td className="px-2 py-1.5">
                           {row.submittedThisWeek ? "Submitted" : "Pending"}

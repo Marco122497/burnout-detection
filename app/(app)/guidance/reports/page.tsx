@@ -19,7 +19,7 @@ export const metadata = {
 
 function resolveGuidanceReportType(value: string | undefined): GuidanceReportType {
   const match = GUIDANCE_REPORT_TYPES.find((item) => item.id === value);
-  return match?.id ?? "institutional";
+  return match?.id ?? "year-level";
 }
 
 export default async function GuidanceReportsPage({
@@ -44,7 +44,7 @@ export default async function GuidanceReportsPage({
       <div className="print:hidden">
         <PageHeading
           title="Guidance reports"
-          description="Filter by date range, then print or export the formal counselor report."
+          description="Filter by date range, then print or export formal reports with burnout breakdown by year level."
           icon={FileBarChartIcon}
         />
       </div>

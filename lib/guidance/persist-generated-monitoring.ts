@@ -157,7 +157,7 @@ export async function persistGeneratedMonitoringRow(input: {
       week_number: weekNumber,
       monitoring_id: monitoring.monitoring_id,
       mfbi_score: mfbiScore,
-      risk_level: prediction.final_prediction,
+      risk_level: mfbiRow.burnout_risk_level,
       previous_mfbi_score: previousMfbiScore,
       mfbi_delta,
       trend_direction: direction,

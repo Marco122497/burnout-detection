@@ -266,7 +266,7 @@ async function submitWeeklyMonitoringInner(
     weekNumber: week_number,
     monitoringId: monitoring.monitoring_id,
     mfbiScore: Number(mfbiRow.mfbi_score),
-    riskLevel: prediction.final_prediction,
+    riskLevel: mfbiRow.burnout_risk_level,
     previousMfbiScore:
       historyMfbi.length >= 2 ? historyMfbi[historyMfbi.length - 2] : null,
   });

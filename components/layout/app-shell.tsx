@@ -28,10 +28,12 @@ import {
 
 function AppShellContent({
   profile,
+  email,
   notifications,
   children,
 }: {
   profile: Profile;
+  email: string | null;
   notifications: NavNotification[];
   children: React.ReactNode;
 }) {
@@ -64,7 +66,7 @@ function AppShellContent({
               notifications={notifications}
               viewAllHref={viewAllHref}
             />
-            <NavUser profile={profile} />
+            <NavUser profile={profile} email={email} />
           </div>
         </header>
         <div className="flex min-w-0 flex-1 flex-col gap-4 overflow-x-hidden p-4 md:p-6">
@@ -77,17 +79,23 @@ function AppShellContent({
 
 export function AppShell({
   profile,
+  email,
   notifications = [],
   children,
 }: {
   profile: Profile;
+  email: string | null;
   notifications?: NavNotification[];
   children: React.ReactNode;
 }) {
   return (
     <SidebarProvider>
       <NavigationPendingProvider>
-        <AppShellContent profile={profile} notifications={notifications}>
+        <AppShellContent
+          profile={profile}
+          email={email}
+          notifications={notifications}
+        >
           {children}
         </AppShellContent>
       </NavigationPendingProvider>

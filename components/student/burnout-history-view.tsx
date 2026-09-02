@@ -34,6 +34,7 @@ import {
   type MonitoringAnswersMap,
   type MonitoringRow,
 } from "@/lib/student/queries";
+import { resolveMfbiBurnoutLevel } from "@/lib/student/mfbi";
 import { cn } from "@/lib/utils";
 
 function riskTone(level: string | null | undefined) {
@@ -197,8 +198,10 @@ export function BurnoutHistoryView({
       return {
         week: row.week_number,
         score,
-        level:
-          row.prediction?.final_prediction ?? result?.burnout_level ?? null,
+        level: resolveMfbiBurnoutLevel(
+          result?.mfbi_score ?? null,
+          result?.burnout_level ?? null
+        ),
         delta,
         direction:
           delta == null
@@ -257,7 +260,10 @@ export function BurnoutHistoryView({
   return (
     <div className="space-y-6">
       <BurnoutHero
-        level={latest?.prediction?.final_prediction ?? mfbi?.burnout_level ?? null}
+        level={resolveMfbiBurnoutLevel(
+          mfbi?.mfbi_score ?? null,
+          mfbi?.burnout_level ?? null
+        )}
         mfbiScore={mfbi?.mfbi_score ?? null}
         weekLabel={latest ? `Week ${latest.week_number}` : null}
       >
@@ -459,7 +465,12 @@ export function BurnoutHistoryView({
                               {result ? result.mfbi_score.toFixed(2) : "—"}
                             </td>
                             <td className="px-2 py-1.5">
-                              <RiskLevelText level={result?.burnout_level} />
+                              <RiskLevelText
+                                level={resolveMfbiBurnoutLevel(
+                                  result?.mfbi_score ?? null,
+                                  result?.burnout_level ?? null
+                                )}
+                              />
                             </td>
                             <td className="px-2 py-1.5">
                               <PredictionLabel

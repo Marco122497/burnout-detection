@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { APP_BUILD_TIME, APP_DEVELOPER, APP_VERSION } from "@/lib/app-meta";
+import { APP_BUILD_TIME, APP_DEVELOPER, formatAppVersion } from "@/lib/app-meta";
 import { cn } from "@/lib/utils";
 
 function formatBuiltAgo(iso: string) {
@@ -38,7 +38,7 @@ function formatBuiltAgo(iso: string) {
 export function DeveloperCredit({ className }: { className?: string }) {
   return (
     <p className={cn("text-xs text-muted-foreground", className)}>
-      Made by{" "}
+      Developed by{" "}
       <span className="font-semibold text-primary">{APP_DEVELOPER}</span>
     </p>
   );
@@ -57,7 +57,7 @@ export function AppMetaFooter({ className }: { className?: string }) {
   return (
     <div className={cn("text-[11px] leading-relaxed", className)}>
       <p>
-        v{APP_VERSION} · built {builtAgo}
+        {formatAppVersion()} · built {builtAgo}
       </p>
       <DeveloperCredit />
     </div>

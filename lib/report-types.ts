@@ -1,11 +1,15 @@
 export const GUIDANCE_REPORT_TYPES = [
   {
+    id: "year-level",
+    label: "Burnout by Department & Year Level",
+  },
+  {
     id: "institutional",
-    label: "Institutional Burnout Summary",
+    label: "Institutional Summary by Department & Year Level",
   },
   {
     id: "department",
-    label: "Burnout by Department",
+    label: "Department Comparison by Year Level",
   },
   {
     id: "factors",
@@ -13,7 +17,7 @@ export const GUIDANCE_REPORT_TYPES = [
   },
   {
     id: "intervention",
-    label: "Intervention & Follow-up",
+    label: "Intervention & Follow-up by Department & Year Level",
   },
 ] as const;
 
@@ -26,9 +30,10 @@ export function isGuidanceReportType(
 }
 
 export const INSTRUCTOR_REPORT_TYPES = [
-  { id: "summary", label: "Department Burnout Summary" },
+  { id: "year-level", label: "Burnout Summary" },
+  { id: "summary", label: "Department Summary" },
   { id: "trend", label: "Burnout Trend" },
-  { id: "at-risk", label: "Students at Risk" },
+  { id: "at-risk", label: "High-Risk Students" },
 ] as const;
 
 export type InstructorReportType =

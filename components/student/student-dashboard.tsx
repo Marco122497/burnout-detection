@@ -136,8 +136,8 @@ export function StudentDashboard({
               Counseling recommendation
             </CardTitle>
             <CardDescription>
-              Tips aligned with your next-week early warning outlook when
-              available, plus stress, schoolwork, study time, and sleep.
+              Next-week early warning outlook, plus what to do this week for
+              stress, schoolwork, study time, and sleep.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -165,7 +165,11 @@ export function StudentDashboard({
                 {data.factorRecommendations.length ? (
                   <div className="space-y-2 pt-1">
                     <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      Tips for your four scores
+                      What to do this week
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Based on your latest monitoring scores for stress,
+                      schoolwork, study time, and sleep.
                     </p>
                     <ul className="space-y-2">
                       {data.factorRecommendations.map((item) => (

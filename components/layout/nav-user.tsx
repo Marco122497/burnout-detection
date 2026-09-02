@@ -43,7 +43,21 @@ function displayName(profile: Profile) {
   return [profile.first_name, profile.last_name].filter(Boolean).join(" ");
 }
 
-export function NavUser({ profile }: { profile: Profile }) {
+function profileSubtitle(profile: Profile) {
+  return (
+    profile.student_number ||
+    profile.employee_no ||
+    profile.role
+  );
+}
+
+export function NavUser({
+  profile,
+  email,
+}: {
+  profile: Profile;
+  email: string | null;
+}) {
   const pathname = usePathname();
   const { navigate, isPending, pendingHref } = useNavigationPending();
   const [logoutOpen, setLogoutOpen] = useState(false);
@@ -107,10 +121,13 @@ export function NavUser({ profile }: { profile: Profile }) {
                 <div className="grid min-w-0 flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">{name}</span>
                   <span className="truncate text-xs text-muted-foreground">
-                    {profile.student_number ||
-                      profile.employee_no ||
-                      profile.role}
+                    {profileSubtitle(profile)}
                   </span>
+                  {email ? (
+                    <span className="truncate text-xs text-muted-foreground">
+                      {email}
+                    </span>
+                  ) : null}
                 </div>
               </div>
             </DropdownMenuLabel>

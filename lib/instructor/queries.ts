@@ -2,6 +2,7 @@ import type { createClient } from "@/lib/supabase/server";
 import { buildFullName } from "@/lib/auth/roles";
 import { STUDY_TIME_SCORE_MAX } from "@/lib/student/scale-options";
 import { reconcileMonitoringStudyDisplay } from "@/lib/student/monitoring-display";
+import { resolveMfbiBurnoutLevel } from "@/lib/student/mfbi";
 import { getActiveTerm, getCurrentWeekNumber } from "@/lib/student/terms";
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
@@ -185,11 +186,10 @@ function matchFilters(row: StudentMonitorRow, filters: StudentSearchFilters) {
     if (row.year_level !== year) return false;
   }
   if (filters.risk) {
+    const level = rowMfbiRiskBucket(row);
     if (filters.risk === "High") {
-      if (row.burnout_level !== "High" && row.burnout_level !== "Severe") {
-        return false;
-      }
-    } else if (row.burnout_level !== filters.risk) {
+      if (level !== "High") return false;
+    } else if (level !== filters.risk) {
       return false;
     }
   }
@@ -523,13 +523,13 @@ export async function getDepartmentWeeklySeries(
     };
 
     if (mfbi?.mfbi_score != null) {
-      entry.scores.push(Number(mfbi.mfbi_score));
+      const score = Number(mfbi.mfbi_score);
+      entry.scores.push(score);
+      const level = resolveMfbiBurnoutLevel(score, mfbi.burnout_risk_level);
+      if (level === "Low") entry.low += 1;
+      else if (level === "Moderate") entry.moderate += 1;
+      else if (level === "High" || level === "Severe") entry.high += 1;
     }
-
-    const level = mfbi?.burnout_risk_level as string | undefined;
-    if (level === "Low") entry.low += 1;
-    else if (level === "Moderate") entry.moderate += 1;
-    else if (level === "High" || level === "Severe") entry.high += 1;
 
     weeklyMap.set(row.week_number, entry);
   }
@@ -566,6 +566,28 @@ function riskBucket(
   if (level === "Moderate") return "Moderate";
   if (level === "High" || level === "Severe") return "High";
   return null;
+}
+
+function rowMfbiRiskLevel(row: StudentMonitorRow) {
+  return resolveMfbiBurnoutLevel(row.mfbi_score, row.burnout_level);
+}
+
+function rowMfbiRiskBucket(
+  row: StudentMonitorRow
+): "Low" | "Moderate" | "High" | null {
+  const level = rowMfbiRiskLevel(row);
+  return level ? riskBucket(level) : null;
+}
+
+function rowMfbiRiskLabel(
+  row: StudentMonitorRow,
+  options?: { includeEarlyWarning?: boolean; fallback?: string }
+) {
+  const base = rowMfbiRiskLevel(row) ?? options?.fallback ?? "—";
+  if (options?.includeEarlyWarning !== false && row.early_warning_attention) {
+    return `${base} (early warning)`;
+  }
+  return base;
 }
 
 function mainConcern(row: StudentMonitorRow) {
@@ -634,7 +656,7 @@ export async function getInstructorDashboardData(
   const classified = rows
     .map((r) => ({
       row: r,
-      bucket: riskBucket(r.prediction || r.burnout_level),
+      bucket: rowMfbiRiskBucket(r),
     }))
     .filter(
       (
@@ -694,7 +716,7 @@ export async function getInstructorDashboardData(
         yearEntry.monitored += 1;
       }
       if (row.submittedThisWeek) yearEntry.submitted += 1;
-      const bucket = riskBucket(row.prediction || row.burnout_level);
+      const bucket = rowMfbiRiskBucket(row);
       if (bucket === "Low") yearEntry.low += 1;
       else if (bucket === "Moderate") yearEntry.moderate += 1;
       else if (bucket === "High") yearEntry.high += 1;
@@ -708,7 +730,7 @@ export async function getInstructorDashboardData(
       moderate: 0,
       high: 0,
     };
-    const bucket = riskBucket(row.prediction || row.burnout_level);
+    const bucket = rowMfbiRiskBucket(row);
     if (bucket === "Low") classEntry.low += 1;
     else if (bucket === "Moderate") classEntry.moderate += 1;
     else if (bucket === "High") classEntry.high += 1;
@@ -730,32 +752,9 @@ export async function getInstructorDashboardData(
     }))
     .sort((a, b) => b.elevated - a.elevated || a.label.localeCompare(b.label));
 
-  const attentionStudents = [
-    ...classified.filter((i) => i.bucket === "High" || i.bucket === "Moderate"),
-    ...rows
-      .filter(
-        (r) =>
-          r.early_warning_attention &&
-          riskBucket(r.prediction || r.burnout_level) !== "High" &&
-          riskBucket(r.prediction || r.burnout_level) !== "Moderate"
-      )
-      .map((r) => ({
-        row: r,
-        bucket: (riskBucket(r.prediction || r.burnout_level) ||
-          "Moderate") as "Low" | "Moderate" | "High",
-      })),
-  ]
-    .sort((a, b) => {
-      const earlyBoost = (row: StudentMonitorRow) =>
-        row.early_warning_attention ? 1 : 0;
-      const rank = (b: "Low" | "Moderate" | "High") =>
-        b === "High" ? 2 : b === "Moderate" ? 1 : 0;
-      const riskDiff = rank(b.bucket) - rank(a.bucket);
-      if (riskDiff !== 0) return riskDiff;
-      const earlyDiff = earlyBoost(b.row) - earlyBoost(a.row);
-      if (earlyDiff !== 0) return earlyDiff;
-      return (b.row.mfbi_score ?? 0) - (a.row.mfbi_score ?? 0);
-    })
+  const attentionStudents = classified
+    .filter((i) => i.bucket === "High")
+    .sort((a, b) => (b.row.mfbi_score ?? 0) - (a.row.mfbi_score ?? 0))
     .slice(0, 12)
     .map(({ row, bucket }) => ({
       id: row.id,
@@ -763,9 +762,7 @@ export async function getInstructorDashboardData(
       student_number: row.student_number,
       classLabel: classLabel(row),
       year_level: row.year_level,
-      risk: row.early_warning_attention
-        ? `${row.prediction || row.burnout_level || bucket} (early warning)`
-        : ((row.prediction || row.burnout_level || bucket) as string),
+      risk: rowMfbiRiskLabel(row, { fallback: bucket }),
       mfbi_score: row.mfbi_score,
       mainConcern: mainConcern(row),
       monitoring_date: row.monitoring_date,
@@ -784,7 +781,10 @@ export async function getInstructorDashboardData(
       student_number: row.student_number,
       classLabel: classLabel(row),
       year_level: row.year_level,
-      current_risk: (row.prediction || row.burnout_level || "—") as string,
+      current_risk: rowMfbiRiskLabel(row, {
+        includeEarlyWarning: false,
+        fallback: "—",
+      }),
       next_week_risk: row.next_week_risk ?? null,
       week2_risk: row.week2_risk ?? null,
       trend: row.early_warning_trend ?? null,
@@ -965,8 +965,10 @@ function riskTrend(row: StudentMonitorRow): "up" | "down" | "stable" {
     return 0;
   };
 
-  const currentRank = rank(row.prediction || row.burnout_level);
-  const previousRank = rank(row.previous_burnout_level);
+  const currentRank = rank(rowMfbiRiskLevel(row));
+  const previousRank = rank(
+    resolveMfbiBurnoutLevel(row.previous_mfbi_score, row.previous_burnout_level)
+  );
 
   if (currentRank && previousRank) {
     if (currentRank > previousRank) return "up";
@@ -994,12 +996,9 @@ export function getInstructorAnalytics(
   }[] = []
 ) {
   const riskOverview = (["Low", "Moderate", "High"] as const).map((label) => {
-    const count = rows.filter(
-      (r) => riskBucket(r.prediction || r.burnout_level) === label
-    ).length;
+    const count = rows.filter((r) => rowMfbiRiskBucket(r) === label).length;
     const classifiedTotal =
-      rows.filter((r) => riskBucket(r.prediction || r.burnout_level) != null)
-        .length || 1;
+      rows.filter((r) => rowMfbiRiskBucket(r) != null).length || 1;
     return {
       label,
       count,
@@ -1056,7 +1055,7 @@ export function getInstructorAnalytics(
         yearEntry.monitored += 1;
       }
       if (row.submittedThisWeek) yearEntry.submitted += 1;
-      const bucket = riskBucket(row.prediction || row.burnout_level);
+      const bucket = rowMfbiRiskBucket(row);
       if (bucket === "Low") yearEntry.low += 1;
       else if (bucket === "Moderate") yearEntry.moderate += 1;
       else if (bucket === "High") yearEntry.high += 1;
@@ -1072,7 +1071,7 @@ export function getInstructorAnalytics(
       high: 0,
     };
     classEntry.total += 1;
-    const bucket = riskBucket(row.prediction || row.burnout_level);
+    const bucket = rowMfbiRiskBucket(row);
     if (bucket === "Low") classEntry.low += 1;
     else if (bucket === "Moderate") classEntry.moderate += 1;
     else if (bucket === "High") classEntry.high += 1;
@@ -1101,12 +1100,8 @@ export function getInstructorAnalytics(
 
   const attentionStudents = rows
     .map((row) => {
-      const bucket = riskBucket(row.prediction || row.burnout_level);
-      if (
-        bucket !== "High" &&
-        bucket !== "Moderate" &&
-        !row.early_warning_attention
-      ) {
+      const bucket = rowMfbiRiskBucket(row);
+      if (bucket !== "High") {
         return null;
       }
       return {
@@ -1115,9 +1110,7 @@ export function getInstructorAnalytics(
         student_number: row.student_number,
         classLabel: classLabel(row),
         year_level: row.year_level,
-        risk: row.early_warning_attention
-          ? `${row.prediction || row.burnout_level || bucket || "Elevated"} (early warning)`
-          : ((row.prediction || row.burnout_level || bucket) as string),
+        risk: rowMfbiRiskLabel(row, { fallback: bucket ?? "Elevated" }),
         mfbi_score: row.mfbi_score,
         mainFactor: mainRiskFactor(row),
         trend: riskTrend(row),
@@ -1127,17 +1120,7 @@ export function getInstructorAnalytics(
       };
     })
     .filter((item): item is NonNullable<typeof item> => item != null)
-    .sort((a, b) => {
-      const rank = (risk: string) =>
-        risk.includes("High") || risk.includes("Severe")
-          ? 2
-          : risk.includes("Moderate")
-            ? 1
-            : 0;
-      const riskDiff = rank(b.risk) - rank(a.risk);
-      if (riskDiff !== 0) return riskDiff;
-      return (b.mfbi_score ?? 0) - (a.mfbi_score ?? 0);
-    });
+    .sort((a, b) => (b.mfbi_score ?? 0) - (a.mfbi_score ?? 0));
 
   const earlyWarningStudents = rows
     .filter((r) => r.early_warning_attention)
@@ -1149,7 +1132,10 @@ export function getInstructorAnalytics(
       student_number: row.student_number,
       classLabel: classLabel(row),
       year_level: row.year_level,
-      current_risk: (row.prediction || row.burnout_level || "—") as string,
+      current_risk: rowMfbiRiskLabel(row, {
+        includeEarlyWarning: false,
+        fallback: "—",
+      }),
       next_week_risk: row.next_week_risk ?? null,
       week2_risk: row.week2_risk ?? null,
       trend: row.early_warning_trend ?? null,

@@ -436,8 +436,6 @@ export function resolveRecommendationLevel(
   const trend = options?.trend ?? null;
 
   if (trend === "decreasing" && currentLevel) {
-    // Improving path: keep tips on the current-week warning (e.g. Moderate at
-    // 0.60 after a drop from 1.00), not a stale High from prior history/ML.
     return {
       level: currentLevel,
       basis: "current",
@@ -465,6 +463,19 @@ export function resolveRecommendationLevel(
     return { level: currentLevel, basis: "current", trend };
   }
   return { level: null, basis: null, trend };
+}
+
+/** Week-over-week MFBI change from submitted monitoring only. */
+export function resolveMonitoringWeekTrend(
+  currentMfbi: number | null | undefined,
+  previousMfbi: number | null | undefined
+): string | null {
+  if (currentMfbi == null || previousMfbi == null) return null;
+  const direction = classifyTrendDirection(
+    Number(currentMfbi),
+    Number(previousMfbi)
+  );
+  return direction === "insufficient_history" ? null : direction;
 }
 
 /**
@@ -655,28 +666,35 @@ function withFactorTrendCopy(
 export function getFactorRecommendation(
   key: FactorKey,
   level: BurnoutLevel,
-  options?: { trend?: string | null }
+  options?: { trend?: string | null; thisWeek?: boolean }
 ): Omit<FactorRecommendation, "normalized"> {
   const item = FACTOR_TIPS[key][level] ?? FACTOR_TIPS[key].Low;
+  const useTrendCopy = options?.thisWeek === false;
   return {
     key,
     level,
-    ...withFactorTrendCopy(key, level, item, options?.trend),
+    ...withFactorTrendCopy(
+      key,
+      level,
+      item,
+      useTrendCopy ? options?.trend : null
+    ),
   };
 }
 
 export function getFactorRecommendations(
   factors: StudentFactors | null | undefined,
-  options?: { trend?: string | null }
+  options?: { trend?: string | null; thisWeek?: boolean }
 ): FactorRecommendation[] {
   if (!factors) return [];
+  const resolvedOptions = { thisWeek: true, ...options };
   return FACTOR_ORDER.map((key) => {
     const normalized = factors[key]?.normalized ?? 0;
     return {
       ...getFactorRecommendation(
         key,
         classifyFactorScore(normalized),
-        options
+        resolvedOptions
       ),
       normalized,
     };
@@ -686,11 +704,12 @@ export function getFactorRecommendations(
 /** All four factor tips at a single overall MFBI level (recommendations page fallback). */
 export function getTipsForLevel(
   level: BurnoutLevel | null | undefined,
-  options?: { trend?: string | null }
+  options?: { trend?: string | null; thisWeek?: boolean }
 ): Tip[] {
   const resolved = level ?? "Low";
+  const resolvedOptions = { thisWeek: true, ...options };
   return FACTOR_ORDER.map((key) => {
-    const item = getFactorRecommendation(key, resolved, options);
+    const item = getFactorRecommendation(key, resolved, resolvedOptions);
     return {
       category: item.category,
       title: item.title,

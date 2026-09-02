@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SafePointerCapturePatch } from "@/components/safe-pointer-capture-patch";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -27,6 +28,9 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
+          {process.env.NODE_ENV === "development" ? (
+            <SafePointerCapturePatch />
+          ) : null}
           <TooltipProvider>
             {children}
             <Toaster />

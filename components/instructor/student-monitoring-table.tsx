@@ -11,7 +11,9 @@ import { TablePagination } from "@/components/shared/table-pagination";
 import {
   formatNormalizedFactor,
   normalizeFactorScore,
+  RiskLevelText,
 } from "@/components/shared/risk-display";
+import { resolveMfbiBurnoutLevel } from "@/lib/student/mfbi";
 import { STUDY_TIME_SCORE_MAX } from "@/lib/student/scale-options";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
@@ -64,7 +66,7 @@ export function StudentMonitoringTable({
       }
       if (yearLevel && String(row.year_level) !== yearLevel) return false;
       if (risk) {
-        const level = row.prediction || row.burnout_level;
+        const level = resolveMfbiBurnoutLevel(row.mfbi_score, row.burnout_level);
         if (risk === "High") {
           if (level !== "High" && level !== "Severe") return false;
         } else if (level !== risk) {
@@ -255,7 +257,10 @@ export function StudentMonitoringTable({
                             : "—"}
                         </td>
                         <td className="px-2 py-1.5">
-                          {row.prediction || row.burnout_level || "—"}
+                          <RiskLevelText
+                            level={row.burnout_level}
+                            score={row.mfbi_score}
+                          />
                         </td>
                         <td className="px-2 py-1.5">
                           {row.submittedThisWeek ? "Submitted" : "Pending"}

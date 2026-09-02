@@ -1,4 +1,5 @@
-const APP_VERSION = "v1.0.0";
+import { formatAppFooterLabel } from "@/lib/app-meta";
+import { reportPrintPageCss } from "@/lib/report-print-styles";
 
 export type PrintReportOptions = {
   preparedBy?: string;
@@ -279,11 +280,8 @@ export function openPrintReport(
       font-size: 11px;
       color: #6b7280;
     }
+    ${reportPrintPageCss(formatAppFooterLabel())}
     @media print {
-      @page {
-        size: A4;
-        margin: 14mm 16mm 18mm;
-      }
       body { background: white !important; }
       .toolbar { display: none !important; }
       .sheet-wrap { padding: 0; }
@@ -294,7 +292,6 @@ export function openPrintReport(
         padding: 0 !important;
         box-shadow: none !important;
       }
-      .doc-footer { display: none !important; }
       .sign-grid, .brand-row, img { break-inside: avoid; page-break-inside: avoid; }
       thead { display: table-header-group; }
       tr { break-inside: avoid; page-break-inside: avoid; }
@@ -347,7 +344,7 @@ export function openPrintReport(
       </section>
 
       <footer class="doc-footer">
-        Generated from Burnout Detection System (${APP_VERSION})
+        ${formatAppFooterLabel()}
       </footer>
     </article>
   </div>

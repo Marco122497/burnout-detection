@@ -31,7 +31,11 @@ export default async function AppLayout({
   }));
 
   return (
-    <AppShell profile={profile} notifications={notifications}>
+    <AppShell
+      profile={profile}
+      email={user.email ?? null}
+      notifications={notifications}
+    >
       {children}
     </AppShell>
   );
