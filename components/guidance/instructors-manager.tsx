@@ -463,6 +463,20 @@ export function InstructorsManager({
               className="grid gap-4 sm:grid-cols-2"
             >
               <input type="hidden" name="instructor_id" value={editing.id} />
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="edit-email">Email</Label>
+                <Input
+                  id="edit-email"
+                  name="email"
+                  type="email"
+                  required
+                  defaultValue={editing.email ?? ""}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Used for login. Fix typos here if the account was created with
+                  the wrong email.
+                </p>
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="edit-first_name">First name</Label>
                 <Input

@@ -500,6 +500,20 @@ export function AdminsManager({
               className="grid gap-4 sm:grid-cols-2"
             >
               <input type="hidden" name="user_id" value={editing.id} />
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="admin-edit-email">Email</Label>
+                <Input
+                  id="admin-edit-email"
+                  name="email"
+                  type="email"
+                  required
+                  defaultValue={editing.email ?? ""}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Used for login. Fix typos here if the account was created with
+                  the wrong email.
+                </p>
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="admin-edit-first_name">First name</Label>
                 <Input

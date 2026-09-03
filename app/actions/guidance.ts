@@ -381,6 +381,7 @@ export async function updateInstructor(
   ]);
 
   const instructor_id = String(formData.get("instructor_id") || "").trim();
+  const email = String(formData.get("email") || "").trim().toLowerCase();
   const first_name = String(formData.get("first_name") || "").trim();
   const middle_name = String(formData.get("middle_name") || "").trim() || null;
   const last_name = String(formData.get("last_name") || "").trim();
@@ -392,8 +393,42 @@ export async function updateInstructor(
   const department_id = Number(formData.get("department_id"));
   const is_active = String(formData.get("is_active") || "") === "1";
 
-  if (!instructor_id || !first_name || !last_name || !department_id) {
-    return { error: "Name and department are required." };
+  if (!instructor_id || !email || !first_name || !last_name || !department_id) {
+    return { error: "Email, name, and department are required." };
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { error: "Enter a valid email address." };
+  }
+
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch {
+    return {
+      error:
+        "Missing SUPABASE_SERVICE_ROLE_KEY. Add it to .env.local to update instructors.",
+    };
+  }
+
+  const { data: authUser, error: authLookupError } =
+    await admin.auth.admin.getUserById(instructor_id);
+  if (authLookupError || !authUser.user) {
+    return { error: "Instructor account not found." };
+  }
+
+  const currentEmail = authUser.user.email?.trim().toLowerCase() ?? "";
+  if (email !== currentEmail) {
+    const { error: emailError } = await admin.auth.admin.updateUserById(
+      instructor_id,
+      { email, email_confirm: true }
+    );
+    if (emailError) {
+      if (/already|registered|exists/i.test(emailError.message)) {
+        return { error: "An account with this email already exists." };
+      }
+      return { error: emailError.message };
+    }
   }
 
   const { error } = await supabase
@@ -1061,6 +1096,7 @@ export async function updateUser(
   ]);
 
   const user_id = String(formData.get("user_id") || "").trim();
+  const email = String(formData.get("email") || "").trim().toLowerCase();
   const first_name = String(formData.get("first_name") || "").trim();
   const middle_name = String(formData.get("middle_name") || "").trim() || null;
   const last_name = String(formData.get("last_name") || "").trim();
@@ -1070,8 +1106,12 @@ export async function updateUser(
   const departmentRaw = String(formData.get("department_id") || "").trim();
   const is_active = String(formData.get("is_active") || "") === "1";
 
-  if (!user_id || !first_name || !last_name) {
-    return { error: "First and last name are required." };
+  if (!user_id || !email || !first_name || !last_name) {
+    return { error: "Email, first name, and last name are required." };
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { error: "Enter a valid email address." };
   }
 
   if (user_id === user.id && !is_active) {
@@ -1096,6 +1136,30 @@ export async function updateUser(
 
   if (!target) {
     return { error: "User not found." };
+  }
+
+  const { data: authUser, error: authLookupError } =
+    await admin.auth.admin.getUserById(user_id);
+  if (authLookupError || !authUser.user) {
+    return { error: "User account not found." };
+  }
+
+  const currentEmail = authUser.user.email?.trim().toLowerCase() ?? "";
+  if (email !== currentEmail) {
+    const { error: emailError } = await admin.auth.admin.updateUserById(
+      user_id,
+      {
+        email,
+        email_confirm: true,
+      }
+    );
+
+    if (emailError) {
+      if (/already|registered|exists|duplicate/i.test(emailError.message)) {
+        return { error: "An account with this email already exists." };
+      }
+      return { error: emailError.message };
+    }
   }
 
   const updates: Record<string, unknown> = {
