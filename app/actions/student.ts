@@ -8,7 +8,10 @@ import { toAuditLogRow } from "@/lib/audit";
 import { buildFullName } from "@/lib/auth/roles";
 import { requireRole, requireUser } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { computeMfbi } from "@/lib/student/mfbi";
+import {
+  computeMfbi,
+  resolveMfbiBurnoutLevel,
+} from "@/lib/student/mfbi";
 import { saveBurnoutTrend } from "@/lib/student/burnout-trends";
 import { predictBurnoutRiskWithAi } from "@/lib/student/predict";
 import { getWeeklyMonitoringSections } from "@/lib/student/questionnaires";
@@ -274,17 +277,18 @@ async function submitWeeklyMonitoringInner(
   const ip = await getRequestIp();
   const { parseEarlyWarningRemarks } = await import("@/lib/student/ai-client");
   const earlyWarning = parseEarlyWarningRemarks(prediction.remarks);
-  const alertHigh =
-    prediction.final_prediction === "High" ||
-    prediction.final_prediction === "Severe" ||
-    earlyWarning?.next_week_risk === "High" ||
-    earlyWarning?.week2_risk === "High";
+  const mfbiScore = Number(mfbiRow.mfbi_score);
+  const mfbiRisk =
+    resolveMfbiBurnoutLevel(mfbiScore, mfbiRow.burnout_risk_level) ??
+    String(mfbiRow.burnout_risk_level);
+  // High burnout alerts follow MFBI bands (not ML prediction / early-warning outlook).
+  const alertHigh = mfbiRisk === "High" || mfbiRisk === "Severe";
 
   await supabase.from("notifications").insert([
     {
       user_id: user.id,
       title: "Weekly monitoring submitted",
-      message: `Week ${week_number} monitoring was saved successfully. MFBI ${Number(mfbiRow.mfbi_score).toFixed(2)} (${mfbiRow.burnout_risk_level}). Current risk: ${prediction.final_prediction}.`,
+      message: `Week ${week_number} monitoring was saved successfully. MFBI ${mfbiScore.toFixed(2)} (${mfbiRisk}).`,
       notification_type: "Assessment",
       priority: "Normal",
       monitoring_id: monitoring.monitoring_id,
@@ -297,7 +301,7 @@ async function submitWeeklyMonitoringInner(
             title: "Counseling recommendation",
             message:
               earlyWarning?.warning_message ??
-              `Your predicted burnout risk is ${prediction.final_prediction}. Consider reviewing guidance recommendations and contacting the Guidance Office if needed.`,
+              `Your MFBI burnout risk is ${mfbiRisk} (${mfbiScore.toFixed(2)}). Consider reviewing guidance recommendations and contacting the Guidance Office if needed.`,
             notification_type: "Counseling" as const,
             priority: "High" as const,
             monitoring_id: monitoring.monitoring_id,
@@ -314,9 +318,8 @@ async function submitWeeklyMonitoringInner(
     section: profile.section,
     departmentId: profile.department_id,
     weekNumber: week_number,
-    mfbiScore: Number(mfbiRow.mfbi_score),
-    burnoutLevel: String(mfbiRow.burnout_risk_level),
-    predictedRisk: prediction.final_prediction,
+    mfbiScore,
+    burnoutLevel: mfbiRisk,
     alertHigh,
     earlyWarningMessage: earlyWarning?.warning_message ?? null,
     monitoringId: monitoring.monitoring_id,
@@ -380,7 +383,6 @@ async function notifyDepartmentInstructors(input: {
   weekNumber: number;
   mfbiScore: number;
   burnoutLevel: string;
-  predictedRisk: string;
   alertHigh: boolean;
   earlyWarningMessage: string | null;
   monitoringId: number;
@@ -404,8 +406,8 @@ async function notifyDepartmentInstructors(input: {
       ? `High burnout risk · ${input.studentName}`
       : `${input.studentName} submitted Week ${input.weekNumber}`;
     const message = input.alertHigh
-      ? `${student} has elevated burnout risk. Week ${input.weekNumber}: MFBI ${input.mfbiScore.toFixed(2)} (${input.burnoutLevel}). Predicted risk: ${input.predictedRisk}.${input.earlyWarningMessage ? ` ${input.earlyWarningMessage}` : ""}`
-      : `${student} completed Week ${input.weekNumber} monitoring. MFBI ${input.mfbiScore.toFixed(2)} (${input.burnoutLevel}). Current risk: ${input.predictedRisk}.`;
+      ? `${student} has elevated burnout risk. Week ${input.weekNumber}: MFBI ${input.mfbiScore.toFixed(2)} (${input.burnoutLevel}).${input.earlyWarningMessage ? ` ${input.earlyWarningMessage}` : ""}`
+      : `${student} completed Week ${input.weekNumber} monitoring. MFBI ${input.mfbiScore.toFixed(2)} (${input.burnoutLevel}). Current risk: ${input.burnoutLevel}.`;
 
     await admin.from("notifications").insert(
       instructors.map((instructor) => ({
