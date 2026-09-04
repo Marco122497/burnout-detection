@@ -87,7 +87,7 @@ export function StudentDashboard({
             </p>
           ) : null}
           {data.predictionDate ? (
-            <p>Predicted: {formatDateTime(data.predictionDate)}</p>
+            <p>Submitted: {formatDateTime(data.predictionDate)}</p>
           ) : null}
         </div>
         {data.monitoringStatus === "Pending" ? (

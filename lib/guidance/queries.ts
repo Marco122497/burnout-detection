@@ -2,6 +2,7 @@ import type { createClient } from "@/lib/supabase/server";
 import { buildFullName, toProfile, type Department, type Profile } from "@/lib/auth/roles";
 import { getCachedDepartments } from "@/lib/cache/data";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { fetchAllPages } from "@/lib/supabase/fetch-all";
 import { getActiveTerm } from "@/lib/student/terms";
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
@@ -53,15 +54,18 @@ export async function getDepartmentsWithCounts(
 export async function getInstructors(
   supabase: SupabaseClient
 ): Promise<InstructorListItem[]> {
-  const { data } = await supabase
-    .from("profiles")
-    .select(
-      `${PROFILE_LIST_COLUMNS}, departments(department_code, department_name)`
-    )
-    .eq("role", "Instructor")
-    .order("last_name", { ascending: true });
+  const data = await fetchAllPages(async (from, to) =>
+    supabase
+      .from("profiles")
+      .select(
+        `${PROFILE_LIST_COLUMNS}, departments(department_code, department_name)`
+      )
+      .eq("role", "Instructor")
+      .order("last_name", { ascending: true })
+      .range(from, to)
+  );
 
-  return (data ?? []).map((row) => {
+  return data.map((row) => {
     const dept = row.departments as
       | { department_code: string; department_name: string }
       | { department_code: string; department_name: string }[]
@@ -119,15 +123,18 @@ export async function getUsersByRole(
   supabase: SupabaseClient,
   role: Profile["role"]
 ): Promise<UserListItem[]> {
-  const { data } = await supabase
-    .from("profiles")
-    .select(
-      `${PROFILE_LIST_COLUMNS}, departments(department_code, department_name)`
-    )
-    .eq("role", role)
-    .order("last_name", { ascending: true });
+  const data = await fetchAllPages(async (from, to) =>
+    supabase
+      .from("profiles")
+      .select(
+        `${PROFILE_LIST_COLUMNS}, departments(department_code, department_name)`
+      )
+      .eq("role", role)
+      .order("last_name", { ascending: true })
+      .range(from, to)
+  );
 
-  return (data ?? []).map((row) => {
+  return data.map((row) => {
     const dept = row.departments as
       | { department_code: string; department_name: string }
       | { department_code: string; department_name: string }[]

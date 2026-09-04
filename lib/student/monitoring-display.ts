@@ -33,8 +33,12 @@ export function reconcileMonitoringStudyDisplay<
     } | null;
   },
 >(row: T): T {
+  const storedStudyNorm =
+    row.normalized_study_time ?? row.mfbi_results?.normalized_study_time ?? null;
+
   const studyWeekly =
-    normalizeStoredStudyTimeScore(row.study_time) ?? row.study_time;
+    normalizeStoredStudyTimeScore(row.study_time, storedStudyNorm) ??
+    row.study_time;
   const normalizedStudy = round4(
     clamp01(studyWeekly / STUDY_TIME_SCORE_MAX)
   );
@@ -43,15 +47,21 @@ export function reconcileMonitoringStudyDisplay<
   const workload =
     row.normalized_workload ?? row.mfbi_results?.normalized_workload;
   const sleep = row.normalized_sleep ?? row.mfbi_results?.normalized_sleep;
-  const storedStudyNorm =
-    row.normalized_study_time ?? row.mfbi_results?.normalized_study_time;
 
-  const legacyDaily = isLegacyDailyStudyTimeScore(row.study_time);
+  const legacyDaily = isLegacyDailyStudyTimeScore(
+    row.study_time,
+    storedStudyNorm
+  );
   const studyNormDrift =
     storedStudyNorm != null &&
-    Math.abs(storedStudyNorm - normalizedStudy) > 0.05;
+    Math.abs(Number(storedStudyNorm) - normalizedStudy) > 0.05;
 
+  // Trust stored MFBI whenever study time is already on the weekly scale.
   if (!legacyDaily && !studyNormDrift) {
+    return { ...row, study_time: studyWeekly };
+  }
+
+  if (!legacyDaily) {
     return { ...row, study_time: studyWeekly };
   }
 

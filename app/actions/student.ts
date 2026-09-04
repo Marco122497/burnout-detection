@@ -9,8 +9,10 @@ import { buildFullName } from "@/lib/auth/roles";
 import { requireRole, requireUser } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
+  classifyMfbiScore,
   computeMfbi,
   resolveMfbiBurnoutLevel,
+  type BurnoutLevel,
 } from "@/lib/student/mfbi";
 import { saveBurnoutTrend } from "@/lib/student/burnout-trends";
 import { predictBurnoutRiskWithAi } from "@/lib/student/predict";
@@ -27,6 +29,48 @@ export type StudentActionState = {
   error?: string;
   success?: string;
 };
+
+const FACTOR_LABELS = {
+  stress: "Stress Level",
+  workload: "Academic Workload",
+  studyTime: "Study Time",
+  sleep: "Sleep Hours",
+} as const;
+
+function highMfbiFactors(mfbi: {
+  normalized_stress: number;
+  normalized_academic_workload: number;
+  normalized_study_time: number;
+  normalized_sleep_hours: number;
+}): { label: string; score: number; level: BurnoutLevel }[] {
+  const factors = [
+    {
+      label: FACTOR_LABELS.stress,
+      score: Number(mfbi.normalized_stress),
+    },
+    {
+      label: FACTOR_LABELS.workload,
+      score: Number(mfbi.normalized_academic_workload),
+    },
+    {
+      label: FACTOR_LABELS.studyTime,
+      score: Number(mfbi.normalized_study_time),
+    },
+    {
+      label: FACTOR_LABELS.sleep,
+      score: Number(mfbi.normalized_sleep_hours),
+    },
+  ];
+
+  return factors
+    .map((factor) => ({
+      ...factor,
+      level: classifyMfbiScore(factor.score),
+    }))
+    .filter(
+      (factor) => factor.level === "High" || factor.level === "Severe"
+    );
+}
 
 async function getRequestIp() {
   const headerStore = await headers();
@@ -134,6 +178,8 @@ async function submitWeeklyMonitoringInner(
     };
   }
 
+  const submittedAt = new Date().toISOString();
+
   const { data: monitoring, error: monitoringError } = await supabase
     .from("weekly_monitoring")
     .insert({
@@ -145,7 +191,7 @@ async function submitWeeklyMonitoringInner(
       study_time_score: scores.study_time_score,
       sleep_hours_score: scores.sleep_hours_score,
       status: "Submitted",
-      submitted_at: new Date().toISOString(),
+      submitted_at: submittedAt,
       remarks,
     })
     .select("monitoring_id")
@@ -253,6 +299,7 @@ async function submitWeeklyMonitoringInner(
     .insert({
       mfbi_id: mfbiRow.mfbi_id,
       ...prediction,
+      prediction_date: submittedAt,
     })
     .select("prediction_id, final_prediction")
     .single();
@@ -283,6 +330,8 @@ async function submitWeeklyMonitoringInner(
     String(mfbiRow.burnout_risk_level);
   // High burnout alerts follow MFBI bands (not ML prediction / early-warning outlook).
   const alertHigh = mfbiRisk === "High" || mfbiRisk === "Severe";
+  const elevatedFactors = highMfbiFactors(mfbi);
+  const factorAlert = elevatedFactors.length > 0;
 
   await supabase.from("notifications").insert([
     {
@@ -303,6 +352,27 @@ async function submitWeeklyMonitoringInner(
               earlyWarning?.warning_message ??
               `Your MFBI burnout risk is ${mfbiRisk} (${mfbiScore.toFixed(2)}). Consider reviewing guidance recommendations and contacting the Guidance Office if needed.`,
             notification_type: "Counseling" as const,
+            priority: "High" as const,
+            monitoring_id: monitoring.monitoring_id,
+            prediction_id: predictionRow?.prediction_id ?? null,
+          },
+        ]
+      : []),
+    ...(factorAlert
+      ? [
+          {
+            user_id: user.id,
+            title:
+              elevatedFactors.length === 1
+                ? `High ${elevatedFactors[0].label}`
+                : "High burnout factors detected",
+            message: `Week ${week_number}: ${elevatedFactors
+              .map(
+                (factor) =>
+                  `${factor.label} is ${factor.level} (${factor.score.toFixed(2)})`
+              )
+              .join("; ")}. Review your recommendations and consider adjusting these areas this week.`,
+            notification_type: "Assessment" as const,
             priority: "High" as const,
             monitoring_id: monitoring.monitoring_id,
             prediction_id: predictionRow?.prediction_id ?? null,

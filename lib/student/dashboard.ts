@@ -172,7 +172,7 @@ export async function getStudentDashboardData(
         ? randomForestConfidence
         : (randomForestConfidence ?? decisionTreeConfidence);
   const predictionDate =
-    latest?.prediction?.prediction_date ?? latest?.monitoring_date ?? null;
+    latest?.monitoring_date ?? latest?.prediction?.prediction_date ?? null;
 
   const [department, announcementResult] =
     await Promise.all([

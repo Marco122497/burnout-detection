@@ -163,7 +163,9 @@ export function GenerateMonitoringButton({
                 </span>{" "}
                 — week {currentWeek}
                 {monitoringOpen ? " (open week)" : ""}. Risk levels are balanced
-                evenly across Low, Moderate, and High. This uses the same PSS,
+                evenly across Low, Moderate, and High. Submission dates are
+                randomized within the last 7 days of the open week and never
+                after the current date and time. This uses the same PSS,
                 Workload, Study Time, and Sleep questions students fill in, then
                 saves scores, MFBI, and predictions.
               </AlertDialogDescription>

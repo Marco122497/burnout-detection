@@ -12,6 +12,7 @@ import {
   classifyMfbiScore,
   mfbiRiskBucket,
 } from "@/lib/student/mfbi";
+import { fetchAllPages } from "@/lib/supabase/fetch-all";
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -54,16 +55,19 @@ export async function getGuidanceStudentRows(
   const term = await getActiveTerm(supabase);
   const currentWeek = term ? getCurrentWeekNumber(term) : null;
 
-  const { data: students } = await supabase
-    .from("profiles")
-    .select(
-      "id, first_name, middle_name, last_name, suffix, student_number, course, year_level, section, is_active, department_id, profile_picture, departments(department_code, department_name, description)"
-    )
-    .eq("role", "Student")
-    .eq("is_active", true)
-    .order("last_name", { ascending: true });
+  const students = await fetchAllPages(async (from, to) =>
+    supabase
+      .from("profiles")
+      .select(
+        "id, first_name, middle_name, last_name, suffix, student_number, course, year_level, section, is_active, department_id, profile_picture, departments(department_code, department_name, description)"
+      )
+      .eq("role", "Student")
+      .eq("is_active", true)
+      .order("last_name", { ascending: true })
+      .range(from, to)
+  );
 
-  if (!students?.length) return [];
+  if (!students.length) return [];
 
   const ids = students.map((s) => s.id);
   const studentIdSet = new Set(ids);

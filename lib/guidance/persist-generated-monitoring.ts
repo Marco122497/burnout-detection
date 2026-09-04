@@ -13,6 +13,29 @@ export type PriorWeekScores = {
   sleep_hours_score: number;
 };
 
+/**
+ * Random submission time for the currently open monitoring week.
+ *
+ * Monitoring weeks are guidance-opened counters (not calendar offsets from
+ * term.start_date). Use a rolling 7-day window ending at `now` so fill-week
+ * dates stay in the present week and never exceed the current day/time.
+ */
+export function randomSubmittedAtWithinOpenWeek(now = new Date()): string {
+  const weekStart = new Date(now);
+  weekStart.setDate(weekStart.getDate() - 6);
+  weekStart.setHours(0, 0, 0, 0);
+
+  const earliestMs = weekStart.getTime();
+  const latestMs = now.getTime();
+
+  if (latestMs <= earliestMs) {
+    return now.toISOString();
+  }
+
+  const offset = Math.floor(Math.random() * (latestMs - earliestMs + 1));
+  return new Date(earliestMs + offset).toISOString();
+}
+
 export async function persistGeneratedMonitoringRow(input: {
   admin: AdminClient;
   termId: number;
@@ -28,6 +51,8 @@ export async function persistGeneratedMonitoringRow(input: {
 }) {
   const { admin, termId, studentId, weekNumber, scores, answers, skipExisting } =
     input;
+
+  const submittedAt = randomSubmittedAtWithinOpenWeek();
 
   const { data: existing } = await admin
     .from("weekly_monitoring")
@@ -63,7 +88,7 @@ export async function persistGeneratedMonitoringRow(input: {
       study_time_score: scores.study_time_score,
       sleep_hours_score: scores.sleep_hours_score,
       status: "Submitted",
-      submitted_at: new Date().toISOString(),
+      submitted_at: submittedAt,
       remarks: `Generated week ${weekNumber} monitoring (Guidance${input.departmentCode ? ` · ${input.departmentCode}` : ""})`,
     })
     .select("monitoring_id")
@@ -133,6 +158,7 @@ export async function persistGeneratedMonitoringRow(input: {
   const { error: predictionError } = await admin.from("ml_predictions").insert({
     mfbi_id: mfbiRow.mfbi_id,
     ...prediction,
+    prediction_date: submittedAt,
   });
 
   if (predictionError) {

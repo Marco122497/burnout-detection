@@ -45,7 +45,9 @@ export function DeveloperCredit({ className }: { className?: string }) {
 }
 
 export function AppMetaFooter({ className }: { className?: string }) {
-  const [builtAgo, setBuiltAgo] = useState(() => formatBuiltAgo(APP_BUILD_TIME));
+  // Avoid Date.now() during SSR/first paint — it causes hydration mismatches
+  // (especially after browser back/forward when the cached HTML is older).
+  const [builtAgo, setBuiltAgo] = useState<string | null>(null);
 
   useEffect(() => {
     const update = () => setBuiltAgo(formatBuiltAgo(APP_BUILD_TIME));
@@ -57,7 +59,7 @@ export function AppMetaFooter({ className }: { className?: string }) {
   return (
     <div className={cn("text-[11px] leading-relaxed", className)}>
       <p>
-        {formatAppVersion()} · built {builtAgo}
+        {formatAppVersion()} · built {builtAgo ?? "recently"}
       </p>
       <DeveloperCredit />
     </div>

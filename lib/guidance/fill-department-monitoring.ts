@@ -8,6 +8,7 @@ import {
   type PriorWeekScores,
 } from "@/lib/guidance/persist-generated-monitoring";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { fetchAllPages } from "@/lib/supabase/fetch-all";
 import { getWeeklyMonitoringSections } from "@/lib/student/questionnaires";
 import { getActiveTerm, getCurrentWeekNumber } from "@/lib/student/terms";
 
@@ -131,14 +132,18 @@ export async function fillDepartmentMonitoring(input: {
     return { ok: false, error: "Department not found." };
   }
 
-  const { data: allStudents } = await admin
-    .from("profiles")
-    .select("id, student_number")
-    .eq("role", "Student")
-    .eq("is_active", true)
-    .eq("department_id", input.departmentId);
+  const allStudents = await fetchAllPages(async (from, to) =>
+    admin
+      .from("profiles")
+      .select("id, student_number")
+      .eq("role", "Student")
+      .eq("is_active", true)
+      .eq("department_id", input.departmentId)
+      .order("last_name", { ascending: true })
+      .range(from, to)
+  );
 
-  if (!allStudents?.length) {
+  if (!allStudents.length) {
     return {
       ok: false,
       error: `No active students in ${department.department_name ?? "this department"}.`,
@@ -155,10 +160,10 @@ export async function fillDepartmentMonitoring(input: {
     return { ok: false, error: "Select at least one student to fill." };
   }
 
-  if (students.length > 500) {
+  if (students.length > 2000) {
     return {
       ok: false,
-      error: `Too many students (${students.length}). Auto-fill up to 500 at a time.`,
+      error: `Too many students (${students.length}). Auto-fill up to 2000 at a time, or select a smaller group.`,
     };
   }
 

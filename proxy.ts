@@ -13,9 +13,26 @@ const PUBLIC_ROUTES = [
   "/auth/callback",
 ];
 
+/** Redirect while preserving Supabase session cookies from updateSession. */
+function redirectWithSession(url: URL, supabaseResponse: NextResponse) {
+  const response = NextResponse.redirect(url);
+  // Must copy cookies — a bare redirect drops refreshed auth tokens.
+  supabaseResponse.cookies.getAll().forEach((cookie) => {
+    response.cookies.set(cookie.name, cookie.value);
+  });
+  return response;
+}
+
 export async function proxy(request: NextRequest) {
   const { user, supabase, supabaseResponse } = await updateSession(request);
   const { pathname } = request.nextUrl;
+
+  // Server Actions POST to the page URL. Auth redirects here return HTML/empty
+  // bodies and break the action protocol ("unexpected response from the server").
+  // Session cookies still refresh via updateSession above; actions enforce auth.
+  if (request.headers.has("next-action")) {
+    return supabaseResponse;
+  }
 
   const isPublic = PUBLIC_ROUTES.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`)
@@ -25,7 +42,7 @@ export async function proxy(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("next", pathname);
-    return NextResponse.redirect(url);
+    return redirectWithSession(url, supabaseResponse);
   }
 
   if (!user) {
@@ -47,11 +64,7 @@ export async function proxy(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("error", profile ? "inactive" : "noprofile");
-    const response = NextResponse.redirect(url);
-    supabaseResponse.cookies.getAll().forEach((cookie) => {
-      response.cookies.set(cookie.name, cookie.value);
-    });
-    return response;
+    return redirectWithSession(url, supabaseResponse);
   }
 
   const roleHome = getDashboardPath(profile.role as UserRole);
@@ -60,7 +73,7 @@ export async function proxy(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = roleHome;
     url.search = "";
-    return NextResponse.redirect(url);
+    return redirectWithSession(url, supabaseResponse);
   }
 
   const rolePrefixes = [
@@ -78,7 +91,7 @@ export async function proxy(request: NextRequest) {
   if (visitingOtherRole) {
     const url = request.nextUrl.clone();
     url.pathname = roleHome;
-    return NextResponse.redirect(url);
+    return redirectWithSession(url, supabaseResponse);
   }
 
   return supabaseResponse;

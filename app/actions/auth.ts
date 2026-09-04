@@ -271,6 +271,9 @@ export async function login(
       // Login should succeed even if audit/history writes fail.
     }
 
+    // Return redirectTo (don't call redirect()) so Set-Cookie from sign-in
+    // is applied on the action response before the client navigates.
+    revalidatePath("/", "layout");
     return { redirectTo: getDashboardPath(profile.role as UserRole) };
   } catch (error) {
     return {

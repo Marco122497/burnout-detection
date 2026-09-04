@@ -88,18 +88,38 @@ const YES_NO_DEFAULTS: ScaleOption[] = [
 
 /** Legacy rows stored daily hours (≤ 6) before weekly scoring. */
 export function normalizeStoredStudyTimeScore(
-  value: number | null | undefined
+  value: number | null | undefined,
+  storedNormalized?: number | null
 ): number | null {
   if (value == null || Number.isNaN(Number(value))) return null;
   const score = Number(value);
-  if (score <= 6) {
+  if (isLegacyDailyStudyTimeScore(score, storedNormalized)) {
     return Math.round(score * 7 * 100) / 100;
   }
   return Math.round(score * 100) / 100;
 }
 
-export function isLegacyDailyStudyTimeScore(value: number | null | undefined) {
-  return value != null && Number(value) <= 6;
+/**
+ * Detect pre-weekly study scores (hours/day ≤ 6).
+ * Low weekly hours (e.g. ST1 "Less than 5 hours" → 2.5) are valid today —
+ * only treat ≤6 as legacy when stored MFBI normalization matches the daily→weekly
+ * conversion better than the weekly interpretation.
+ */
+export function isLegacyDailyStudyTimeScore(
+  value: number | null | undefined,
+  storedNormalized?: number | null
+) {
+  if (value == null || Number.isNaN(Number(value))) return false;
+  const score = Number(value);
+  if (score <= 0 || score > 6) return false;
+  if (storedNormalized == null || Number.isNaN(Number(storedNormalized))) {
+    return false;
+  }
+
+  const asWeekly = score / STUDY_TIME_SCORE_MAX;
+  const asDailyConverted = (score * 7) / STUDY_TIME_SCORE_MAX;
+  const stored = Number(storedNormalized);
+  return Math.abs(stored - asDailyConverted) + 0.02 < Math.abs(stored - asWeekly);
 }
 
 export function cloneScaleOptions(options: readonly ScaleOption[]): ScaleOption[] {

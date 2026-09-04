@@ -55,7 +55,7 @@ export function StudentMonitoringTable({
   const [risk, setRisk] = useState(searchParams.get("risk") ?? "");
 
   const filtered = useMemo(() => {
-    return rows.filter((row) => {
+    const matched = rows.filter((row) => {
       const query = q.trim().toLowerCase();
       if (query) {
         const haystack = [row.full_name, row.student_number, row.email]
@@ -74,6 +74,23 @@ export function StudentMonitoringTable({
         }
       }
       return true;
+    });
+
+    // Submitted first (earliest submission at top), then pending by name.
+    return [...matched].sort((a, b) => {
+      if (a.submittedThisWeek !== b.submittedThisWeek) {
+        return a.submittedThisWeek ? -1 : 1;
+      }
+      if (a.submittedThisWeek && b.submittedThisWeek) {
+        const aTime = a.monitoring_date
+          ? new Date(a.monitoring_date).getTime()
+          : Number.POSITIVE_INFINITY;
+        const bTime = b.monitoring_date
+          ? new Date(b.monitoring_date).getTime()
+          : Number.POSITIVE_INFINITY;
+        if (aTime !== bTime) return aTime - bTime;
+      }
+      return a.full_name.localeCompare(b.full_name);
     });
   }, [rows, q, yearLevel, risk]);
 

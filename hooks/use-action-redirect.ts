@@ -1,14 +1,16 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 
+/**
+ * Prefer a full navigation after auth so Set-Cookie from the Server Action
+ * is committed before the next document request. Soft router.replace can race
+ * and land on a protected route without session cookies.
+ */
 export function useActionRedirect(state: { redirectTo?: string }) {
-  const router = useRouter();
-
   useEffect(() => {
     if (state.redirectTo) {
-      router.replace(state.redirectTo);
+      window.location.replace(state.redirectTo);
     }
-  }, [state.redirectTo, router]);
+  }, [state.redirectTo]);
 }

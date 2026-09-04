@@ -4,6 +4,7 @@ import { STUDY_TIME_SCORE_MAX } from "@/lib/student/scale-options";
 import { reconcileMonitoringStudyDisplay } from "@/lib/student/monitoring-display";
 import { resolveMfbiBurnoutLevel } from "@/lib/student/mfbi";
 import { getActiveTerm, getCurrentWeekNumber } from "@/lib/student/terms";
+import { fetchAllPages } from "@/lib/supabase/fetch-all";
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -220,35 +221,74 @@ export async function getInstructorStudentRows(
 
   if (!departmentId) return [];
 
-  const { data: students } = await supabase
-    .from("profiles")
-    .select(
-      "id, first_name, middle_name, last_name, suffix, student_number, course, year_level, section, is_active, department_id, profile_picture"
-    )
-    .eq("role", "Student")
-    .eq("is_active", true)
-    .eq("department_id", departmentId)
-    .order("last_name", { ascending: true });
+  const students = await fetchAllPages(async (from, to) =>
+    supabase
+      .from("profiles")
+      .select(
+        "id, first_name, middle_name, last_name, suffix, student_number, course, year_level, section, is_active, department_id, profile_picture"
+      )
+      .eq("role", "Student")
+      .eq("is_active", true)
+      .eq("department_id", departmentId)
+      .order("last_name", { ascending: true })
+      .range(from, to)
+  );
 
-  if (!students?.length) return [];
+  if (!students.length) return [];
 
   const ids = students.map((s) => s.id);
+  type MonitoringRow = {
+    monitoring_id: number;
+    student_id: string;
+    week_number: number;
+    stress_score: number;
+    academic_workload_score: number;
+    study_time_score: number;
+    sleep_hours_score: number;
+    submitted_at: string | null;
+    term_id: number;
+    created_at: string;
+    mfbi_results: {
+      mfbi_id: number;
+      mfbi_score: number;
+      burnout_risk_level: string;
+      ml_predictions:
+        | { final_prediction: string; remarks: string | null }
+        | { final_prediction: string; remarks: string | null }[]
+        | null;
+    } | {
+      mfbi_id: number;
+      mfbi_score: number;
+      burnout_risk_level: string;
+      ml_predictions:
+        | { final_prediction: string; remarks: string | null }
+        | { final_prediction: string; remarks: string | null }[]
+        | null;
+    }[] | null;
+  };
+  const monitoringList: MonitoringRow[] = [];
 
-  let monitoringQuery = supabase
-    .from("weekly_monitoring")
-    .select(
-      "monitoring_id, student_id, week_number, stress_score, academic_workload_score, study_time_score, sleep_hours_score, submitted_at, term_id, created_at, mfbi_results(mfbi_id, mfbi_score, burnout_risk_level, ml_predictions(final_prediction, remarks))"
-    )
-    .in("student_id", ids)
-    .order("created_at", { ascending: false });
+  const idChunkSize = 200;
+  for (let index = 0; index < ids.length; index += idChunkSize) {
+    const chunk = ids.slice(index, index + idChunkSize);
+    const chunkRows = await fetchAllPages(async (from, to) => {
+      let monitoringQuery = supabase
+        .from("weekly_monitoring")
+        .select(
+          "monitoring_id, student_id, week_number, stress_score, academic_workload_score, study_time_score, sleep_hours_score, submitted_at, term_id, created_at, mfbi_results(mfbi_id, mfbi_score, burnout_risk_level, ml_predictions(final_prediction, remarks))"
+        )
+        .in("student_id", chunk)
+        .order("created_at", { ascending: false });
 
-  if (term?.term_id) {
-    monitoringQuery = monitoringQuery.eq("term_id", term.term_id);
+      if (term?.term_id) {
+        monitoringQuery = monitoringQuery.eq("term_id", term.term_id);
+      }
+
+      return monitoringQuery.range(from, to);
+    });
+    monitoringList.push(...chunkRows);
   }
 
-  const { data: monitoringRows } = await monitoringQuery;
-
-  const monitoringList = monitoringRows ?? [];
   const latestMonitoring = new Map<string, (typeof monitoringList)[number]>();
   const previousMonitoring = new Map<string, (typeof monitoringList)[number]>();
   const submittedThisWeek = new Set<string>();

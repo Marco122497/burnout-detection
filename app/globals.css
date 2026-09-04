@@ -197,6 +197,19 @@
   animation: splash-progress 2s linear both;
 }
 
+@keyframes login-top-progress {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(400%);
+  }
+}
+
+.login-top-progress {
+  animation: login-top-progress 1.1s ease-in-out infinite;
+}
+
 .formal-report {
   box-sizing: border-box;
   width: 210mm;
