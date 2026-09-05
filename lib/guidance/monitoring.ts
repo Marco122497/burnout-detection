@@ -13,6 +13,7 @@ import {
   mfbiRiskBucket,
 } from "@/lib/student/mfbi";
 import { fetchAllPages } from "@/lib/supabase/fetch-all";
+import { buildGenderRiskSummary } from "@/lib/reports/gender-risk";
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -59,7 +60,7 @@ export async function getGuidanceStudentRows(
     supabase
       .from("profiles")
       .select(
-        "id, first_name, middle_name, last_name, suffix, student_number, course, year_level, section, is_active, department_id, profile_picture, departments(department_code, department_name, description)"
+        "id, first_name, middle_name, last_name, suffix, student_number, sex, course, year_level, section, is_active, department_id, profile_picture, departments(department_code, department_name, description)"
       )
       .eq("role", "Student")
       .eq("is_active", true)
@@ -227,6 +228,8 @@ export async function getGuidanceStudentRows(
       full_name: buildFullName(student),
       student_number: student.student_number,
       profile_picture: student.profile_picture ?? null,
+      sex:
+        student.sex === "Male" || student.sex === "Female" ? student.sex : null,
       course: student.course,
       year_level: student.year_level,
       section: student.section,
@@ -275,7 +278,7 @@ export async function getGuidanceStudentHistory(
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "id, first_name, middle_name, last_name, suffix, student_number, course, year_level, section, department_id, role, is_active, departments(department_code, department_name, description)"
+      "id, first_name, middle_name, last_name, suffix, student_number, sex, course, year_level, section, department_id, role, is_active, departments(department_code, department_name, description)"
     )
     .eq("id", studentId)
     .eq("role", "Student")
@@ -375,6 +378,8 @@ export async function getGuidanceStudentHistory(
       id: profile.id,
       full_name: buildFullName(profile),
       student_number: profile.student_number,
+      sex:
+        profile.sex === "Male" || profile.sex === "Female" ? profile.sex : null,
       course: profile.course,
       year_level: profile.year_level,
       section: profile.section,
@@ -813,6 +818,15 @@ export function getGuidanceAnalytics(
       `${highestCourse.label} has the highest program-level burnout risk (avg MFBI ${highestCourse.average.toFixed(2)}).`
     );
   }
+  const genderSummary = buildGenderRiskSummary(rows);
+  if (genderSummary.mostProneNote) {
+    insights.push(genderSummary.mostProneNote);
+  }
+  for (const note of genderSummary.variableNotes) {
+    if (note !== genderSummary.mostProneNote) {
+      insights.push(note);
+    }
+  }
   if (earlyWarningCount > 0) {
     insights.push(
       `${earlyWarningCount} student${earlyWarningCount === 1 ? "" : "s"} flagged by AI early warning (${nextWeekHighCount} next-week High, ${week2HighCount} week-2 High projection).`
@@ -851,6 +865,11 @@ export function getGuidanceAnalytics(
     weeklyTrends,
     byYearLevel,
     byCourse,
+    byGender: genderSummary.byGender,
+    mostProneGender: genderSummary.mostProneToHigh,
+    mostProneGenderNote: genderSummary.mostProneNote,
+    byGenderVariable: genderSummary.byVariable,
+    genderVariableNotes: genderSummary.variableNotes,
     variableContribution,
     averageScores,
     highRiskStudents,

@@ -11,6 +11,10 @@ export const GUIDANCE_REPORT_TYPES = [
     id: "department",
     label: "Department Comparison by Year Level",
   },
+    {
+      id: "gender",
+      label: "Burnout & Factors by Gender",
+    },
   {
     id: "factors",
     label: "Burnout Factors",
@@ -32,6 +36,7 @@ export function isGuidanceReportType(
 export const INSTRUCTOR_REPORT_TYPES = [
   { id: "year-level", label: "Burnout Summary" },
   { id: "summary", label: "Department Summary" },
+  { id: "gender", label: "Burnout & Factors by Gender" },
   { id: "trend", label: "Burnout Trend" },
   { id: "at-risk", label: "High-Risk Students" },
 ] as const;

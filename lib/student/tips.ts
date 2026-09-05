@@ -663,6 +663,33 @@ function withFactorTrendCopy(
   return item;
 }
 
+const GUIDANCE_REFERRAL_TIP =
+  "Seek the Guidance Office for counseling support and a guidance referral.";
+
+function withGuidanceReferral(
+  item: Omit<FactorRecommendation, "key" | "level" | "normalized">,
+  level: BurnoutLevel
+): Omit<FactorRecommendation, "key" | "level" | "normalized"> {
+  if (level !== "High" && level !== "Severe") return item;
+
+  const tips = [
+    GUIDANCE_REFERRAL_TIP,
+    ...item.tips.filter(
+      (tip) => !/guidance office|guidance counselor|talk to guidance/i.test(tip)
+    ),
+  ];
+
+  const recommended_action = /guidance/i.test(item.recommended_action)
+    ? item.recommended_action
+    : `${item.recommended_action} Also seek the Guidance Office for counseling support and a guidance referral.`;
+
+  return {
+    ...item,
+    recommended_action,
+    tips,
+  };
+}
+
 export function getFactorRecommendation(
   key: FactorKey,
   level: BurnoutLevel,
@@ -673,11 +700,14 @@ export function getFactorRecommendation(
   return {
     key,
     level,
-    ...withFactorTrendCopy(
-      key,
-      level,
-      item,
-      useTrendCopy ? options?.trend : null
+    ...withGuidanceReferral(
+      withFactorTrendCopy(
+        key,
+        level,
+        item,
+        useTrendCopy ? options?.trend : null
+      ),
+      level
     ),
   };
 }

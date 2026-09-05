@@ -556,3 +556,48 @@ export async function markAllNotificationsRead(
   revalidatePath("/guidance/notifications");
   return { success: "All notifications marked as read." };
 }
+
+export async function setStudentGender(
+  _prev: StudentActionState,
+  formData: FormData
+): Promise<StudentActionState> {
+  const { supabase, user, profile } = await requireRole(["Student"]);
+
+  if (profile.sex === "Male" || profile.sex === "Female") {
+    return { success: "Gender already saved." };
+  }
+
+  const sexRaw = String(formData.get("sex") || "").trim();
+  const sex = sexRaw === "Male" || sexRaw === "Female" ? sexRaw : null;
+
+  if (!sex) {
+    return { error: "Please select your gender." };
+  }
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ sex })
+    .eq("id", user.id);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  await supabase.from("audit_logs").insert(
+    toAuditLogRow({
+      user_id: user.id,
+      user_role: profile.role,
+      action: "UPDATE_PROFILE",
+      action_type: "UPDATE",
+      table_name: "profiles",
+      record_id: user.id,
+      description: `Student set gender to ${sex}`,
+      ip_address: await getRequestIp(),
+    })
+  );
+
+  revalidatePath("/", "layout");
+  revalidatePath("/student");
+  revalidatePath("/profile");
+  return { success: "Gender saved." };
+}

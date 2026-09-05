@@ -612,6 +612,7 @@ type StudentAccountInput = {
   middle_name: string | null;
   last_name: string;
   suffix: string | null;
+  sex?: "Male" | "Female" | null;
   student_number: string;
   department_id: number;
   year_level: number;
@@ -632,6 +633,7 @@ async function provisionStudentAccount(
       middle_name: input.middle_name,
       last_name: input.last_name,
       suffix: input.suffix,
+      sex: input.sex,
       student_number: input.student_number,
       department_id: input.department_id,
       course: input.course,
@@ -659,6 +661,7 @@ async function provisionStudentAccount(
       course: input.course,
       year_level: input.year_level,
       section: input.section ?? null,
+      ...(input.sex ? { sex: input.sex } : {}),
       role: "Student",
       is_active: true,
       enrollment_status: "Regular",
@@ -686,6 +689,8 @@ export async function createStudent(
   const middle_name = String(formData.get("middle_name") || "").trim() || null;
   const last_name = String(formData.get("last_name") || "").trim();
   const suffix = String(formData.get("suffix") || "").trim() || null;
+  const sexRaw = String(formData.get("sex") || "").trim();
+  const sex = sexRaw === "Male" || sexRaw === "Female" ? sexRaw : null;
   const student_number =
     String(formData.get("student_number") || "").trim() || null;
   const department_id = Number(formData.get("department_id"));
@@ -702,6 +707,10 @@ export async function createStudent(
     return {
       error: "Email, name, student number, and course are required.",
     };
+  }
+
+  if (!sex) {
+    return { error: "Gender is required." };
   }
 
   if (Number.isNaN(year_level) || year_level < 1 || year_level > 4) {
@@ -738,6 +747,7 @@ export async function createStudent(
     middle_name,
     last_name,
     suffix,
+    sex,
     student_number,
     department_id,
     year_level,
@@ -1182,6 +1192,13 @@ export async function updateUser(
     updates.student_number =
       String(formData.get("student_number") || "").trim() || null;
     updates.section = String(formData.get("section") || "").trim() || null;
+
+    const sexRaw = String(formData.get("sex") || "").trim();
+    const sex = sexRaw === "Male" || sexRaw === "Female" ? sexRaw : null;
+    if (!sex) {
+      return { error: "Gender is required." };
+    }
+    updates.sex = sex;
 
     const yearLevelRaw = String(formData.get("year_level") || "").trim();
     if (yearLevelRaw) {

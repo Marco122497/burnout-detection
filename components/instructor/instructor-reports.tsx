@@ -19,6 +19,12 @@ import {
 } from "@/lib/reports-range";
 import { formatYearLevel } from "@/lib/utils";
 import { formatMfbiScore } from "@/lib/student/mfbi";
+import {
+  GENDER_HIGHLIGHT_COLUMNS,
+  GENDER_VARIABLE_COLUMNS,
+  genderVariableHighlightRows,
+  genderVariableSectionGroups,
+} from "@/lib/reports/gender-risk";
 
 type WeeklyTrend = {
   week: number;
@@ -246,6 +252,17 @@ export function InstructorReportsPanel({
               "Percentage of classified students",
             ],
             [
+              "Gender most prone to High burnout",
+              analytics.mostProneGender ?? "—",
+              analytics.mostProneGenderNote ??
+                "Compare Male vs Female High-risk rates",
+            ],
+            ...(analytics.byGenderVariable ?? []).map((item) => [
+              `Most High — ${item.label}`,
+              item.mostHighCountGender ?? "Tied / —",
+              item.note ?? `${item.mostHighCount} High cases`,
+            ]),
+            [
               "Weekly submissions",
               `${analytics.submittedCount} (${analytics.completionPercent}%)`,
               currentWeek != null ? `Week ${currentWeek}` : "Current week",
@@ -272,6 +289,29 @@ export function InstructorReportsPanel({
           totalLabel: "Total students",
           emptyMessage: "No department burnout data in this date range.",
         };
+
+      case "gender": {
+        const genderSummary = {
+          byGender: analytics.byGender ?? [],
+          mostProneToHigh: analytics.mostProneGender ?? null,
+          mostProneNote: analytics.mostProneGenderNote ?? null,
+          byVariable: analytics.byGenderVariable ?? [],
+          variableNotes: analytics.genderVariableNotes ?? [],
+        };
+        return {
+          title: `Burnout & Factors by Gender — ${deptLabel}`,
+          tableTitle: "Who has the most High counts (Male vs Female)",
+          filename: "burnout-factors-by-gender.csv",
+          columns: GENDER_HIGHLIGHT_COLUMNS,
+          csvHeader: ["Variable", "Most High count", "High count", "Notes"],
+          rows: genderVariableHighlightRows(genderSummary),
+          sectionGroups: genderVariableSectionGroups(genderSummary),
+          sectionGroupColumns: GENDER_VARIABLE_COLUMNS,
+          total: analytics.totalStudents,
+          totalLabel: "Total students",
+          emptyMessage: "No gender factor data in this date range.",
+        };
+      }
 
       case "trend": {
         const direction = overallTrendDirection(weeklyTrends);
@@ -407,6 +447,14 @@ export function InstructorReportsPanel({
         columns={report.columns}
         rows={report.rows}
         sections={"sections" in report ? report.sections : undefined}
+        sectionGroups={
+          "sectionGroups" in report ? report.sectionGroups : undefined
+        }
+        sectionGroupColumns={
+          "sectionGroupColumns" in report
+            ? report.sectionGroupColumns
+            : undefined
+        }
         generatedBy={preparedBy || preparedRole}
         generatedRole={preparedRole}
         generatedAt={generatedAt}

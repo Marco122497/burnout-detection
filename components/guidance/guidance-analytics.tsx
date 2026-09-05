@@ -25,6 +25,7 @@ import {
   AiModelStatusCard,
 } from "@/components/shared/ai-early-warning-panel";
 import { AiBurnoutTrendChart } from "@/components/shared/ai-burnout-trend-chart";
+import { BurnoutByGenderCard } from "@/components/reports/burnout-by-gender-card";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -351,6 +352,15 @@ export function GuidanceAnalyticsView({
           </Card>
         </section>
       </div>
+
+      <section>
+        <BurnoutByGenderCard
+          byGender={data.byGender ?? []}
+          mostProneGender={data.mostProneGender}
+          mostProneGenderNote={data.mostProneGenderNote}
+          byGenderVariable={data.byGenderVariable ?? []}
+        />
+      </section>
 
       {/* 3. Burnout Trend */}
       <section>

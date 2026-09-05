@@ -23,6 +23,12 @@ import {
   mfbiRiskBucket,
 } from "@/lib/student/mfbi";
 import { formatYearLevel } from "@/lib/utils";
+import {
+  GENDER_HIGHLIGHT_COLUMNS,
+  GENDER_VARIABLE_COLUMNS,
+  genderVariableHighlightRows,
+  genderVariableSectionGroups,
+} from "@/lib/reports/gender-risk";
 
 const YEAR_LEVELS = [1, 2, 3, 4] as const;
 
@@ -362,6 +368,17 @@ export function GuidanceReportsPanel({
               "Priority for guidance",
             ],
             [
+              "Gender most prone to High burnout",
+              analytics.mostProneGender ?? "—",
+              analytics.mostProneGenderNote ??
+                "Compare Male vs Female High-risk rates",
+            ],
+            ...(analytics.byGenderVariable ?? []).map((item) => [
+              `Most High — ${item.label}`,
+              item.mostHighCountGender ?? "Tied / —",
+              item.note ?? `${item.mostHighCount} High cases`,
+            ]),
+            [
               "Students requiring attention",
               String(attentionStudents.length),
               "High risk and/or AI early warning",
@@ -406,6 +423,29 @@ export function GuidanceReportsPanel({
           total: departmentYearLevelGroups.length,
           totalLabel: "Total departments",
           emptyMessage: "No department data in this date range.",
+        };
+      }
+
+      case "gender": {
+        const genderSummary = {
+          byGender: analytics.byGender ?? [],
+          mostProneToHigh: analytics.mostProneGender ?? null,
+          mostProneNote: analytics.mostProneGenderNote ?? null,
+          byVariable: analytics.byGenderVariable ?? [],
+          variableNotes: analytics.genderVariableNotes ?? [],
+        };
+        return {
+          title: "Burnout & Factors by Gender",
+          tableTitle: "Who has the most High counts (Male vs Female)",
+          filename: "burnout-factors-by-gender.csv",
+          columns: GENDER_HIGHLIGHT_COLUMNS,
+          csvHeader: ["Variable", "Most High count", "High count", "Notes"],
+          rows: genderVariableHighlightRows(genderSummary),
+          sectionGroups: genderVariableSectionGroups(genderSummary),
+          sectionGroupColumns: GENDER_VARIABLE_COLUMNS,
+          total: analytics.totalStudents,
+          totalLabel: "Total students",
+          emptyMessage: "No gender factor data in this date range.",
         };
       }
 

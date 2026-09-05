@@ -11,11 +11,16 @@ Usage (from burnout-ai/):
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parent.parent
+# Allow `from app.database import ...` when run as a script from repo root.
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 DATASET_DIR = ROOT / "dataset"
 OUT_PATH = DATASET_DIR / "real_weekly_monitoring.csv"
 

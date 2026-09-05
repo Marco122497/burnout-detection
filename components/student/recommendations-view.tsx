@@ -65,6 +65,10 @@ export function RecommendationsView({
         action: null as string | null,
       }));
 
+  const highFactors = tips.filter(
+    (tip) => tip.level === "High" || tip.level === "Severe"
+  );
+
   const trendText = trendLabel(recommendationTrend);
   const basisLabel =
     recommendationTrend === "decreasing"
@@ -83,6 +87,35 @@ export function RecommendationsView({
 
   return (
     <div className="space-y-6">
+      {highFactors.length > 0 ? (
+        <Card className="border-red-500/25 bg-red-50/60 dark:bg-red-950/25">
+          <CardHeader>
+            <CardTitle className="text-lg text-red-800 dark:text-red-300">
+              Guidance referral recommended
+            </CardTitle>
+            <CardDescription>
+              One or more burnout factors are high. Please seek the Guidance
+              Office for counseling support.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm text-muted-foreground">
+            <p>
+              High factor
+              {highFactors.length === 1 ? "" : "s"}:{" "}
+              <span className="font-medium text-foreground">
+                {highFactors.map((factor) => factor.category).join(", ")}
+              </span>
+              .
+            </p>
+            <p>
+              Visit the Guidance Office for a guidance referral and counseling
+              support. Your monitoring results are confidential and meant to help
+              you get timely assistance.
+            </p>
+          </CardContent>
+        </Card>
+      ) : null}
+
       <Card>
         <CardHeader>
           <CardTitle>What you can do</CardTitle>
@@ -150,12 +183,19 @@ export function RecommendationsView({
           </h2>
           <p className="text-sm text-muted-foreground">
             Practical steps from your latest stress, schoolwork, study time, and
-            sleep scores.
+            sleep scores. High factors include a Guidance Office referral.
           </p>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
         {tips.map((tip) => (
-          <Card key={tip.category}>
+          <Card
+            key={tip.category}
+            className={
+              tip.level === "High" || tip.level === "Severe"
+                ? "border-red-500/20"
+                : undefined
+            }
+          >
             <CardHeader>
               <CardDescription className="flex items-center justify-between gap-2">
                 <span>{tip.category}</span>
@@ -168,6 +208,12 @@ export function RecommendationsView({
               <CardTitle className="text-lg">{tip.title}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
+              {tip.level === "High" || tip.level === "Severe" ? (
+                <p className="rounded-md border border-red-500/20 bg-red-50/80 px-3 py-2 text-sm font-medium text-red-800 dark:bg-red-950/40 dark:text-red-300">
+                  Guidance referral: please seek the Guidance Office for
+                  counseling support.
+                </p>
+              ) : null}
               {tip.action ? (
                 <p className="text-sm text-muted-foreground">{tip.action}</p>
               ) : null}

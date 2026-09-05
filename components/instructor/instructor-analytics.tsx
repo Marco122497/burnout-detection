@@ -24,6 +24,7 @@ import {
 } from "@/components/shared/ai-early-warning-panel";
 import { WeeklyBurnoutRiskTrendChart } from "@/components/shared/weekly-burnout-risk-trend-chart";
 import { AiBurnoutTrendChart } from "@/components/shared/ai-burnout-trend-chart";
+import { BurnoutByGenderCard } from "@/components/reports/burnout-by-gender-card";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -326,6 +327,15 @@ export function InstructorAnalyticsView({
             />
           </div>
         ) : null}
+      </section>
+
+      <section className="min-w-0">
+        <BurnoutByGenderCard
+          byGender={data.byGender ?? []}
+          mostProneGender={data.mostProneGender}
+          mostProneGenderNote={data.mostProneGenderNote}
+          byGenderVariable={data.byGenderVariable ?? []}
+        />
       </section>
 
       <div className="grid min-w-0 gap-4 lg:grid-cols-2">

@@ -410,7 +410,7 @@ export function ProfileForm({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="sex">Sex</Label>
+                <Label htmlFor="sex">Gender</Label>
                 <select
                   id="sex"
                   name="sex"

@@ -4,7 +4,8 @@ import { STUDY_TIME_SCORE_MAX } from "@/lib/student/scale-options";
 import { reconcileMonitoringStudyDisplay } from "@/lib/student/monitoring-display";
 import { resolveMfbiBurnoutLevel } from "@/lib/student/mfbi";
 import { getActiveTerm, getCurrentWeekNumber } from "@/lib/student/terms";
-import { fetchAllPages } from "@/lib/supabase/fetch-all";
+import { fetchAllPages } from "@/lib/supabase/fetch-all"; 
+import { buildGenderRiskSummary } from "@/lib/reports/gender-risk";
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -14,6 +15,7 @@ export type StudentMonitorRow = {
   student_number: string | null;
   email?: string | null;
   profile_picture?: string | null;
+  sex?: "Male" | "Female" | null;
   course: string | null;
   year_level: number | null;
   section: string | null;
@@ -225,7 +227,7 @@ export async function getInstructorStudentRows(
     supabase
       .from("profiles")
       .select(
-        "id, first_name, middle_name, last_name, suffix, student_number, course, year_level, section, is_active, department_id, profile_picture"
+        "id, first_name, middle_name, last_name, suffix, student_number, sex, course, year_level, section, is_active, department_id, profile_picture"
       )
       .eq("role", "Student")
       .eq("is_active", true)
@@ -343,6 +345,8 @@ export async function getInstructorStudentRows(
       full_name: buildFullName(student),
       student_number: student.student_number,
       profile_picture: student.profile_picture ?? null,
+      sex:
+        student.sex === "Male" || student.sex === "Female" ? student.sex : null,
       course: student.course,
       year_level: student.year_level,
       section: student.section,
@@ -393,7 +397,7 @@ export async function getStudentAssessmentHistory(
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "id, first_name, middle_name, last_name, suffix, student_number, course, year_level, section, department_id, role, is_active"
+      "id, first_name, middle_name, last_name, suffix, student_number, sex, course, year_level, section, department_id, role, is_active"
     )
     .eq("id", studentId)
     .eq("role", "Student")
@@ -481,6 +485,8 @@ export async function getStudentAssessmentHistory(
       id: profile.id,
       full_name: buildFullName(profile),
       student_number: profile.student_number,
+      sex:
+        profile.sex === "Male" || profile.sex === "Female" ? profile.sex : null,
       course: profile.course,
       year_level: profile.year_level,
       section: profile.section,
@@ -1306,6 +1312,20 @@ export function getInstructorAnalytics(
       text: `${earlyWarningCount} student${earlyWarningCount === 1 ? "" : "s"} flagged by AI early warning (${nextWeekHighCount} next-week High)`,
     });
   }
+  const genderSummary = buildGenderRiskSummary(rows);
+  if (genderSummary.mostProneNote) {
+    recentChanges.push({
+      tone: "high",
+      text: genderSummary.mostProneNote,
+    });
+  }
+  for (const note of genderSummary.variableNotes.slice(0, 3)) {
+    if (note === genderSummary.mostProneNote) continue;
+    recentChanges.push({
+      tone: "moderate",
+      text: note,
+    });
+  }
   if (!recentChanges.length) {
     recentChanges.push({
       tone: "info",
@@ -1332,6 +1352,11 @@ export function getInstructorAnalytics(
     earlyWarningStudents,
     aiProjectionStudents,
     riskFactors,
+    byGender: genderSummary.byGender,
+    mostProneGender: genderSummary.mostProneToHigh,
+    mostProneGenderNote: genderSummary.mostProneNote,
+    byGenderVariable: genderSummary.byVariable,
+    genderVariableNotes: genderSummary.variableNotes,
     submittedCount,
     pendingCount,
     completionPercent,

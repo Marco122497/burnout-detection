@@ -618,6 +618,22 @@ export function StudentsManager({
                 <Input id="student-create-suffix" name="suffix" />
               </div>
               <div className="space-y-1.5 sm:col-span-2">
+                <Label htmlFor="student-create-sex">Gender</Label>
+                <select
+                  id="student-create-sex"
+                  name="sex"
+                  required
+                  defaultValue=""
+                  className={selectClassName}
+                >
+                  <option value="" disabled>
+                    Select gender
+                  </option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                </select>
+              </div>
+              <div className="space-y-1.5 sm:col-span-2">
                 <Label htmlFor="student-create-student_number">
                   Student number
                 </Label>
@@ -759,6 +775,22 @@ export function StudentsManager({
                   name="suffix"
                   defaultValue={editing.suffix ?? ""}
                 />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="student-edit-sex">Gender</Label>
+                <select
+                  id="student-edit-sex"
+                  name="sex"
+                  required
+                  defaultValue={editing.sex ?? ""}
+                  className={selectClassName}
+                >
+                  <option value="" disabled>
+                    Select gender
+                  </option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                </select>
               </div>
               <div className="space-y-2 sm:col-span-2">
                 <Label htmlFor="student-edit-student_number">
