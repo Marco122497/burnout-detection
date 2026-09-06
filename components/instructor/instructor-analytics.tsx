@@ -80,11 +80,13 @@ const riskConfig = {
 function OverviewCard({
   label,
   value,
+  hint,
   tone,
   emphasize,
 }: {
   label: string;
   value: string | number;
+  hint?: string;
   tone?: "low" | "moderate" | "high" | "neutral";
   emphasize?: boolean;
 }) {
@@ -116,6 +118,9 @@ function OverviewCard({
         >
           {value}
         </CardTitle>
+        {hint ? (
+          <p className="text-xs text-muted-foreground">{hint}</p>
+        ) : null}
       </CardHeader>
     </Card>
   );
