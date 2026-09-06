@@ -152,6 +152,9 @@ export async function getUsersByRole(
 
 export async function getGuidanceDashboardStats(supabase: SupabaseClient) {
   const term = await getActiveTerm(supabase);
+  const currentWeek = term
+    ? Math.max(1, Number(term.monitoring_week) || 1)
+    : null;
 
   const [
     { count: instructorCount },
@@ -182,28 +185,30 @@ export async function getGuidanceDashboardStats(supabase: SupabaseClient) {
     (() => {
       let query = supabase
         .from("weekly_monitoring")
-        .select("student_id, created_at, mfbi_results(burnout_risk_level)")
-        .order("created_at", { ascending: false })
-        .limit(2000);
+        .select("student_id, week_number, mfbi_results(burnout_risk_level)")
+        .limit(5000);
       if (term?.term_id) {
         query = query.eq("term_id", term.term_id);
+      }
+      if (currentWeek != null) {
+        query = query.eq("week_number", currentWeek);
       }
       return query;
     })(),
   ]);
 
-  const latestByStudent = new Map<string, string>();
+  const byStudent = new Map<string, string>();
   for (const row of mfbiRows ?? []) {
-    if (latestByStudent.has(row.student_id)) continue;
+    if (byStudent.has(row.student_id)) continue;
     const mfbi = Array.isArray(row.mfbi_results)
       ? row.mfbi_results[0]
       : row.mfbi_results;
     if (mfbi?.burnout_risk_level) {
-      latestByStudent.set(row.student_id, mfbi.burnout_risk_level);
+      byStudent.set(row.student_id, mfbi.burnout_risk_level);
     }
   }
 
-  const highRiskCount = [...latestByStudent.values()].filter(
+  const highRiskCount = [...byStudent.values()].filter(
     (level) => level === "High" || level === "Severe"
   ).length;
 

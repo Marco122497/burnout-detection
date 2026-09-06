@@ -169,6 +169,9 @@ export function InstructorDashboard({
           lowRiskPercent: data.lowRiskPercent,
           moderateRiskPercent: data.moderateRiskPercent,
           highRiskPercent: data.highRiskPercent,
+          earlyWarningCount: data.earlyWarningCount,
+          nextWeekHighCount: data.nextWeekHighCount,
+          week2HighCount: data.week2HighCount,
         }
       : (() => {
           const year = Number(yearFilter);
@@ -189,6 +192,9 @@ export function InstructorDashboard({
             lowRiskPercent: pct(stats?.low ?? 0),
             moderateRiskPercent: pct(stats?.moderate ?? 0),
             highRiskPercent: pct(stats?.high ?? 0),
+            earlyWarningCount: stats?.earlyWarningCount ?? 0,
+            nextWeekHighCount: stats?.nextWeekHighCount ?? 0,
+            week2HighCount: stats?.week2HighCount ?? 0,
           };
         })();
 
@@ -227,6 +233,7 @@ export function InstructorDashboard({
   const pendingPercent = Math.max(0, 100 - scoped.completionPercent);
 
   const termLine = [
+    data.currentWeek != null ? `Week ${data.currentWeek}` : null,
     data.academicYear ? `Academic Year ${data.academicYear}` : null,
     data.semester,
   ]
@@ -290,12 +297,12 @@ export function InstructorDashboard({
           <OverviewCard
             label="My Students"
             value={scoped.totalStudents}
-            hint="Students"
+            hint="In department"
           />
           <OverviewCard
             label="Monitored"
             value={scoped.monitoredCount}
-            hint={`${monitoredPercent}% assessed`}
+            hint={`${monitoredPercent}% this week`}
           />
           <OverviewCard
             label="Low Risk"
@@ -317,15 +324,13 @@ export function InstructorDashboard({
             emphasize
           />
         </div>
-        {yearFilter === "all" ? (
-          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <AiEarlyWarningOverviewCards
-              earlyWarningCount={data.earlyWarningCount}
-              nextWeekHighCount={data.nextWeekHighCount}
-              week2HighCount={data.week2HighCount}
-            />
-          </div>
-        ) : null}
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <AiEarlyWarningOverviewCards
+            earlyWarningCount={scoped.earlyWarningCount}
+            nextWeekHighCount={scoped.nextWeekHighCount}
+            week2HighCount={scoped.week2HighCount}
+          />
+        </div>
       </section>
 
       <div className="grid min-w-0 gap-4 lg:grid-cols-2">

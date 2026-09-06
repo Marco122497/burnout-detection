@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { Cell, Pie, PieChart } from "recharts";
 import {
   AlertTriangleIcon,
@@ -32,6 +33,13 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { formatDateTime } from "@/lib/auth/roles";
 import type {
   AiModelStatus,
@@ -41,6 +49,13 @@ import type { getGuidanceAnalytics } from "@/lib/guidance/monitoring";
 import { cn, formatYearLevel } from "@/lib/utils";
 
 type Analytics = ReturnType<typeof getGuidanceAnalytics>;
+
+const YEAR_FILTER_OPTIONS = [
+  { value: "1", label: "1st Year" },
+  { value: "2", label: "2nd Year" },
+  { value: "3", label: "3rd Year" },
+  { value: "4", label: "4th Year" },
+] as const;
 
 const riskConfig = {
   low: { label: "Low Risk", color: "oklch(0.72 0.15 160)" },
@@ -104,24 +119,66 @@ export function GuidanceDashboard({
   metricsSource?: AiModelStatus["metricsSource"];
 }) {
   const { navigate, isPending, pendingHref } = useNavigationPending();
+  const [yearFilter, setYearFilter] = React.useState("all");
 
-  const low =
+  const allLow =
     data.riskOverview.find((item) => item.label === "Low")?.count ?? 0;
-  const moderate =
+  const allModerate =
     data.riskOverview.find((item) => item.label === "Moderate")?.count ?? 0;
-  const high =
+  const allHigh =
     data.riskOverview.find((item) => item.label === "High")?.count ?? 0;
-  const pendingCount = Math.max(data.totalStudents - data.submittedCount, 0);
-  const monitoredCount = data.classifiedCount;
 
-  const pieData = data.riskOverview.map((item) => ({
+  const scoped =
+    yearFilter === "all"
+      ? {
+          totalStudents: data.totalStudents,
+          monitoredCount: data.classifiedCount,
+          submittedCount: data.submittedCount,
+          pendingCount: Math.max(data.totalStudents - data.submittedCount, 0),
+          completionPercent: data.completionPercent,
+          low: allLow,
+          moderate: allModerate,
+          high: allHigh,
+          earlyWarningCount: data.earlyWarningCount,
+          nextWeekHighCount: data.nextWeekHighCount,
+          week2HighCount: data.week2HighCount,
+        }
+      : (() => {
+          const year = Number(yearFilter);
+          const stats = data.yearStats.find((c) => c.year_level === year);
+          const total = stats?.total ?? 0;
+          const submitted = stats?.submitted ?? 0;
+          const pct = (count: number) =>
+            total > 0 ? Math.round((count / total) * 1000) / 10 : 0;
+          return {
+            totalStudents: total,
+            monitoredCount: stats?.monitored ?? 0,
+            submittedCount: submitted,
+            pendingCount: Math.max(total - submitted, 0),
+            completionPercent: pct(submitted),
+            low: stats?.low ?? 0,
+            moderate: stats?.moderate ?? 0,
+            high: stats?.high ?? 0,
+            earlyWarningCount: stats?.earlyWarningCount ?? 0,
+            nextWeekHighCount: stats?.nextWeekHighCount ?? 0,
+            week2HighCount: stats?.week2HighCount ?? 0,
+          };
+        })();
+
+  const classifiedTotal = scoped.low + scoped.moderate + scoped.high || 1;
+  const pieData = (
+    [
+      { label: "Low", count: scoped.low },
+      { label: "Moderate", count: scoped.moderate },
+      { label: "High", count: scoped.high },
+    ] as const
+  ).map((item) => ({
     ...item,
+    percent: Math.round((item.count / classifiedTotal) * 1000) / 10,
     key: item.label.toLowerCase() as "low" | "moderate" | "high",
     fill: `var(--color-${item.label.toLowerCase()})`,
   }));
-  const dominantRisk = [...data.riskOverview].sort(
-    (a, b) => b.count - a.count
-  )[0];
+  const dominantRisk = [...pieData].sort((a, b) => b.count - a.count)[0];
 
   const trendData = data.weeklyTrends.map((item) => ({
     weekLabel: `Week ${item.week}`,
@@ -130,18 +187,32 @@ export function GuidanceDashboard({
     high: item.highCount ?? 0,
   }));
 
+  const filteredHighRisk =
+    yearFilter === "all"
+      ? data.highRiskStudents
+      : data.highRiskStudents.filter(
+          (s) => s.year_level === Number(yearFilter)
+        );
+
+  const filteredEarlyWarning =
+    yearFilter === "all"
+      ? data.earlyWarningStudents
+      : data.earlyWarningStudents.filter(
+          (s) => s.year_level === Number(yearFilter)
+        );
+
   const recentActivity = [
     {
-      text: `${data.submittedCount} students completed weekly monitoring`,
+      text: `${scoped.submittedCount} students completed weekly monitoring`,
       meta: "This week",
     },
     {
-      text: `${high} student${high === 1 ? "" : "s"} currently classified as High Risk`,
-      meta: "Latest snapshot",
+      text: `${scoped.high} student${scoped.high === 1 ? "" : "s"} classified as High Risk`,
+      meta: "This week",
     },
     {
-      text: `${monitoredCount} assessments processed with burnout prediction`,
-      meta: "Latest snapshot",
+      text: `${scoped.monitoredCount} assessments processed with burnout prediction`,
+      meta: "This week",
     },
     {
       text: `Weekly risk trend covers ${data.weeklyTrends.length} monitoring week${data.weeklyTrends.length === 1 ? "" : "s"}`,
@@ -151,38 +222,65 @@ export function GuidanceDashboard({
 
   return (
     <div className="space-y-8">
-      <PageHeading
-        title={`Welcome, ${firstName}`}
-        description="Administrator overview of student burnout risk, weekly monitoring, and early-warning alerts."
-        icon={LayoutDashboardIcon}
-      />
+      <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <PageHeading
+          title={`Welcome, ${firstName}`}
+          description="Administrator overview for the current monitoring week — student burnout risk, submissions, and early-warning alerts."
+          icon={LayoutDashboardIcon}
+        />
+
+        <div className="flex w-full min-w-0 flex-col gap-1.5 sm:w-auto sm:min-w-[220px]">
+          <span className="text-xs font-medium text-muted-foreground">
+            Year Level
+          </span>
+          <Select
+            value={yearFilter}
+            onValueChange={(value) => {
+              if (value == null) return;
+              setYearFilter(value);
+            }}
+          >
+            <SelectTrigger className="w-full sm:w-[240px]">
+              <SelectValue placeholder="All Years" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Years</SelectItem>
+              {YEAR_FILTER_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
 
       <section>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
-          <OverviewCard label="Total Students" value={data.totalStudents} />
+          <OverviewCard label="Total Students" value={scoped.totalStudents} />
           <OverviewCard
             label="Students Monitored"
-            value={monitoredCount}
-            hint="With completed assessment"
+            value={scoped.monitoredCount}
+            hint="Completed this week"
           />
-          <OverviewCard label="Low Risk" value={low} tone="low" />
+          <OverviewCard label="Low Risk" value={scoped.low} tone="low" />
           <OverviewCard
             label="Moderate Risk"
-            value={moderate}
+            value={scoped.moderate}
             tone="moderate"
           />
-          <OverviewCard label="High Risk" value={high} tone="high" />
+          <OverviewCard label="High Risk" value={scoped.high} tone="high" />
           <OverviewCard
             label="Pending Assessments"
-            value={pendingCount}
+            value={scoped.pendingCount}
             hint="Not submitted this week"
           />
         </div>
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
           <AiEarlyWarningOverviewCards
-            earlyWarningCount={data.earlyWarningCount}
-            nextWeekHighCount={data.nextWeekHighCount}
-            week2HighCount={data.week2HighCount}
+            earlyWarningCount={scoped.earlyWarningCount}
+            nextWeekHighCount={scoped.nextWeekHighCount}
+            week2HighCount={scoped.week2HighCount}
           />
         </div>
       </section>
@@ -194,7 +292,12 @@ export function GuidanceDashboard({
               Student Burnout Risk Distribution
             </CardTitle>
             <CardDescription>
-              How many students currently need attention by predicted risk.
+              How many students need attention by predicted risk for the
+              current monitoring week
+              {yearFilter !== "all"
+                ? ` · ${YEAR_FILTER_OPTIONS.find((o) => o.value === yearFilter)?.label ?? ""}`
+                : ""}
+              .
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -232,7 +335,7 @@ export function GuidanceDashboard({
                     />
                   </PieChart>
                 </ChartContainer>
-                {dominantRisk ? (
+                {dominantRisk && dominantRisk.count > 0 ? (
                   <p className="text-center text-sm text-muted-foreground">
                     Largest group:{" "}
                     <span className="font-medium text-foreground">
@@ -260,9 +363,10 @@ export function GuidanceDashboard({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {data.highRiskStudents.length === 0 ? (
+          {filteredHighRisk.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No high-risk students in the latest snapshot.
+              No high-risk students for this week
+              {yearFilter !== "all" ? " in the selected year level" : ""}.
             </p>
           ) : (
             <div className="overflow-x-auto">
@@ -278,7 +382,7 @@ export function GuidanceDashboard({
                   </tr>
                 </thead>
                 <tbody>
-                  {data.highRiskStudents.map((student) => {
+                  {filteredHighRisk.map((student) => {
                     const href = `/guidance/monitoring/${student.id}`;
                     const loading = isPending && pendingHref === href;
                     return (
@@ -339,7 +443,7 @@ export function GuidanceDashboard({
       </Card>
 
       <AiEarlyWarningStudentsCard
-        students={data.earlyWarningStudents.map((s) => ({
+        students={filteredEarlyWarning.map((s) => ({
           id: s.id,
           full_name: s.full_name,
           student_number: s.student_number,
@@ -391,7 +495,7 @@ export function GuidanceDashboard({
               <div className="mb-1.5 flex items-center justify-between text-sm">
                 <span>Completed</span>
                 <span className="tabular-nums text-muted-foreground">
-                  {data.submittedCount} / {data.totalStudents}
+                  {scoped.submittedCount} / {scoped.totalStudents}
                 </span>
               </div>
               <div className="h-2.5 overflow-hidden rounded-full bg-muted">
@@ -399,21 +503,21 @@ export function GuidanceDashboard({
                   className="h-full rounded-full bg-primary transition-all"
                   style={{
                     width: `${Math.max(
-                      data.completionPercent,
-                      data.completionPercent > 0 ? 2 : 0
+                      scoped.completionPercent,
+                      scoped.completionPercent > 0 ? 2 : 0
                     )}%`,
                   }}
                 />
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
-                {data.completionPercent}%
+                {scoped.completionPercent}%
               </p>
             </div>
             <div>
               <div className="mb-1.5 flex items-center justify-between text-sm">
                 <span>Pending</span>
                 <span className="tabular-nums text-muted-foreground">
-                  {pendingCount} / {data.totalStudents}
+                  {scoped.pendingCount} / {scoped.totalStudents}
                 </span>
               </div>
               <div className="h-2.5 overflow-hidden rounded-full bg-muted">
@@ -421,10 +525,10 @@ export function GuidanceDashboard({
                   className="h-full rounded-full bg-amber-500/80 transition-all"
                   style={{
                     width: `${
-                      data.totalStudents > 0
+                      scoped.totalStudents > 0
                         ? Math.max(
-                            (pendingCount / data.totalStudents) * 100,
-                            pendingCount > 0 ? 2 : 0
+                            (scoped.pendingCount / scoped.totalStudents) * 100,
+                            scoped.pendingCount > 0 ? 2 : 0
                           )
                         : 0
                     }%`,
@@ -432,8 +536,10 @@ export function GuidanceDashboard({
                 />
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
-                {data.totalStudents > 0
-                  ? Math.round((pendingCount / data.totalStudents) * 1000) / 10
+                {scoped.totalStudents > 0
+                  ? Math.round(
+                      (scoped.pendingCount / scoped.totalStudents) * 1000
+                    ) / 10
                   : 0}
                 %
               </p>

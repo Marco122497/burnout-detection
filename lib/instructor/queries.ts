@@ -84,6 +84,9 @@ export type InstructorDashboardData = {
     low: number;
     moderate: number;
     high: number;
+    earlyWarningCount: number;
+    nextWeekHighCount: number;
+    week2HighCount: number;
   }[];
   riskByClass: {
     label: string;
@@ -292,29 +295,49 @@ export async function getInstructorStudentRows(
   }
 
   const latestMonitoring = new Map<string, (typeof monitoringList)[number]>();
+  const currentWeekMonitoring = new Map<string, (typeof monitoringList)[number]>();
   const previousMonitoring = new Map<string, (typeof monitoringList)[number]>();
   const submittedThisWeek = new Set<string>();
 
   for (const row of monitoringList) {
-    if (!latestMonitoring.has(row.student_id)) {
+    const weekNumber = Number(row.week_number);
+    const existingLatest = latestMonitoring.get(row.student_id);
+    const existingLatestWeek = existingLatest
+      ? Number(existingLatest.week_number)
+      : -1;
+
+    if (!existingLatest || weekNumber > existingLatestWeek) {
       latestMonitoring.set(row.student_id, row);
-    } else if (!previousMonitoring.has(row.student_id)) {
-      const latest = latestMonitoring.get(row.student_id);
-      if (
-        latest &&
-        (row.week_number !== latest.week_number ||
-          row.monitoring_id !== latest.monitoring_id)
-      ) {
-        previousMonitoring.set(row.student_id, row);
-      }
     }
+
     if (
       term &&
       currentWeek &&
       row.term_id === term.term_id &&
-      row.week_number === currentWeek
+      weekNumber === currentWeek
     ) {
+      currentWeekMonitoring.set(row.student_id, row);
       submittedThisWeek.add(row.student_id);
+    }
+  }
+
+  // Previous week = highest week strictly before the row used for current stats.
+  for (const row of monitoringList) {
+    const weekNumber = Number(row.week_number);
+    const current =
+      (currentWeek != null
+        ? currentWeekMonitoring.get(row.student_id)
+        : undefined) ?? latestMonitoring.get(row.student_id);
+    if (!current) continue;
+    const currentWeekNum = Number(current.week_number);
+    if (weekNumber >= currentWeekNum) continue;
+
+    const existingPrev = previousMonitoring.get(row.student_id);
+    const existingPrevWeek = existingPrev
+      ? Number(existingPrev.week_number)
+      : -1;
+    if (!existingPrev || weekNumber > existingPrevWeek) {
+      previousMonitoring.set(row.student_id, row);
     }
   }
 
@@ -323,7 +346,11 @@ export async function getInstructorStudentRows(
   );
 
   return students.map((student) => {
-    const monitoring = latestMonitoring.get(student.id) ?? null;
+    // Dashboard / monitoring stats use the active monitoring week only.
+    const monitoring =
+      currentWeek != null
+        ? currentWeekMonitoring.get(student.id) ?? null
+        : latestMonitoring.get(student.id) ?? null;
     const previous = previousMonitoring.get(student.id) ?? null;
     const mfbiRaw = monitoring?.mfbi_results;
     const mfbi = Array.isArray(mfbiRaw) ? mfbiRaw[0] : mfbiRaw;
@@ -733,6 +760,9 @@ export async function getInstructorDashboardData(
       low: number;
       moderate: number;
       high: number;
+      earlyWarning: number;
+      nextWeekHigh: number;
+      week2High: number;
     }
   >();
 
@@ -756,6 +786,9 @@ export async function getInstructorDashboardData(
         low: 0,
         moderate: 0,
         high: 0,
+        earlyWarning: 0,
+        nextWeekHigh: 0,
+        week2High: 0,
       };
       yearEntry.total += 1;
       if (row.mfbi_score != null || row.prediction || row.burnout_level) {
@@ -766,6 +799,9 @@ export async function getInstructorDashboardData(
       if (bucket === "Low") yearEntry.low += 1;
       else if (bucket === "Moderate") yearEntry.moderate += 1;
       else if (bucket === "High") yearEntry.high += 1;
+      if (row.early_warning_attention) yearEntry.earlyWarning += 1;
+      if (row.next_week_risk === "High") yearEntry.nextWeekHigh += 1;
+      if (row.week2_risk === "High") yearEntry.week2High += 1;
       yearStatsMap.set(year, yearEntry);
     }
 
@@ -784,7 +820,18 @@ export async function getInstructorDashboardData(
   }
 
   const yearStats = [...yearStatsMap.entries()]
-    .map(([year_level, stats]) => ({ year_level, ...stats }))
+    .map(([year_level, stats]) => ({
+      year_level,
+      total: stats.total,
+      monitored: stats.monitored,
+      submitted: stats.submitted,
+      low: stats.low,
+      moderate: stats.moderate,
+      high: stats.high,
+      earlyWarningCount: stats.earlyWarning,
+      nextWeekHighCount: stats.nextWeekHigh,
+      week2HighCount: stats.week2High,
+    }))
     .sort((a, b) => a.year_level - b.year_level);
 
   const riskByClass = [...classStatsMap.entries()]
@@ -928,8 +975,8 @@ export async function getInstructorDashboardData(
   if (highRiskCount > 0) {
     recentAlerts.push({
       tone: "high",
-      text: `${highRiskCount} student${highRiskCount === 1 ? "" : "s"} currently at High Risk`,
-      meta: "Latest snapshot",
+      text: `${highRiskCount} student${highRiskCount === 1 ? "" : "s"} at High Risk`,
+      meta: currentWeek ? `Week ${currentWeek}` : "This week",
     });
   }
 
@@ -937,7 +984,7 @@ export async function getInstructorDashboardData(
     recentAlerts.push({
       tone: "moderate",
       text: `${earlyWarningCount} student${earlyWarningCount === 1 ? "" : "s"} flagged by AI early-warning outlook (${nextWeekHighCount} next-week High)`,
-      meta: "Next-week / trend projection",
+      meta: currentWeek ? `Week ${currentWeek}` : "This week",
     });
   }
   if (pendingCount > 0) {
@@ -1072,6 +1119,9 @@ export function getInstructorAnalytics(
       low: number;
       moderate: number;
       high: number;
+      earlyWarning: number;
+      nextWeekHigh: number;
+      week2High: number;
     }
   >();
 
@@ -1095,6 +1145,9 @@ export function getInstructorAnalytics(
         low: 0,
         moderate: 0,
         high: 0,
+        earlyWarning: 0,
+        nextWeekHigh: 0,
+        week2High: 0,
       };
       yearEntry.total += 1;
       if (row.mfbi_score != null || row.prediction || row.burnout_level) {
@@ -1105,6 +1158,9 @@ export function getInstructorAnalytics(
       if (bucket === "Low") yearEntry.low += 1;
       else if (bucket === "Moderate") yearEntry.moderate += 1;
       else if (bucket === "High") yearEntry.high += 1;
+      if (row.early_warning_attention) yearEntry.earlyWarning += 1;
+      if (row.next_week_risk === "High") yearEntry.nextWeekHigh += 1;
+      if (row.week2_risk === "High") yearEntry.week2High += 1;
       yearStatsMap.set(row.year_level, yearEntry);
     }
 
@@ -1125,7 +1181,18 @@ export function getInstructorAnalytics(
   }
 
   const yearStats = [...yearStatsMap.entries()]
-    .map(([year_level, stats]) => ({ year_level, ...stats }))
+    .map(([year_level, stats]) => ({
+      year_level,
+      total: stats.total,
+      monitored: stats.monitored,
+      submitted: stats.submitted,
+      low: stats.low,
+      moderate: stats.moderate,
+      high: stats.high,
+      earlyWarningCount: stats.earlyWarning,
+      nextWeekHighCount: stats.nextWeekHigh,
+      week2HighCount: stats.week2High,
+    }))
     .sort((a, b) => a.year_level - b.year_level);
 
   const riskByClass = [...classStatsMap.entries()]

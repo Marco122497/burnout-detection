@@ -60,7 +60,7 @@ export function AiEarlyWarningOverviewCards({
             {earlyWarningCount}
           </CardTitle>
           <p className="text-xs text-muted-foreground">
-            Rising / projected elevated risk
+            Rising / projected elevated risk this week
           </p>
         </CardHeader>
       </Card>
@@ -72,7 +72,9 @@ export function AiEarlyWarningOverviewCards({
           <CardTitle className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight tabular-nums">
             {nextWeekHighCount}
           </CardTitle>
-          <p className="text-xs text-muted-foreground">ML early detection</p>
+          <p className="text-xs text-muted-foreground">
+            From this week&apos;s assessments
+          </p>
         </CardHeader>
       </Card>
       <Card>
@@ -83,7 +85,9 @@ export function AiEarlyWarningOverviewCards({
           <CardTitle className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight tabular-nums">
             {week2HighCount}
           </CardTitle>
-          <p className="text-xs text-muted-foreground">Trend projection</p>
+          <p className="text-xs text-muted-foreground">
+            Trend projection this week
+          </p>
         </CardHeader>
       </Card>
     </>

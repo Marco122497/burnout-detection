@@ -149,16 +149,9 @@ export async function getGuidanceStudentRows(
     }
   }
 
+  // Dashboard / monitoring stats are scoped to the active monitoring week only.
+  // Do not fall back to prior weeks — that inflated "monitored" vs "pending".
   for (const row of currentWeekMonitoring.values()) {
-    const mfbiRaw = row.mfbi_results;
-    const mfbi = Array.isArray(mfbiRaw) ? mfbiRaw[0] : mfbiRaw;
-    if (mfbi?.mfbi_id) {
-      mfbiIds.push(mfbi.mfbi_id);
-    }
-  }
-
-  for (const row of latestMonitoring.values()) {
-    if (currentWeekMonitoring.has(row.student_id)) continue;
     const mfbiRaw = row.mfbi_results;
     const mfbi = Array.isArray(mfbiRaw) ? mfbiRaw[0] : mfbiRaw;
     if (mfbi?.mfbi_id) {
@@ -196,11 +189,9 @@ export async function getGuidanceStudentRows(
 
   return students.map((student) => {
     const monitoring =
-      (currentWeek != null
-        ? currentWeekMonitoring.get(student.id)
-        : undefined) ??
-      latestMonitoring.get(student.id) ??
-      null;
+      currentWeek != null
+        ? currentWeekMonitoring.get(student.id) ?? null
+        : latestMonitoring.get(student.id) ?? null;
     const mfbiRaw = monitoring?.mfbi_results;
     const mfbi = Array.isArray(mfbiRaw) ? mfbiRaw[0] : mfbiRaw;
     const stressScore =
@@ -576,19 +567,46 @@ export function getGuidanceAnalytics(
 
   const yearMap = new Map<
     number,
-    { scores: number[]; highRisk: number; total: number }
+    {
+      scores: number[];
+      total: number;
+      monitored: number;
+      submitted: number;
+      low: number;
+      moderate: number;
+      high: number;
+      earlyWarning: number;
+      nextWeekHigh: number;
+      week2High: number;
+    }
   >();
   for (const row of rows) {
     if (row.year_level == null) continue;
     const entry = yearMap.get(row.year_level) ?? {
       scores: [],
-      highRisk: 0,
       total: 0,
+      monitored: 0,
+      submitted: 0,
+      low: 0,
+      moderate: 0,
+      high: 0,
+      earlyWarning: 0,
+      nextWeekHigh: 0,
+      week2High: 0,
     };
     entry.total += 1;
     if (row.mfbi_score != null) entry.scores.push(row.mfbi_score);
+    if (row.mfbi_score != null || row.prediction || row.burnout_level) {
+      entry.monitored += 1;
+    }
+    if (row.submittedThisWeek) entry.submitted += 1;
     const bucket = rowMfbiRiskBucket(row);
-    if (bucket === "High") entry.highRisk += 1;
+    if (bucket === "Low") entry.low += 1;
+    else if (bucket === "Moderate") entry.moderate += 1;
+    else if (bucket === "High") entry.high += 1;
+    if (row.early_warning_attention) entry.earlyWarning += 1;
+    if (row.next_week_risk === "High") entry.nextWeekHigh += 1;
+    if (row.week2_risk === "High") entry.week2High += 1;
     yearMap.set(row.year_level, entry);
   }
 
@@ -598,8 +616,23 @@ export function getGuidanceAnalytics(
       label: formatYearLevel(year),
       year,
       average: entry.scores.length ? avg(entry.scores)! : 0,
-      highRiskCount: entry.highRisk,
+      highRiskCount: entry.high,
       count: entry.total,
+    }));
+
+  const yearStats = [...yearMap.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([year_level, entry]) => ({
+      year_level,
+      total: entry.total,
+      monitored: entry.monitored,
+      submitted: entry.submitted,
+      low: entry.low,
+      moderate: entry.moderate,
+      high: entry.high,
+      earlyWarningCount: entry.earlyWarning,
+      nextWeekHighCount: entry.nextWeekHigh,
+      week2HighCount: entry.week2High,
     }));
 
   const courseMap = new Map<
@@ -864,6 +897,7 @@ export function getGuidanceAnalytics(
     departmentComparison,
     weeklyTrends,
     byYearLevel,
+    yearStats,
     byCourse,
     byGender: genderSummary.byGender,
     mostProneGender: genderSummary.mostProneToHigh,

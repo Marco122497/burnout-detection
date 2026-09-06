@@ -180,6 +180,9 @@ export function InstructorAnalyticsView({
           submittedCount: data.submittedCount,
           pendingCount: data.pendingCount,
           completionPercent: data.completionPercent,
+          earlyWarningCount: data.earlyWarningCount,
+          nextWeekHighCount: data.nextWeekHighCount,
+          week2HighCount: data.week2HighCount,
         }
       : (() => {
           const year = Number(yearFilter);
@@ -196,6 +199,9 @@ export function InstructorAnalyticsView({
             pendingCount: Math.max(total - submitted, 0),
             completionPercent:
               total > 0 ? Math.round((submitted / total) * 1000) / 10 : 0,
+            earlyWarningCount: stats?.earlyWarningCount ?? 0,
+            nextWeekHighCount: stats?.nextWeekHighCount ?? 0,
+            week2HighCount: stats?.week2HighCount ?? 0,
           };
         })();
 
@@ -300,7 +306,11 @@ export function InstructorAnalyticsView({
       <section className="min-w-0">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           <OverviewCard label="Total Students" value={scoped.totalStudents} />
-          <OverviewCard label="Monitored" value={scoped.monitoredCount} />
+          <OverviewCard
+            label="Monitored"
+            value={scoped.monitoredCount}
+            hint="Completed this week"
+          />
           <OverviewCard
             label="Low Risk"
             value={scoped.lowRiskCount}
@@ -318,15 +328,13 @@ export function InstructorAnalyticsView({
             emphasize
           />
         </div>
-        {yearFilter === "all" ? (
-          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <AiEarlyWarningOverviewCards
-              earlyWarningCount={data.earlyWarningCount}
-              nextWeekHighCount={data.nextWeekHighCount}
-              week2HighCount={data.week2HighCount}
-            />
-          </div>
-        ) : null}
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <AiEarlyWarningOverviewCards
+            earlyWarningCount={scoped.earlyWarningCount}
+            nextWeekHighCount={scoped.nextWeekHighCount}
+            week2HighCount={scoped.week2HighCount}
+          />
+        </div>
       </section>
 
       <section className="min-w-0">
