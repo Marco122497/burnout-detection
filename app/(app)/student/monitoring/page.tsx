@@ -6,6 +6,10 @@ import { requireRole } from "@/lib/auth/session";
 import { getWeeklyMonitoringSections } from "@/lib/student/questionnaires";
 import { getLatestBurnoutSnapshot } from "@/lib/student/queries";
 import {
+  hasAgreedResearchConsent,
+  RESEARCH_CONSENT_VERSION,
+} from "@/lib/student/research-consent";
+import {
   Card,
   CardContent,
   CardDescription,
@@ -18,7 +22,33 @@ export const metadata = {
 };
 
 export default async function StudentMonitoringPage() {
-  const { supabase, user } = await requireRole(["Student"]);
+  const { supabase, user, profile } = await requireRole(["Student"]);
+
+  if (!hasAgreedResearchConsent(profile.research_consent_status)) {
+    return (
+      <div className="space-y-6">
+        <PageHeading
+          title="Weekly Monitoring"
+          description="Informed consent is required before you can complete the weekly monitoring form."
+          icon={ClipboardCheckIcon}
+        />
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Consent required</CardTitle>
+            <CardDescription>
+              Please complete the electronic informed consent ({RESEARCH_CONSENT_VERSION})
+              shown after login. Weekly monitoring unlocks after you agree.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground">
+            System registration is not the same as research consent. Your
+            answers are only collected for this study after you agree.
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   const [snapshot, sections] = await Promise.all([
     getLatestBurnoutSnapshot(supabase, user.id),
     getWeeklyMonitoringSections(supabase),
@@ -28,51 +58,9 @@ export default async function StudentMonitoringPage() {
     <div className="space-y-6">
       <PageHeading
         title="Weekly Monitoring"
-        description="One consolidated form: PSS, Academic Workload, Study Time, and Sleep Hours. Results are scored, normalized, and predicted automatically."
+        description="One consolidated form: Stress, Academic Workload, Study Time, and Sleep Hours. Results are scored, normalized, and predicted automatically."
         icon={ClipboardCheckIcon}
       />
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Purpose & objectives</CardTitle>
-          <CardDescription>
-            Please read this before you answer the weekly monitoring form.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm text-muted-foreground">
-          <p>
-            This Burnout Detection System helps the Guidance Office support your
-            wellness early. Your weekly answers are used to estimate burnout risk
-            from stress, academic workload, study time, and sleep.
-          </p>
-          <ul className="list-disc space-y-1.5 pl-5">
-            <li>
-              <span className="font-medium text-foreground">Purpose:</span>{" "}
-              Detect early signs of academic burnout so students can get timely
-              guidance and support.
-            </li>
-            <li>
-              <span className="font-medium text-foreground">Objective:</span>{" "}
-              Help you reflect on how the past week felt across stress,
-              schoolwork, study load, and sleep.
-            </li>
-            <li>
-              <span className="font-medium text-foreground">Objective:</span>{" "}
-              Give Guidance Counselors and instructors a clearer view of who may
-              need follow-up or referral.
-            </li>
-            <li>
-              <span className="font-medium text-foreground">Objective:</span>{" "}
-              Provide personalized recommendations you can use while studying
-              this term.
-            </li>
-          </ul>
-          <p>
-            Answer honestly based on the past week. There are no right or wrong
-            answers.
-          </p>
-        </CardContent>
-      </Card>
 
       <WeeklyMonitoringForm
         term={snapshot.term}

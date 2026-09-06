@@ -10,7 +10,7 @@ import {
 } from "@/lib/auth/roles";
 
 const PROFILE_COLUMNS =
-  "id, role, employee_no, student_number, first_name, middle_name, last_name, suffix, sex, birth_date, age, civil_status, contact_number, address, profile_picture, course, year_level, section, enrollment_status, designation, employment_status, department_id, is_active, is_verified, last_login, created_at, updated_at";
+  "id, role, employee_no, student_number, first_name, middle_name, last_name, suffix, sex, birth_date, age, civil_status, contact_number, address, profile_picture, course, year_level, section, enrollment_status, designation, employment_status, department_id, is_active, is_verified, last_login, research_consent_status, research_consent_version, research_consent_at, created_at, updated_at";
 
 /**
  * Deduped within a single RSC request tree (layout + page share one fetch).
@@ -26,11 +26,34 @@ export const getSessionUser = cache(async () => {
     return { supabase, user: null, profile: null as Profile | null };
   }
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select(PROFILE_COLUMNS)
     .eq("id", user.id)
     .maybeSingle();
+
+  if (profileError?.message?.includes("research_consent")) {
+    const { data: legacyProfile } = await supabase
+      .from("profiles")
+      .select(
+        "id, role, employee_no, student_number, first_name, middle_name, last_name, suffix, sex, birth_date, age, civil_status, contact_number, address, profile_picture, course, year_level, section, enrollment_status, designation, employment_status, department_id, is_active, is_verified, last_login, created_at, updated_at"
+      )
+      .eq("id", user.id)
+      .maybeSingle();
+
+    return {
+      supabase,
+      user,
+      profile: legacyProfile
+        ? toProfile({
+            ...legacyProfile,
+            research_consent_status: null,
+            research_consent_version: null,
+            research_consent_at: null,
+          })
+        : null,
+    };
+  }
 
   return {
     supabase,

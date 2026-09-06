@@ -36,6 +36,13 @@ function riskTone(level: string | null | undefined) {
   return "text-muted-foreground";
 }
 
+function trendArrow(trend: string | null | undefined) {
+  if (trend === "increasing") return "↑ Increasing";
+  if (trend === "decreasing") return "↓ Decreasing";
+  if (trend === "stable") return "→ Stable";
+  return null;
+}
+
 export function StudentDashboard({
   profile,
   data,
@@ -133,37 +140,84 @@ export function StudentDashboard({
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <LightbulbIcon className="size-4" />
-              Counseling recommendation
+              Counseling Recommendation
             </CardTitle>
             <CardDescription>
               Next-week early warning outlook, plus what to do this week for
               stress, schoolwork, study time, and sleep.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-4">
             {data.recommendation ? (
               <>
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  {data.recommendation.trend === "decreasing"
-                    ? "From decreasing trend · current warning"
-                    : data.recommendation.basis === "next_week"
-                      ? "From next-week early warning"
-                      : "From your burnout score"}
-                  {data.recommendation.burnout_level
-                    ? ` · ${data.recommendation.burnout_level}`
-                    : ""}
-                </p>
-                <p className="text-sm font-medium">{data.recommendation.title}</p>
-                <p className="text-sm text-muted-foreground">
-                  {data.recommendation.description}
-                </p>
-                {data.recommendation.recommended_action ? (
-                  <p className="text-sm text-muted-foreground">
-                    Action: {data.recommendation.recommended_action}
+                <div className="space-y-2">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {data.recommendation.trend === "decreasing"
+                      ? "From improving trend"
+                      : data.recommendation.trend === "increasing"
+                        ? "From next-week early warning · rising"
+                        : data.recommendation.basis === "next_week"
+                          ? "From next-week early warning"
+                          : "From your burnout score"}
+                    {data.recommendation.burnout_level
+                      ? ` · ${data.recommendation.burnout_level}`
+                      : ""}
                   </p>
-                ) : null}
+                  <p className="text-base font-medium leading-snug">
+                    {data.recommendation.title}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {data.recommendation.description}
+                  </p>
+                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    {data.recommendation.currentMfbi != null ? (
+                      <span>
+                        MFBI:{" "}
+                        <span className="font-medium text-foreground">
+                          {Number(data.recommendation.currentMfbi).toFixed(2)}
+                        </span>
+                        {data.recommendation.previousMfbi != null ? (
+                          <>
+                            {" "}
+                            (was{" "}
+                            {Number(data.recommendation.previousMfbi).toFixed(2)}
+                            )
+                          </>
+                        ) : null}
+                      </span>
+                    ) : null}
+                    {trendArrow(data.recommendation.trend) ? (
+                      <span>
+                        Trend:{" "}
+                        <span className="font-medium text-foreground">
+                          {trendArrow(data.recommendation.trend)}
+                        </span>
+                      </span>
+                    ) : null}
+                    {data.recommendation.nextWeekRisk ? (
+                      <span>
+                        Next week:{" "}
+                        <span
+                          className={cn(
+                            "font-medium",
+                            riskTone(data.recommendation.nextWeekRisk)
+                          )}
+                        >
+                          {data.recommendation.nextWeekRisk}
+                        </span>
+                      </span>
+                    ) : null}
+                  </div>
+                  {data.recommendation.recommended_action ? (
+                    <p className="rounded-lg border bg-muted/40 px-3 py-2 text-sm text-foreground">
+                      <span className="font-medium">Action: </span>
+                      {data.recommendation.recommended_action}
+                    </p>
+                  ) : null}
+                </div>
+
                 {data.factorRecommendations.length ? (
-                  <div className="space-y-2 pt-1">
+                  <div className="space-y-2 border-t pt-3">
                     <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                       What to do this week
                     </p>
@@ -175,39 +229,56 @@ export function StudentDashboard({
                       {data.factorRecommendations.map((item) => (
                         <li
                           key={item.key}
-                          className="rounded-lg border border-border/70 px-3 py-2"
+                          className="rounded-lg border border-border/70 px-3 py-2.5"
                         >
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="text-sm font-medium">{item.title}</p>
-                            <span
-                              className={cn(
-                                "shrink-0 text-[11px] font-medium",
-                                riskTone(item.level)
-                              )}
-                            >
-                              {item.level}
-                            </span>
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0 space-y-0.5">
+                              <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                                {item.category}
+                              </p>
+                              <p className="text-sm font-medium leading-snug">
+                                {item.title}
+                              </p>
+                            </div>
+                            <div className="flex shrink-0 flex-col items-end gap-0.5 text-right">
+                              <span
+                                className={cn(
+                                  "text-[11px] font-medium",
+                                  riskTone(item.level)
+                                )}
+                              >
+                                {item.level}
+                                {item.factorTrend
+                                  ? ` · ${trendArrow(item.factorTrend)}`
+                                  : ""}
+                              </span>
+                            </div>
                           </div>
-                          <p className="mt-0.5 text-xs text-muted-foreground">
-                            {item.category}: {item.recommended_action}
+                          <p className="mt-1.5 text-xs text-muted-foreground">
+                            <span className="font-medium text-foreground">
+                              Action:{" "}
+                            </span>
+                            {item.recommended_action}
                           </p>
                         </li>
                       ))}
                     </ul>
                   </div>
                 ) : null}
+
                 <Link
                   href="/student/recommendations"
                   className={cn(
                     buttonVariants({ variant: "outline", size: "sm" })
                   )}
                 >
-                  View recommendations
+                  View full counseling recommendation
                 </Link>
               </>
             ) : (
               <p className="text-sm text-muted-foreground">
-                Tips appear after you submit weekly monitoring.
+                Your personalized counseling recommendation appears after you
+                submit weekly monitoring.
               </p>
             )}
           </CardContent>

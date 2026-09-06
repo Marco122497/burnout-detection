@@ -27,6 +27,22 @@ export type FactorRecommendation = {
   level: BurnoutLevel;
   tips: string[];
   normalized: number;
+  /** Week-over-week factor direction when previous week is available. */
+  factorTrend?: "increasing" | "decreasing" | "stable" | null;
+};
+
+export type CounselingRecommendation = {
+  title: string;
+  description: string;
+  recommended_action: string;
+  burnout_level: BurnoutLevel;
+  basis: "next_week" | "current" | null;
+  trend: string | null;
+  currentLevel: BurnoutLevel | null;
+  nextWeekRisk: BurnoutLevel | null;
+  currentMfbi: number | null;
+  previousMfbi: number | null;
+  factors: FactorRecommendation[];
 };
 
 type FactorScore = {
@@ -348,22 +364,35 @@ export function getOverallRecommendation(
   options?: {
     trend?: string | null;
     currentMfbi?: number | null;
+    previousMfbi?: number | null;
   }
 ): OverallRecommendation | null {
   if (!level) return null;
   const base = OVERALL[level] ?? OVERALL.Low;
   const trend = options?.trend ?? null;
+  const currentMfbi = options?.currentMfbi ?? null;
+  const previousMfbi = options?.previousMfbi ?? null;
   const mfbiLabel =
-    options?.currentMfbi != null && Number.isFinite(options.currentMfbi)
-      ? ` Your current burnout index is about ${Number(options.currentMfbi).toFixed(2)}.`
+    currentMfbi != null && Number.isFinite(currentMfbi)
+      ? ` Your current burnout index is about ${Number(currentMfbi).toFixed(2)}.`
       : "";
+  const mfbiChangeLabel =
+    currentMfbi != null &&
+    previousMfbi != null &&
+    Number.isFinite(currentMfbi) &&
+    Number.isFinite(previousMfbi)
+      ? ` Your burnout index has ${
+          Number(currentMfbi) < Number(previousMfbi) ? "decreased" : "changed"
+        } from ${Number(previousMfbi).toFixed(2)} to ${Number(currentMfbi).toFixed(2)}.`
+      : mfbiLabel;
 
+  // Current risk + historical trend = early-warning outlook
   if (trend === "decreasing") {
     if (level === "Low") {
       return {
         ...base,
-        title: "Your risk went down. Keep the good habits.",
-        description: `Your burnout risk is decreasing and is now low.${mfbiLabel} Keep doing what helped so it stays low.`,
+        title: "Your risk is improving — keep it going.",
+        description: `Your risk is improving and is now low.${mfbiChangeLabel} Keep doing what helped so it stays low.`,
         recommended_action:
           "Protect sleep, keep short breaks, and complete next week’s monitoring.",
       };
@@ -371,24 +400,31 @@ export function getOverallRecommendation(
     if (level === "Moderate") {
       return {
         ...base,
-        title: "Your risk is going down — still stay careful.",
-        description: `Your burnout score improved from a higher level and is now moderate.${mfbiLabel} That decrease is a good sign, but this is still a moderate early warning. Keep the habits that helped so it does not climb again.`,
+        title: "Your risk is improving — continue the changes that are helping.",
+        description: `Your burnout outlook is improving and is now moderate.${mfbiChangeLabel} Keep the habits that helped so it does not climb again.`,
         recommended_action:
           "Keep the changes that lowered your score: steady sleep, lighter extra load, and shorter late-night study.",
       };
     }
-    if (level === "High" || level === "Severe") {
-      return {
-        ...base,
-        title: "Risk is easing, but it is still high.",
-        description: `Your score is moving down, which is progress, but burnout risk is still high.${mfbiLabel} Keep resting and ask for help if you need it.`,
-        recommended_action:
-          "Continue lighter load and better sleep. Visit Guidance if things still feel heavy.",
-      };
-    }
+    return {
+      ...base,
+      title: "Your risk is improving — continue monitoring and support strategies.",
+      description: `Your score is moving down, which is progress, but burnout risk is still high.${mfbiChangeLabel} Keep resting and ask for help if you need it.`,
+      recommended_action:
+        "Continue lighter load and better sleep. Visit Guidance if things still feel heavy.",
+    };
   }
 
   if (trend === "increasing") {
+    if (level === "Low") {
+      return {
+        ...base,
+        title: "Your risk is starting to rise — stay aware.",
+        description: `Your burnout risk is still low, but the trend is increasing.${mfbiLabel} Small habits this week can keep it from climbing.`,
+        recommended_action:
+          "Keep sleep steady, avoid stacking extra work, and stop long study nights early.",
+      };
+    }
     if (level === "Moderate") {
       return {
         ...base,
@@ -398,15 +434,41 @@ export function getOverallRecommendation(
           "Ease one pressure this week: sleep earlier, cut extra work, or end long study nights sooner.",
       };
     }
-    if (level === "High" || level === "Severe") {
+    return {
+      ...base,
+      title: "Your risk is increasing — seek support early.",
+      description: `Your burnout risk is high and the trend is going up.${mfbiLabel} Treat this as an early warning and get support soon.`,
+      recommended_action:
+        "Talk to the Guidance Office this week. Sleep first. Drop extra tasks if you can.",
+    };
+  }
+
+  if (trend === "stable") {
+    if (level === "Low") {
       return {
         ...base,
-        title: "Early warning: risk is increasing.",
-        description: `Your burnout risk is high and the trend is going up.${mfbiLabel} Treat this as an early warning and get support soon.`,
+        title: "Your risk is currently low — maintain your routine.",
+        description: `Your burnout risk is low and stable.${mfbiLabel} Keep the habits that are working.`,
         recommended_action:
-          "Talk to the Guidance Office this week. Sleep first. Drop extra tasks if you can.",
+          "Sleep 7–8 hours, take short breaks, and fill out next week’s form.",
       };
     }
+    if (level === "Moderate") {
+      return {
+        ...base,
+        title: "Your risk remains moderate — make small adjustments now.",
+        description: `Your burnout risk remains moderate.${mfbiLabel} Small adjustments this week can keep it from rising.`,
+        recommended_action:
+          "Pick one thing to ease this week: sleep earlier, do less extra work, or stop a long study night.",
+      };
+    }
+    return {
+      ...base,
+      title: "Your risk remains high — additional support is recommended.",
+      description: `Your burnout risk remains high.${mfbiLabel} Extra support and rest are recommended this week.`,
+      recommended_action:
+        "Talk to the Guidance Office this week. Sleep first. Drop extra tasks if you can.",
+    };
   }
 
   return {
@@ -504,88 +566,87 @@ const DECREASING_FACTOR_COPY: Record<
 > = {
   stress: {
     Low: {
-      title: "Your stress is easing",
+      title: "Your stress is improving",
       description:
         "Stress looks better than before. Keep the calming habits that helped.",
     },
     Moderate: {
-      title: "Your stress is easing, still moderate",
+      title: "Your stress is improving",
       description:
-        "Stress is moving down, but it is still moderate. Keep breathing breaks and small resets so it does not climb again.",
+        "Stress is moving down, but it is still moderate. Keep breathing breaks so it does not climb again.",
     },
     High: {
-      title: "Stress is easing, but still high",
+      title: "Your stress is improving",
       description:
         "Stress is starting to go down, but it is still high. Keep resting and ask for help if you need it.",
     },
     Severe: {
-      title: "Stress is easing, but still very high",
+      title: "Your stress is improving",
       description:
         "There is some improvement, but stress is still very high. Get support while you keep resting.",
     },
   },
   workload: {
     Low: {
-      title: "Schoolwork load is easing",
+      title: "Your workload has improved",
       description:
         "Your class load looks more manageable than before. Keep planning due dates.",
     },
     Moderate: {
-      title: "Schoolwork is easing, still moderate",
+      title: "Your workload has improved",
       description:
-        "Your schoolwork load is improving, but it is still moderate. Keep one clear task list so it does not pile up again.",
+        "Your schoolwork load is improving, but it is still moderate. Keep one clear task list.",
     },
     High: {
-      title: "Schoolwork is easing, but still heavy",
+      title: "Your workload has improved",
       description:
         "Your load is moving down, but schoolwork is still heavy. Keep cutting extras and asking for help.",
     },
     Severe: {
-      title: "Schoolwork is easing, but still too heavy",
+      title: "Your workload has improved",
       description:
         "There is progress, but your load is still very high. Keep talking with teachers and Guidance.",
     },
   },
   studyTime: {
     Low: {
-      title: "Study time looks steadier",
+      title: "Your study time has decreased",
       description:
         "Study hours look healthier than before. Keep short, focused blocks.",
     },
     Moderate: {
-      title: "Study hours are easing, still watch them",
+      title: "Your study time has decreased",
       description:
         "Long study nights are improving, but study time is still moderate. Keep stop times so sleep stays protected.",
     },
     High: {
-      title: "Study hours are easing, still too long",
+      title: "Your study time has decreased",
       description:
         "You are cutting back, but study time is still high. Keep splitting long nights into shorter sessions.",
     },
     Severe: {
-      title: "Study hours are easing, still extreme",
+      title: "Your study time has decreased",
       description:
         "There is progress, but study time is still too high. Prioritize only due work and rest.",
     },
   },
   sleep: {
     Low: {
-      title: "Your sleep is improving",
-      description:
-        "Sleep looks better than before. Keep a steady bedtime.",
+      title: "Your sleep has improved",
+      description: "Sleep looks better than before. Keep a steady bedtime.",
     },
     Moderate: {
-      title: "Sleep is improving, still moderate",
+      title: "Your sleep has improved",
       description:
-        "Sleep is getting better, but it is still moderate. Keep 7+ hours and quiet wind-down time.",
+        "Sleep is getting better, but it still needs attention. Keep 7+ hours and quiet wind-down time.",
     },
     High: {
-      title: "Sleep is improving, still needs priority",
+      title: "Your sleep has improved",
       description:
         "Sleep is moving in a better direction, but it is still poor. Keep treating rest as required.",
     },
     Severe: {
-      title: "Sleep is improving, still very poor",
+      title: "Your sleep has improved",
       description:
         "There is some progress, but sleep is still very poor. Rest first and tell Guidance if it continues.",
     },
@@ -598,60 +659,228 @@ const INCREASING_FACTOR_COPY: Record<
 > = {
   stress: {
     Moderate: {
-      title: "Your stress is going up",
+      title: "Your stress is increasing",
       description:
         "Stress is rising. Small calming habits now can stop next week from feeling harder.",
     },
     High: {
-      title: "Your stress is rising and high",
+      title: "Your stress is increasing",
       description:
         "Stress is high and the trend is going up. Rest and support come first.",
+    },
+    Severe: {
+      title: "Your stress is increasing",
+      description:
+        "Stress is very high and rising. Seek Guidance support this week.",
     },
   },
   workload: {
     Moderate: {
-      title: "Schoolwork is piling up",
+      title: "Your schoolwork is becoming heavier",
       description:
         "Your class load is rising. Organize tasks now so burnout does not climb.",
     },
     High: {
-      title: "Schoolwork load is rising fast",
+      title: "Your schoolwork is becoming heavier",
       description:
         "Schoolwork is heavy and increasing. Cut extras and talk to a teacher soon.",
+    },
+    Severe: {
+      title: "Your schoolwork is becoming heavier",
+      description:
+        "Your workload is very high and rising. Ask teachers and Guidance for support.",
     },
   },
   studyTime: {
     Moderate: {
-      title: "Study hours are getting longer",
+      title: "Your study time has increased",
       description:
         "Study time is rising. Set stop times so sleep and rest do not suffer.",
     },
     High: {
-      title: "Long study hours are increasing",
+      title: "Your study time has increased",
       description:
         "Study time is high and rising. Cut long nights before burnout gets worse.",
+    },
+    Severe: {
+      title: "Your study time has increased",
+      description:
+        "Study hours are extreme and rising. Do only due work and rest.",
     },
   },
   sleep: {
     Moderate: {
-      title: "Sleep is getting worse",
+      title: "Your sleep has declined",
       description:
         "Sleep quality is slipping. Protect bedtime before stress and school feel harder.",
     },
     High: {
-      title: "Sleep loss is getting worse",
+      title: "Your sleep has declined",
       description:
         "Sleep is poor and getting worse. Make rest the first priority this week.",
+    },
+    Severe: {
+      title: "Your sleep has declined",
+      description:
+        "Sleep is very poor and declining. Rest first and tell Guidance if it continues.",
     },
   },
 };
 
+const STABLE_HIGH_FACTOR_COPY: Record<
+  FactorKey,
+  Pick<FactorRecommendation, "title" | "description">
+> = {
+  stress: {
+    title: "Your stress remains high",
+    description:
+      "Stress has stayed high. Keep resting and seek Guidance support this week.",
+  },
+  workload: {
+    title: "Your workload has remained high for several weeks",
+    description:
+      "Schoolwork has stayed heavy. Talk with teachers and cut extras where you can.",
+  },
+  studyTime: {
+    title: "Your study time has remained high",
+    description:
+      "Long study hours have continued. Set a stop time and protect sleep.",
+  },
+  sleep: {
+    title: "Your sleep pattern has remained stable",
+    description:
+      "Sleep risk has stayed elevated. Make rest a required part of your week.",
+  },
+};
+
+function factorLevelTrend(
+  current: BurnoutLevel,
+  previous: BurnoutLevel | null | undefined
+): "increasing" | "decreasing" | "stable" | null {
+  if (!previous) return null;
+  const currentRank = RISK_RANK[current];
+  const previousRank = RISK_RANK[previous];
+  if (currentRank > previousRank) return "increasing";
+  if (currentRank < previousRank) return "decreasing";
+  return "stable";
+}
+
+function resolveDynamicFactorHeading(
+  key: FactorKey,
+  level: BurnoutLevel,
+  previousLevel: BurnoutLevel | null | undefined
+): Pick<FactorRecommendation, "title" | "description"> | null {
+  const trend = factorLevelTrend(level, previousLevel);
+
+  if (trend === "increasing") {
+    return INCREASING_FACTOR_COPY[key][level] ?? null;
+  }
+  if (trend === "decreasing") {
+    return DECREASING_FACTOR_COPY[key][level] ?? null;
+  }
+  if (
+    trend === "stable" &&
+    previousLevel &&
+    (level === "High" || level === "Severe") &&
+    (previousLevel === "High" || previousLevel === "Severe")
+  ) {
+    return STABLE_HIGH_FACTOR_COPY[key];
+  }
+
+  // Current-level defaults (more counseling-style than the static tip titles)
+  if (key === "stress") {
+    if (level === "Low") {
+      return {
+        title: "Your stress looks manageable",
+        description: "You are not too stressed right now. Keep checking in with yourself.",
+      };
+    }
+    if (level === "Moderate") {
+      return {
+        title: "Your stress is moderate",
+        description:
+          "You are still under some pressure. Keep calming habits so it does not climb again.",
+      };
+    }
+    return {
+      title: "Your stress is high",
+      description: "Stress is a big part of your burnout score. Rest and help come first.",
+    };
+  }
+
+  if (key === "workload") {
+    if (level === "Low") {
+      return {
+        title: "Your schoolwork is manageable",
+        description: "Your class load is manageable. Plan a little so due dates do not pile up.",
+      };
+    }
+    if (level === "Moderate") {
+      return {
+        title: "Your schoolwork is still heavy",
+        description:
+          "Your class load is still medium-high. Keep tasks organized so burnout does not climb again.",
+      };
+    }
+    return {
+      title: "Your schoolwork is still heavy",
+      description: "Schoolwork is a big reason your burnout score is high.",
+    };
+  }
+
+  if (key === "studyTime") {
+    if (level === "Low") {
+      return {
+        title: "Your study time looks balanced",
+        description:
+          "You are not studying too long. Short, focused study is better than extra hours.",
+      };
+    }
+    if (level === "Moderate") {
+      return {
+        title: "You may be studying too long",
+        description:
+          "Long study hours with little rest can make you tired and hurt your sleep.",
+      };
+    }
+    return {
+      title: "You may be studying too long",
+      description:
+        "Long study time is raising your burnout score. More hours will not help if you are already tired.",
+    };
+  }
+
+  // sleep
+  if (level === "Low") {
+    return {
+      title: "Your sleep looks okay",
+      description: "You are sleeping well enough. Keep a regular bedtime so this stays good.",
+    };
+  }
+  if (level === "Moderate") {
+    return {
+      title: "Your sleep may need attention",
+      description:
+        "Your sleep is not enough. Poor sleep can make stress and school feel harder.",
+    };
+  }
+  return {
+    title: "Your sleep is currently low",
+    description:
+      "Poor sleep is a big part of your burnout score. Rest helps you do schoolwork better.",
+  };
+}
+
 function withFactorTrendCopy(
   key: FactorKey,
   level: BurnoutLevel,
-  item: Omit<FactorRecommendation, "key" | "level" | "normalized">,
-  trend: string | null | undefined
-): Omit<FactorRecommendation, "key" | "level" | "normalized"> {
+  item: Omit<FactorRecommendation, "key" | "level" | "normalized" | "factorTrend">,
+  trend: string | null | undefined,
+  previousLevel?: BurnoutLevel | null
+): Omit<FactorRecommendation, "key" | "level" | "normalized" | "factorTrend"> {
+  const dynamic = resolveDynamicFactorHeading(key, level, previousLevel);
+  if (dynamic) return { ...item, ...dynamic };
+
   if (trend === "decreasing") {
     const overlay = DECREASING_FACTOR_COPY[key][level];
     if (overlay) return { ...item, ...overlay };
@@ -667,9 +896,12 @@ const GUIDANCE_REFERRAL_TIP =
   "Seek the Guidance Office for counseling support and a guidance referral.";
 
 function withGuidanceReferral(
-  item: Omit<FactorRecommendation, "key" | "level" | "normalized">,
+  item: Omit<
+    FactorRecommendation,
+    "key" | "level" | "normalized" | "factorTrend"
+  >,
   level: BurnoutLevel
-): Omit<FactorRecommendation, "key" | "level" | "normalized"> {
+): Omit<FactorRecommendation, "key" | "level" | "normalized" | "factorTrend"> {
   if (level !== "High" && level !== "Severe") return item;
 
   const tips = [
@@ -693,19 +925,28 @@ function withGuidanceReferral(
 export function getFactorRecommendation(
   key: FactorKey,
   level: BurnoutLevel,
-  options?: { trend?: string | null; thisWeek?: boolean }
+  options?: {
+    trend?: string | null;
+    thisWeek?: boolean;
+    previousLevel?: BurnoutLevel | null;
+  }
 ): Omit<FactorRecommendation, "normalized"> {
   const item = FACTOR_TIPS[key][level] ?? FACTOR_TIPS[key].Low;
-  const useTrendCopy = options?.thisWeek === false;
+  const previousLevel = options?.previousLevel ?? null;
+  const useHistoryHeadings =
+    previousLevel != null || options?.thisWeek === false;
+  const factorTrend = factorLevelTrend(level, previousLevel);
   return {
     key,
     level,
+    factorTrend,
     ...withGuidanceReferral(
       withFactorTrendCopy(
         key,
         level,
         item,
-        useTrendCopy ? options?.trend : null
+        useHistoryHeadings ? options?.trend ?? factorTrend : null,
+        previousLevel
       ),
       level
     ),
@@ -714,21 +955,82 @@ export function getFactorRecommendation(
 
 export function getFactorRecommendations(
   factors: StudentFactors | null | undefined,
-  options?: { trend?: string | null; thisWeek?: boolean }
+  options?: {
+    trend?: string | null;
+    thisWeek?: boolean;
+    previousFactors?: StudentFactors | null;
+  }
 ): FactorRecommendation[] {
   if (!factors) return [];
-  const resolvedOptions = { thisWeek: true, ...options };
+  const previousFactors = options?.previousFactors ?? null;
   return FACTOR_ORDER.map((key) => {
     const normalized = factors[key]?.normalized ?? 0;
+    const level = classifyFactorScore(normalized);
+    const previousLevel = previousFactors
+      ? classifyFactorScore(previousFactors[key]?.normalized ?? 0)
+      : null;
     return {
-      ...getFactorRecommendation(
-        key,
-        classifyFactorScore(normalized),
-        resolvedOptions
-      ),
+      ...getFactorRecommendation(key, level, {
+        trend: options?.trend,
+        thisWeek: previousFactors ? false : options?.thisWeek,
+        previousLevel,
+      }),
       normalized,
     };
   }).sort((a, b) => b.normalized - a.normalized);
+}
+
+/**
+ * Historical-based personalized counseling recommendation:
+ * previous week + latest week → trend → outlook → per-factor actions.
+ */
+export function buildPersonalizedCounselingRecommendation(input: {
+  currentLevel: BurnoutLevel | null | undefined;
+  nextWeekRisk?: BurnoutLevel | null;
+  earlyWarningTrend?: string | null;
+  currentMfbi?: number | null;
+  previousMfbi?: number | null;
+  factors?: StudentFactors | null;
+  previousFactors?: StudentFactors | null;
+}): CounselingRecommendation | null {
+  const recommendationTrend = resolveRecommendationTrend(
+    input.earlyWarningTrend,
+    input.currentMfbi,
+    input.previousMfbi
+  );
+  const { level, basis, trend } = resolveRecommendationLevel(
+    input.currentLevel,
+    input.nextWeekRisk ?? null,
+    { trend: recommendationTrend }
+  );
+  if (!level) return null;
+
+  const overall = getOverallRecommendation(level, {
+    trend,
+    currentMfbi: input.currentMfbi ?? null,
+    previousMfbi: input.previousMfbi ?? null,
+  });
+  if (!overall) return null;
+
+  const factors = getFactorRecommendations(input.factors, {
+    trend,
+    thisWeek: false,
+    previousFactors: input.previousFactors ?? null,
+  });
+
+  return {
+    title: overall.title,
+    description: overall.description,
+    recommended_action: overall.recommended_action,
+    burnout_level: overall.burnout_level,
+    basis,
+    trend,
+    currentLevel: input.currentLevel ?? null,
+    nextWeekRisk: input.nextWeekRisk ?? null,
+    currentMfbi: input.currentMfbi ?? null,
+    previousMfbi: input.previousMfbi ?? null,
+    factors,
+  };
 }
 
 /** All four factor tips at a single overall MFBI level (recommendations page fallback). */
@@ -751,7 +1053,7 @@ export function getTipsForLevel(
 export function getPersonalizedTips(
   factors: StudentFactors | null | undefined,
   fallbackLevel?: BurnoutLevel | null,
-  options?: { trend?: string | null }
+  options?: { trend?: string | null; previousFactors?: StudentFactors | null }
 ): Tip[] {
   const recs = getFactorRecommendations(factors, options);
   if (recs.length) {

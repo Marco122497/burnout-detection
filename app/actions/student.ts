@@ -2,6 +2,7 @@
 
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { isRedirectError } from "next/dist/client/components/redirect-error";
 
 import { toAuditLogRow } from "@/lib/audit";
@@ -23,6 +24,7 @@ import {
   type AnswerMap,
 } from "@/lib/student/scoring";
 import { getActiveTerm, getCurrentWeekNumber } from "@/lib/student/terms";
+import { RESEARCH_CONSENT_VERSION } from "@/lib/student/research-consent";
 import { formatYearLevel } from "@/lib/utils";
 
 export type StudentActionState = {
@@ -104,6 +106,13 @@ async function submitWeeklyMonitoringInner(
   formData: FormData
 ): Promise<StudentActionState> {
   const { supabase, user, profile } = await requireRole(["Student"]);
+
+  if (profile.research_consent_status !== "Agreed") {
+    return {
+      error:
+        "Please complete the informed consent form before submitting weekly monitoring.",
+    };
+  }
 
   const remarks = String(formData.get("remarks") || "").trim() || null;
   const weekRaw = String(formData.get("week_number") || "").trim();
@@ -600,4 +609,115 @@ export async function setStudentGender(
   revalidatePath("/student");
   revalidatePath("/profile");
   return { success: "Gender saved." };
+}
+
+export async function submitResearchConsent(
+  _prev: StudentActionState,
+  formData: FormData
+): Promise<StudentActionState> {
+  const { supabase, user, profile } = await requireRole(["Student"]);
+
+  const decision = String(formData.get("decision") || "").trim();
+  const status =
+    decision === "Agreed" || decision === "Declined" ? decision : null;
+
+  if (!status) {
+    return { error: "Please choose I Agree or I Do Not Agree." };
+  }
+
+  const readUnderstood = String(formData.get("read_understood") || "") === "1";
+  const voluntarilyAgreed =
+    String(formData.get("voluntarily_agreed") || "") === "1";
+
+  if (status === "Agreed" && (!readUnderstood || !voluntarilyAgreed)) {
+    return {
+      error:
+        "Please check both boxes to confirm you understand and voluntarily agree.",
+    };
+  }
+
+  const consentedAt = new Date().toISOString();
+  const ip = await getRequestIp();
+
+  const { error: profileError } = await supabase
+    .from("profiles")
+    .update({
+      research_consent_status: status,
+      research_consent_version: RESEARCH_CONSENT_VERSION,
+      research_consent_at: consentedAt,
+    })
+    .eq("id", user.id);
+
+  if (profileError) {
+    return {
+      error:
+        profileError.message.includes("research_consent")
+          ? "Consent storage is not set up yet. Ask Guidance to run supabase/phase10-research-consent.sql."
+          : profileError.message,
+    };
+  }
+
+  const { error: consentError } = await supabase
+    .from("research_consents")
+    .insert({
+      student_id: user.id,
+      student_number: profile.student_number,
+      consent_status: status,
+      consent_version: RESEARCH_CONSENT_VERSION,
+      read_understood: status === "Agreed" ? readUnderstood : false,
+      voluntarily_agreed: status === "Agreed" ? voluntarilyAgreed : false,
+      ip_address: ip,
+      consented_at: consentedAt,
+    });
+
+  if (consentError) {
+    // Profile already updated; still surface a soft warning for audit insert failures.
+    console.error("research_consents insert:", consentError.message);
+  }
+
+  await supabase.from("audit_logs").insert(
+    toAuditLogRow({
+      user_id: user.id,
+      user_role: profile.role,
+      action:
+        status === "Agreed"
+          ? "RESEARCH_CONSENT_AGREED"
+          : "RESEARCH_CONSENT_DECLINED",
+      action_type: "UPDATE",
+      table_name: "research_consents",
+      record_id: user.id,
+      description: `Student ${status.toLowerCase()} research consent ${RESEARCH_CONSENT_VERSION}`,
+      ip_address: ip,
+    })
+  );
+
+  if (status === "Declined") {
+    const { data: openLogin } = await supabase
+      .from("login_history")
+      .select("login_history_id")
+      .eq("user_id", user.id)
+      .is("logout_time", null)
+      .order("login_time", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (openLogin?.login_history_id) {
+      await supabase
+        .from("login_history")
+        .update({ logout_time: new Date().toISOString() })
+        .eq("login_history_id", openLogin.login_history_id);
+    }
+
+    await supabase.auth.signOut();
+    redirect("/login");
+  }
+
+  revalidatePath("/", "layout");
+  revalidatePath("/student");
+  revalidatePath("/student/monitoring");
+  revalidatePath("/profile");
+
+  return {
+    success: "Thank you. Your consent has been recorded.",
+  };
 }

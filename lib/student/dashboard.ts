@@ -13,11 +13,8 @@ import {
 import { getActiveTerm, getCurrentWeekNumber } from "@/lib/student/terms";
 import { resolveMfbiBurnoutLevel } from "@/lib/student/mfbi";
 import {
+  buildPersonalizedCounselingRecommendation,
   buildStudentFactors,
-  getFactorRecommendations,
-  getOverallRecommendation,
-  resolveRecommendationLevel,
-  resolveRecommendationTrend,
   type FactorRecommendation,
 } from "@/lib/student/tips";
 
@@ -68,6 +65,10 @@ export type StudentDashboardData = {
     recommended_action: string | null;
     basis: "next_week" | "current";
     trend: string | null;
+    currentLevel: string | null;
+    nextWeekRisk: string | null;
+    currentMfbi: number | null;
+    previousMfbi: number | null;
   } | null;
   factorRecommendations: FactorRecommendation[];
   announcements: {
@@ -141,17 +142,6 @@ export async function getStudentDashboardData(
   const earlyWarning = parseEarlyWarningRemarks(
     latest?.prediction?.remarks ?? null
   );
-  const recommendationTrend = resolveRecommendationTrend(
-    earlyWarning?.trend,
-    mfbiScore,
-    previousMfbiScore
-  );
-  const { level: recommendationLevel, basis: recommendationBasis, trend } =
-    resolveRecommendationLevel(
-      burnoutLevel,
-      earlyWarning?.next_week_risk ?? null,
-      { trend: recommendationTrend }
-    );
   const selectedModel = latest?.prediction?.selected_model ?? null;
   const decisionTreeConfidence =
     latest?.prediction?.decision_tree_confidence != null
@@ -193,18 +183,44 @@ export async function getStudentDashboardData(
       ),
     ]);
 
-  const overall = getOverallRecommendation(recommendationLevel, {
-    trend,
+  const factors =
+    latest && mfbi ? buildStudentFactors(latest, mfbi) : null;
+  const previousWeek = history[1] ?? null;
+  const previousFactors =
+    previousWeek && previousMfbiRaw
+      ? buildStudentFactors(
+          {
+            stress_score: previousWeek.stress_score,
+            academic_workload: previousWeek.academic_workload,
+            study_time: previousWeek.study_time,
+            sleep_hours: previousWeek.sleep_hours,
+          },
+          previousMfbiRaw
+        )
+      : null;
+
+  const counseling = buildPersonalizedCounselingRecommendation({
+    currentLevel: burnoutLevel,
+    nextWeekRisk: earlyWarning?.next_week_risk ?? null,
+    earlyWarningTrend: earlyWarning?.trend ?? null,
     currentMfbi: mfbiScore,
+    previousMfbi: previousMfbiScore,
+    factors,
+    previousFactors,
   });
-  const recommendation: StudentDashboardData["recommendation"] = overall
+
+  const recommendation: StudentDashboardData["recommendation"] = counseling
     ? {
-        title: overall.title,
-        description: overall.description,
-        burnout_level: overall.burnout_level,
-        recommended_action: overall.recommended_action,
-        basis: recommendationBasis === "next_week" ? "next_week" : "current",
-        trend,
+        title: counseling.title,
+        description: counseling.description,
+        burnout_level: counseling.burnout_level,
+        recommended_action: counseling.recommended_action,
+        basis: counseling.basis === "next_week" ? "next_week" : "current",
+        trend: counseling.trend,
+        currentLevel: counseling.currentLevel,
+        nextWeekRisk: counseling.nextWeekRisk,
+        currentMfbi: counseling.currentMfbi,
+        previousMfbi: counseling.previousMfbi,
       }
     : null;
 
@@ -264,10 +280,7 @@ export async function getStudentDashboardData(
           ? "Moderate"
           : "High";
 
-  const factors =
-    latest && mfbi ? buildStudentFactors(latest, mfbi) : null;
-
-  const factorRecommendations = getFactorRecommendations(factors);
+  const factorRecommendations = counseling?.factors ?? [];
 
   return {
     burnoutLevel,

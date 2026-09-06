@@ -49,6 +49,9 @@ export type Profile = {
   is_active: boolean;
   is_verified: boolean;
   last_login: string | null;
+  research_consent_status?: "Agreed" | "Declined" | null;
+  research_consent_version?: string | null;
+  research_consent_at?: string | null;
   created_at: string;
   updated_at: string;
 };

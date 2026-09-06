@@ -1,7 +1,9 @@
 import { AppShell } from "@/components/layout/app-shell";
 import type { NavNotification } from "@/components/layout/nav-notifications";
 import { StudentGenderDialog } from "@/components/student/student-gender-dialog";
+import { StudentResearchConsentGate } from "@/components/student/student-research-consent-gate";
 import { requireUser } from "@/lib/auth/session";
+import { hasAgreedResearchConsent } from "@/lib/student/research-consent";
 
 export const dynamic = "force-dynamic";
 
@@ -31,8 +33,12 @@ export default async function AppLayout({
     isRead: Boolean(row.is_read),
   }));
 
+  const isStudent = profile.role === "Student";
+  const needsConsent =
+    isStudent && !hasAgreedResearchConsent(profile.research_consent_status);
   const needsGender =
-    profile.role === "Student" &&
+    isStudent &&
+    !needsConsent &&
     profile.sex !== "Male" &&
     profile.sex !== "Female";
 
@@ -42,6 +48,12 @@ export default async function AppLayout({
       email={user.email ?? null}
       notifications={notifications}
     >
+      {needsConsent ? (
+        <StudentResearchConsentGate
+          studentNumber={profile.student_number}
+          declined={profile.research_consent_status === "Declined"}
+        />
+      ) : null}
       {needsGender ? <StudentGenderDialog /> : null}
       {children}
     </AppShell>

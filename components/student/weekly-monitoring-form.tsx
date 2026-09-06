@@ -11,12 +11,7 @@ import {
 } from "@/app/actions/student";
 import { useActionToast } from "@/hooks/use-action-toast";
 import type { QuestionnaireSection } from "@/lib/student/questionnaires";
-import {
-  STUDY_TIME_SCALE_DESCRIPTION,
-  WORKLOAD_SCALE_DESCRIPTION,
-} from "@/lib/student/questionnaires";
 import { resolveScaleOptions } from "@/lib/student/scale-options";
-import { PSS_INTRO } from "@/lib/student/pss";
 import type { AcademicTerm } from "@/lib/student/terms";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,6 +30,14 @@ const sectionTitles: Record<string, string> = {
   workload: "Section 2 — Academic Workload",
   study: "Section 3 — Study Time",
   sleep: "Section 4 — Sleep Hours",
+};
+
+/** Short purpose labels shown under each section title. */
+const sectionPurposes: Record<string, string> = {
+  pss: "Rate how stressed you felt this past week.",
+  workload: "Rate how heavy your schoolwork felt this past week.",
+  study: "Report how much time you spent studying outside class this past week.",
+  sleep: "Rate how well you slept this past week.",
 };
 
 function getUnansweredQuestions(
@@ -135,8 +138,6 @@ export function WeeklyMonitoringForm({
     initialState
   );
   const [unansweredIds, setUnansweredIds] = useState<number[]>([]);
-  const [privacyAccepted, setPrivacyAccepted] = useState(false);
-  const [privacyError, setPrivacyError] = useState(false);
   const [formKey, setFormKey] = useState(0);
   const lastHandledSuccess = useRef<string | undefined>(undefined);
   useActionToast(state);
@@ -162,8 +163,6 @@ export function WeeklyMonitoringForm({
     if (disabled) return;
     formRef.current?.reset();
     setUnansweredIds([]);
-    setPrivacyAccepted(false);
-    setPrivacyError(false);
     setFormKey((key) => key + 1);
     toast.message("All answers cleared.");
   }
@@ -191,18 +190,6 @@ export function WeeklyMonitoringForm({
     }
 
     setUnansweredIds([]);
-
-    if (!privacyAccepted) {
-      event.preventDefault();
-      setPrivacyError(true);
-      toast.error("Please confirm the data privacy notice before submitting.");
-      form
-        .querySelector<HTMLElement>("#privacy-consent")
-        ?.scrollIntoView({ behavior: "smooth", block: "center" });
-      return;
-    }
-
-    setPrivacyError(false);
   }
 
   return (
@@ -283,16 +270,9 @@ export function WeeklyMonitoringForm({
                 {sectionTitles[section.key] ?? section.questionnaire_name}
               </CardTitle>
               <CardDescription>
-                {section.key === "pss"
-                  ? PSS_INTRO
-                  : section.key === "workload"
-                    ? WORKLOAD_SCALE_DESCRIPTION
-                    : section.key === "study"
-                      ? STUDY_TIME_SCALE_DESCRIPTION
-                      : section.key === "sleep"
-                        ? "1 = Strongly Disagree · 2 = Disagree · 3 = Neutral · 4 = Agree · 5 = Strongly Agree. Reverse-scored items keep this scale and are reversed during scoring."
-                        : section.description ||
-                          "Answer every item using the response scale shown for each question."}
+                {sectionPurposes[section.key] ??
+                  section.description ??
+                  "Answer every item using the response scale shown for each question."}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
@@ -357,73 +337,8 @@ export function WeeklyMonitoringForm({
         ))}
       </form>
 
-      <Card
-        id="privacy-consent"
-        className={cn(privacyError && "border-destructive")}
-      >
-        {!alreadySubmitted && monitoringEnabled && ready ? (
-          <>
-            <CardHeader>
-              <CardTitle className="text-lg">
-                Data privacy & confidentiality
-              </CardTitle>
-              <CardDescription>
-                Rest assured that the information you enter in this system is
-                treated as confidential student wellness data.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4 text-sm text-muted-foreground">
-              <ul className="list-disc space-y-1.5 pl-5">
-                <li>
-                  Your responses are used to compute your burnout index (MFBI)
-                  and to support early guidance and intervention.
-                </li>
-                <li>
-                  Access is limited to authorized Guidance Counselors and, where
-                  needed, your department instructors for monitoring support.
-                </li>
-                <li>
-                  Your answers will not be used to grade you, punish you, or
-                  publicly identify you among classmates.
-                </li>
-                <li>
-                  Data privacy practices follow school guidance procedures for
-                  confidential counseling-related information.
-                </li>
-              </ul>
-              <label className="flex cursor-pointer items-start gap-2.5 text-sm text-foreground">
-                <input
-                  type="checkbox"
-                  checked={privacyAccepted}
-                  disabled={disabled}
-                  onChange={(event) => {
-                    setPrivacyAccepted(event.target.checked);
-                    if (event.target.checked) setPrivacyError(false);
-                  }}
-                  className="mt-0.5 size-4 shrink-0 accent-primary"
-                />
-                <span>
-                  I have read this data privacy notice and understand that my
-                  answers will be kept confidential. I confirm I answered based
-                  on my own experience this week.
-                </span>
-              </label>
-              {privacyError ? (
-                <p className="text-xs font-medium text-destructive">
-                  Check this box before submitting.
-                </p>
-              ) : null}
-            </CardContent>
-          </>
-        ) : null}
-        <CardContent
-          className={cn(
-            "flex flex-col gap-2 sm:flex-row sm:items-center",
-            alreadySubmitted || !monitoringEnabled || !ready
-              ? "pt-6"
-              : "border-t pt-4"
-          )}
-        >
+      <Card>
+        <CardContent className="flex flex-col gap-2 pt-6 sm:flex-row sm:items-center">
           <Button
             type="submit"
             form="weekly-monitoring-form"
