@@ -11,6 +11,7 @@ import {
 import type { Profile } from "@/lib/auth/roles";
 import { formatDateTime } from "@/lib/auth/roles";
 import type { StudentDashboardData } from "@/lib/student/dashboard";
+import { formatFactorRiskLabel } from "@/lib/student/tips";
 import {
   BurnoutFactorSection,
   BurnoutHero,
@@ -247,7 +248,7 @@ export function StudentDashboard({
                                   riskTone(item.level)
                                 )}
                               >
-                                {item.level}
+                                {formatFactorRiskLabel(item.level)}
                                 {item.factorTrend
                                   ? ` · ${trendArrow(item.factorTrend)}`
                                   : ""}
@@ -260,6 +261,21 @@ export function StudentDashboard({
                             </span>
                             {item.recommended_action}
                           </p>
+                          {item.tips.length ? (
+                            <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-muted-foreground">
+                              {item.tips
+                                .filter(
+                                  (tip) =>
+                                    !/guidance office for counseling support/i.test(
+                                      tip
+                                    )
+                                )
+                                .slice(0, 3)
+                                .map((tip) => (
+                                  <li key={tip}>{tip}</li>
+                                ))}
+                            </ul>
+                          ) : null}
                         </li>
                       ))}
                     </ul>

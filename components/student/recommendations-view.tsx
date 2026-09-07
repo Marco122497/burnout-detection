@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/card";
 import type { BurnoutLevel } from "@/lib/student/mfbi";
 import type { FactorRecommendation } from "@/lib/student/tips";
-import { getTipsForLevel } from "@/lib/student/tips";
+import { formatFactorRiskLabel, getTipsForLevel } from "@/lib/student/tips";
 import { cn } from "@/lib/utils";
 
 function riskTone(level: string | null | undefined) {
@@ -223,7 +223,7 @@ export function RecommendationsView({
                         riskTone(tip.level)
                       )}
                     >
-                      {tip.level}
+                      {formatFactorRiskLabel(tip.level)}
                       {tip.factorTrend
                         ? ` · ${trendArrow(tip.factorTrend)}`
                         : ""}

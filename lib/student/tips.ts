@@ -161,6 +161,8 @@ const FACTOR_TIPS: Record<
         "Take 3 slow breaths between classes.",
         "Do one fun thing this week, like a walk or time with friends.",
         "Do not add extra tasks on already busy days.",
+        "Keep a short list of what you can control today.",
+        "Stretch your shoulders for 1 minute after long screen time.",
       ],
     },
     Moderate: {
@@ -173,6 +175,9 @@ const FACTOR_TIPS: Record<
         "Talk to a friend, teacher, or counselor about what feels hard.",
         "Do one task at a time. Finish it before starting another.",
         "After a test or big paper, rest before starting the next one.",
+        "Write down worries, then circle only what you can act on today.",
+        "Take a 10-minute walk when you feel nervous or tense.",
+        "Pause social media when it makes stress feel louder.",
       ],
     },
     High: {
@@ -185,6 +190,9 @@ const FACTOR_TIPS: Record<
         "Visit the Guidance Office this week.",
         "Say no to extra clubs or tasks for now.",
         "Tell one person you trust how you feel.",
+        "Break the day into morning, afternoon, and evening — do one thing per block.",
+        "If tasks feel piled up, pick the top 3 only and ignore the rest today.",
+        "Use a short body reset: unclench jaw, drop shoulders, slow exhale.",
       ],
     },
     Severe: {
@@ -197,6 +205,8 @@ const FACTOR_TIPS: Record<
         "Tell a family member or teacher how you feel.",
         "If you feel very unsafe or very sad, ask for help right away.",
         "Pause extra work until you have support.",
+        "Do only required classwork today; rest counts as progress.",
+        "Ask someone to sit with you while you make a simple next-step plan.",
       ],
     },
   },
@@ -211,6 +221,8 @@ const FACTOR_TIPS: Record<
         "Do the homework that is due soonest first.",
         "Ask your teacher early if you do not understand the task.",
         "Check your due dates once a week.",
+        "Keep one notebook or app for all class tasks.",
+        "Start the longest assignment first while your energy is high.",
       ],
     },
     Moderate: {
@@ -223,6 +235,9 @@ const FACTOR_TIPS: Record<
         "Ask for more time early if you cannot finish on time.",
         "Pause extra work until required work is done.",
         "Do similar tasks together, like all readings in one sitting.",
+        "Mark each task Must / Can wait / Extra — finish Must first.",
+        "Ask classmates to clarify instructions before you spend hours guessing.",
+        "Block 30 minutes daily for catching up instead of one long cram night.",
       ],
     },
     High: {
@@ -235,6 +250,9 @@ const FACTOR_TIPS: Record<
         "Pick one task to delay, split, or make smaller.",
         "Do not add new extra work.",
         "Ask classmates to share notes or split group work fairly.",
+        "Email or message teachers with one clear ask: deadline help or priority order.",
+        "Remove one optional club task or make-up activity this week.",
+        "Use a timer: 40 minutes work, 10 minutes break, then switch subjects.",
       ],
     },
     Severe: {
@@ -247,6 +265,8 @@ const FACTOR_TIPS: Record<
         "Ask teachers which work must be done first.",
         "Follow the plan Guidance gives you.",
         "Do not start new projects until current work is under control.",
+        "Bring your full task list to Guidance or a teacher so they can help prioritize.",
+        "Tell group mates early if you cannot carry more group work right now.",
       ],
     },
   },
@@ -261,6 +281,8 @@ const FACTOR_TIPS: Record<
         "Take a short break after each block.",
         "Review a little each day instead of cramming at night.",
         "Study the hardest subject when you feel most awake.",
+        "Close extra tabs and silence your phone while you study.",
+        "End each study block by writing one question to review tomorrow.",
       ],
     },
     Moderate: {
@@ -273,11 +295,14 @@ const FACTOR_TIPS: Record<
         "Group similar work so you do not keep switching tasks.",
         "Do easy review in the day, not late at night.",
         "Test yourself instead of only rereading notes.",
+        "Set a hard stop time for study tonight.",
+        "Replace one long reread with a short quiz or flashcards.",
+        "Study with a clear goal (finish 1 chapter), not “until late.”",
       ],
     },
     High: {
       category: "Study time",
-      title: "Cut back long study hours",
+      title: "Your study time is high",
       description: "Long study time is raising your burnout score. More hours will not help if you are already tired.",
       recommended_action: "Do only the most important work today. Split one long night into two shorter times.",
       tips: [
@@ -285,11 +310,14 @@ const FACTOR_TIPS: Record<
         "Quiz yourself instead of reading for hours.",
         "Study with a friend to stay on task, not to stay longer.",
         "Set a stop time at night so you can sleep.",
+        "Cut one study session this week and use active recall instead.",
+        "Split a long night into two shorter daytime blocks.",
+        "If you keep rereading the same page, stop and rest — then try again tomorrow.",
       ],
     },
     Severe: {
       category: "Study time",
-      title: "Pause extra studying",
+      title: "Your study time is very high",
       description: "You have been studying too much. Do only what is due soon, then rest.",
       recommended_action: "For the next 2 days, do only work that is due. Ask a classmate for notes.",
       tips: [
@@ -297,13 +325,15 @@ const FACTOR_TIPS: Record<
         "Use short study times instead of all-night sessions.",
         "Ask a classmate for notes instead of doing everything alone.",
         "Go back to a normal study plan after you rest.",
+        "Cap study at shorter blocks and protect sleep as a required stop.",
+        "Tell a teacher if fatigue is affecting class — ask what to prioritize.",
       ],
     },
   },
   sleep: {
     Low: {
       category: "Sleep",
-      title: "Your sleep looks okay",
+      title: "Your sleep risk is low",
       description: "You are sleeping well enough. Keep a regular bedtime so this stays good.",
       recommended_action: "Sleep 7–8 hours most nights. Go to bed at about the same time.",
       tips: [
@@ -311,11 +341,13 @@ const FACTOR_TIPS: Record<
         "Go to bed at about the same time on school nights.",
         "Put your phone away 30 minutes before bed.",
         "Avoid coffee, tea, or energy drinks late in the day.",
+        "Keep your room cooler and darker for easier sleep.",
+        "Use bed mainly for sleep, not for long study sessions.",
       ],
     },
     Moderate: {
       category: "Sleep",
-      title: "Try to sleep better",
+      title: "Your sleep risk is moderate",
       description: "Your sleep is not enough. Poor sleep can make stress and school feel harder.",
       recommended_action: "Sleep at least 7 hours tonight. Skip late caffeine. Quiet down before bed.",
       tips: [
@@ -323,11 +355,14 @@ const FACTOR_TIPS: Record<
         "Do not drink caffeine after mid-afternoon.",
         "Dim the lights and do not study in bed.",
         "If you nap, keep it under 30 minutes.",
+        "Set a phone alarm for wind-down 45 minutes before bed.",
+        "Write tomorrow’s top 3 tasks before bed so your mind can rest.",
+        "Avoid heavy meals and bright screens in the last hour before sleep.",
       ],
     },
     High: {
       category: "Sleep",
-      title: "Sleep needs to come first",
+      title: "Your sleep risk is high",
       description: "Poor sleep is a big part of your burnout score. Rest helps you do schoolwork better.",
       recommended_action: "Sleep tonight. Do not plan to stay up all night.",
       tips: [
@@ -335,11 +370,14 @@ const FACTOR_TIPS: Record<
         "Keep naps under 30 minutes.",
         "Do not stay up all night. Split the work across days.",
         "Make your room dark and quiet so you can fall asleep.",
+        "Move unfinished work to tomorrow’s morning block instead of overnight.",
+        "If you cannot fall asleep, get up briefly, then try again — do not study in bed.",
+        "Skip late caffeine and energy drinks completely for a few days.",
       ],
     },
     Severe: {
       category: "Sleep",
-      title: "Rest before more schoolwork",
+      title: "Your sleep risk is very high",
       description: "Your sleep is very poor. Sleep tonight before adding more study.",
       recommended_action: "Sleep first tonight. Tell Guidance if this lasts several nights.",
       tips: [
@@ -347,12 +385,299 @@ const FACTOR_TIPS: Record<
         "Keep the room dark and quiet.",
         "Ask for help if you cannot sleep for several nights.",
         "Tell Guidance if you are too tired to go to class.",
+        "Prioritize tonight’s sleep over optional review.",
+        "Ask a trusted adult or Guidance if sleep problems continue past a few nights.",
       ],
     },
   },
 };
 
 const FACTOR_ORDER: FactorKey[] = ["stress", "workload", "studyTime", "sleep"];
+
+const TIP_LIMIT = 8;
+
+function uniqueTips(tips: string[], limit = TIP_LIMIT): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const tip of tips) {
+    const normalized = tip.trim().toLowerCase();
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    out.push(tip.trim());
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
+function isElevated(level: BurnoutLevel) {
+  return level === "Moderate" || level === "High" || level === "Severe";
+}
+
+function isHighRisk(level: BurnoutLevel) {
+  return level === "High" || level === "Severe";
+}
+
+/**
+ * Extra tips keyed to MFBI section raw scores (PSS 0–40, workload 0–10,
+ * study hours/week 0–25, sleep risk 0–100) and PSS / workload themes.
+ */
+function tipsForRawScore(key: FactorKey, raw: number): string[] {
+  if (!Number.isFinite(raw)) return [];
+
+  if (key === "stress") {
+    // PSS-10 total after reverse scoring
+    if (raw <= 13) {
+      return [
+        "Keep naming one thing that went okay each day so confidence stays steady.",
+        "When something unexpected happens, pause before reacting.",
+      ];
+    }
+    if (raw <= 20) {
+      return [
+        "When something unexpected upsets you, write what happened and one next step.",
+        "Practice one “I can handle this” line when problems feel out of control.",
+        "Schedule a short break after stressful classes before starting homework.",
+      ];
+    }
+    if (raw <= 26) {
+      return [
+        "If tasks feel like they are piling up, list them and cut the list to 3 today.",
+        "Ask for help early when you cannot cope with everything alone.",
+        "When you feel nervous or stressed, use slow breathing before you open your phone.",
+        "End the day by noting one problem you handled — even a small one.",
+      ];
+    }
+    if (raw <= 33) {
+      return [
+        "When difficulties feel too high to overcome, talk to Guidance this week.",
+        "Reduce decisions: same wake time, same study stop time, same wind-down.",
+        "Tell a trusted person which pressure feels most out of your control.",
+        "Do not stack new commitments while stress answers stay this high.",
+      ];
+    }
+    return [
+      "Seek Guidance support now — your stress answers are in the highest range.",
+      "Focus only on safety, rest, and required classwork until you have support.",
+      "Ask a teacher or family member to help you make a simple plan for this week.",
+    ];
+  }
+
+  if (key === "workload") {
+    // Academic workload 0–10
+    if (raw < 4) {
+      return [
+        "Preview next week’s due dates so a light week does not become a pile-up.",
+        "Finish one small task early to keep your load steady.",
+      ];
+    }
+    if (raw < 7) {
+      return [
+        "Your workload answers show medium pressure — protect one free evening this week.",
+        "Batch similar homework so switching classes costs less energy.",
+        "Ask teachers which assignments matter most before midterms or finals.",
+      ];
+    }
+    if (raw < 8.5) {
+      return [
+        "Your workload score is high — cut optional extras before required work slips.",
+        "Negotiate one deadline or split one large submission into parts.",
+        "Use a shared calendar with due dates for every subject in one place.",
+      ];
+    }
+    return [
+      "Your workload score is near the top — talk with teachers and Guidance about priorities.",
+      "Do not accept new group roles until current deadlines are under control.",
+      "Bring a printed or written task list when you ask for deadline help.",
+    ];
+  }
+
+  if (key === "studyTime") {
+    // Estimated study hours/week (0–STUDY_TIME_SCORE_MAX)
+    if (raw < 10) {
+      return [
+        "Keep short focused blocks; quality beats adding more hours.",
+        "Review notes the same day as class while memory is fresh.",
+      ];
+    }
+    if (raw < 17.5) {
+      return [
+        "Your study hours are climbing — set a stop time before sleep suffers.",
+        "Swap one long reread for practice questions or flashcards.",
+        "Study in two daytime blocks instead of one late night.",
+      ];
+    }
+    if (raw < 22) {
+      return [
+        "Your study hours are high for recovery — cut one session this week.",
+        "Use active recall: close notes and write what you remember.",
+        "Study with a timer and leave when it rings, even if you want “just a bit more.”",
+      ];
+    }
+    return [
+      "Your study load is very high — rest will help more than extra hours.",
+      "For 48 hours, study only what is due soon, then rebuild a lighter plan.",
+      "Ask a classmate for notes so you are not redoing everything alone.",
+    ];
+  }
+
+  // sleep risk 0–100
+  if (raw < 40) {
+    return [
+      "Keep the bedtime that is working — protect it on busy school nights too.",
+      "If you nap, keep it early and short so night sleep stays easy.",
+    ];
+  }
+  if (raw < 70) {
+    return [
+      "Your sleep answers show rising risk — aim for 7+ hours for the next 3 nights.",
+      "Move studying out of bed so your brain links bed with sleep.",
+      "Skip caffeine after mid-afternoon for the rest of this week.",
+    ];
+  }
+  if (raw < 85) {
+    return [
+      "Sleep risk is high from your questionnaire — sleep tonight before optional review.",
+      "Split overnight work across two days instead of staying up.",
+      "Make the room dark and quiet; put the phone outside arm’s reach.",
+    ];
+  }
+  return [
+    "Your sleep risk score is very high — rest first, then ask Guidance if this continues.",
+    "Cancel non-urgent late-night study until you sleep several nights in a row.",
+    "Tell a trusted adult if you cannot sleep or stay awake in class.",
+  ];
+}
+
+function crossFactorTipsForKey(
+  key: FactorKey,
+  factors: StudentFactors
+): string[] {
+  const levels = {
+    stress: classifyFactorScore(factors.stress.normalized),
+    workload: classifyFactorScore(factors.workload.normalized),
+    studyTime: classifyFactorScore(factors.studyTime.normalized),
+    sleep: classifyFactorScore(factors.sleep.normalized),
+  };
+
+  const tips: string[] = [];
+
+  if (key === "studyTime" && isElevated(levels.studyTime) && isElevated(levels.sleep)) {
+    tips.push(
+      "Long study time and sleep risk are both up — end study at a fixed time so you can sleep."
+    );
+  }
+  if (key === "sleep" && isElevated(levels.studyTime) && isElevated(levels.sleep)) {
+    tips.push(
+      "Do not trade sleep for extra study hours; tired studying raises burnout more."
+    );
+  }
+  if (key === "stress" && isElevated(levels.stress) && isElevated(levels.workload)) {
+    tips.push(
+      "High stress plus heavy schoolwork: cut one extra task before adding new coping habits."
+    );
+  }
+  if (key === "workload" && isElevated(levels.stress) && isElevated(levels.workload)) {
+    tips.push(
+      "When stress and schoolwork are both high, ask one teacher what to finish first."
+    );
+  }
+  if (key === "stress" && isElevated(levels.stress) && isElevated(levels.sleep)) {
+    tips.push(
+      "Poor sleep makes stress feel worse — protect bedtime even on heavy days."
+    );
+  }
+  if (key === "sleep" && isElevated(levels.stress) && isElevated(levels.sleep)) {
+    tips.push(
+      "Write worries on paper before bed so stress does not keep you awake."
+    );
+  }
+  if (
+    key === "studyTime" &&
+    isElevated(levels.studyTime) &&
+    isElevated(levels.workload)
+  ) {
+    tips.push(
+      "Heavy schoolwork plus long study hours: focus only on due work, not perfect notes."
+    );
+  }
+  if (key === "stress" && isHighRisk(levels.stress) && isHighRisk(levels.studyTime)) {
+    tips.push(
+      "High stress with very long study time: take a full rest evening before the next long session."
+    );
+  }
+
+  return tips;
+}
+
+function scoreAwareAction(
+  key: FactorKey,
+  level: BurnoutLevel,
+  raw: number,
+  baseAction: string
+): string {
+  if (!Number.isFinite(raw)) return baseAction;
+
+  if (key === "stress" && raw >= 27) {
+    return "Talk to the Guidance Office this week. Pause extra commitments until stress eases.";
+  }
+  if (key === "workload" && raw >= 8) {
+    return "Bring your full task list to a teacher or adviser and ask what to delay or split.";
+  }
+  if (key === "studyTime" && raw >= 20) {
+    return "Cap study tonight with a hard stop time. Split remaining work across two shorter days.";
+  }
+  if (key === "sleep" && raw >= 70) {
+    return "Sleep first tonight. Move non-urgent work to daytime blocks this week.";
+  }
+  if (level === "Low") return baseAction;
+  return baseAction;
+}
+
+function enrichFactorWithScores(
+  key: FactorKey,
+  level: BurnoutLevel,
+  item: Omit<FactorRecommendation, "key" | "level" | "normalized" | "factorTrend">,
+  options?: {
+    raw?: number | null;
+    factors?: StudentFactors | null;
+  }
+): Omit<FactorRecommendation, "key" | "level" | "normalized" | "factorTrend"> {
+  const raw = options?.raw;
+  const factors = options?.factors ?? null;
+  const extras = [
+    ...(raw != null ? tipsForRawScore(key, raw) : []),
+    ...(factors ? crossFactorTipsForKey(key, factors) : []),
+  ];
+
+  const tips = uniqueTips([...extras, ...item.tips]);
+  const recommended_action =
+    raw != null
+      ? scoreAwareAction(key, level, raw, item.recommended_action)
+      : item.recommended_action;
+
+  return { ...item, tips, recommended_action };
+}
+
+function overallActionFromFactors(
+  level: BurnoutLevel,
+  baseAction: string,
+  factors: FactorRecommendation[]
+): string {
+  const focus = [...factors]
+    .filter((f) => f.level !== "Low")
+    .sort((a, b) => b.normalized - a.normalized)[0];
+  if (!focus) return baseAction;
+
+  if (level === "Low") {
+    return `${baseAction} Keep an eye on ${focus.category.toLowerCase()} so it stays steady.`;
+  }
+
+  const focusAction = focus.recommended_action.replace(/\s+Also seek.*$/i, "").trim();
+  if (isHighRisk(level) || isHighRisk(focus.level)) {
+    return `${focusAction} Also seek the Guidance Office if this still feels too heavy.`;
+  }
+  return `Focus first on ${focus.category.toLowerCase()}: ${focusAction}`;
+}
 
 export function classifyFactorScore(normalized: number | null | undefined): BurnoutLevel {
   if (normalized == null || Number.isNaN(normalized)) return "Low";
@@ -576,12 +901,12 @@ const DECREASING_FACTOR_COPY: Record<
         "Stress is moving down, but it is still moderate. Keep breathing breaks so it does not climb again.",
     },
     High: {
-      title: "Your stress is improving",
+      title: "Your stress is still high",
       description:
         "Stress is starting to go down, but it is still high. Keep resting and ask for help if you need it.",
     },
     Severe: {
-      title: "Your stress is improving",
+      title: "Your stress is still very high",
       description:
         "There is some improvement, but stress is still very high. Get support while you keep resting.",
     },
@@ -598,12 +923,12 @@ const DECREASING_FACTOR_COPY: Record<
         "Your schoolwork load is improving, but it is still moderate. Keep one clear task list.",
     },
     High: {
-      title: "Your workload has improved",
+      title: "Your schoolwork is still heavy",
       description:
         "Your load is moving down, but schoolwork is still heavy. Keep cutting extras and asking for help.",
     },
     Severe: {
-      title: "Your workload has improved",
+      title: "Your schoolwork is still very heavy",
       description:
         "There is progress, but your load is still very high. Keep talking with teachers and Guidance.",
     },
@@ -620,35 +945,35 @@ const DECREASING_FACTOR_COPY: Record<
         "Long study nights are improving, but study time is still moderate. Keep stop times so sleep stays protected.",
     },
     High: {
-      title: "Your study time has decreased",
+      title: "Your study time is still high",
       description:
         "You are cutting back, but study time is still high. Keep splitting long nights into shorter sessions.",
     },
     Severe: {
-      title: "Your study time has decreased",
+      title: "Your study time is still very high",
       description:
         "There is progress, but study time is still too high. Prioritize only due work and rest.",
     },
   },
   sleep: {
     Low: {
-      title: "Your sleep has improved",
+      title: "Your sleep risk has improved",
       description: "Sleep looks better than before. Keep a steady bedtime.",
     },
     Moderate: {
-      title: "Your sleep has improved",
+      title: "Your sleep risk has improved",
       description:
         "Sleep is getting better, but it still needs attention. Keep 7+ hours and quiet wind-down time.",
     },
     High: {
-      title: "Your sleep has improved",
+      title: "Your sleep risk is still high",
       description:
-        "Sleep is moving in a better direction, but it is still poor. Keep treating rest as required.",
+        "Sleep risk is moving down, but it is still high. Keep treating rest as required.",
     },
     Severe: {
-      title: "Your sleep has improved",
+      title: "Your sleep risk is still very high",
       description:
-        "There is some progress, but sleep is still very poor. Rest first and tell Guidance if it continues.",
+        "There is some progress, but sleep risk is still very high. Rest first and tell Guidance if it continues.",
     },
   },
 };
@@ -710,19 +1035,19 @@ const INCREASING_FACTOR_COPY: Record<
   },
   sleep: {
     Moderate: {
-      title: "Your sleep has declined",
+      title: "Your sleep risk is rising",
       description:
         "Sleep quality is slipping. Protect bedtime before stress and school feel harder.",
     },
     High: {
-      title: "Your sleep has declined",
+      title: "Your sleep risk is high and rising",
       description:
-        "Sleep is poor and getting worse. Make rest the first priority this week.",
+        "Sleep risk is high and getting worse. Make rest the first priority this week.",
     },
     Severe: {
-      title: "Your sleep has declined",
+      title: "Your sleep risk is very high and rising",
       description:
-        "Sleep is very poor and declining. Rest first and tell Guidance if it continues.",
+        "Sleep risk is very high and declining further. Rest first and tell Guidance if it continues.",
     },
   },
 };
@@ -747,9 +1072,9 @@ const STABLE_HIGH_FACTOR_COPY: Record<
       "Long study hours have continued. Set a stop time and protect sleep.",
   },
   sleep: {
-    title: "Your sleep pattern has remained stable",
+    title: "Your sleep risk remains high",
     description:
-      "Sleep risk has stayed elevated. Make rest a required part of your week.",
+      "Sleep risk has stayed high. Make rest a required part of your week.",
   },
 };
 
@@ -802,6 +1127,12 @@ function resolveDynamicFactorHeading(
           "You are still under some pressure. Keep calming habits so it does not climb again.",
       };
     }
+    if (level === "Severe") {
+      return {
+        title: "Your stress is very high",
+        description: "Stress is a big part of your burnout score. Rest and help come first.",
+      };
+    }
     return {
       title: "Your stress is high",
       description: "Stress is a big part of your burnout score. Rest and help come first.",
@@ -822,8 +1153,14 @@ function resolveDynamicFactorHeading(
           "Your class load is still medium-high. Keep tasks organized so burnout does not climb again.",
       };
     }
+    if (level === "Severe") {
+      return {
+        title: "Your schoolwork is extremely heavy",
+        description: "Schoolwork is a big reason your burnout score is high.",
+      };
+    }
     return {
-      title: "Your schoolwork is still heavy",
+      title: "Your schoolwork is too heavy",
       description: "Schoolwork is a big reason your burnout score is high.",
     };
   }
@@ -843,32 +1180,56 @@ function resolveDynamicFactorHeading(
           "Long study hours with little rest can make you tired and hurt your sleep.",
       };
     }
+    if (level === "Severe") {
+      return {
+        title: "Your study time is very high",
+        description:
+          "Long study time is raising your burnout score. More hours will not help if you are already tired.",
+      };
+    }
     return {
-      title: "You may be studying too long",
+      title: "Your study time is high",
       description:
         "Long study time is raising your burnout score. More hours will not help if you are already tired.",
     };
   }
 
-  // sleep
+  // sleep — titles use "sleep risk" so they match Low / Moderate / High badges
   if (level === "Low") {
     return {
-      title: "Your sleep looks okay",
+      title: "Your sleep risk is low",
       description: "You are sleeping well enough. Keep a regular bedtime so this stays good.",
     };
   }
   if (level === "Moderate") {
     return {
-      title: "Your sleep may need attention",
+      title: "Your sleep risk is moderate",
       description:
         "Your sleep is not enough. Poor sleep can make stress and school feel harder.",
     };
   }
+  if (level === "Severe") {
+    return {
+      title: "Your sleep risk is very high",
+      description:
+        "Poor sleep is a big part of your burnout score. Rest helps you do schoolwork better.",
+    };
+  }
   return {
-    title: "Your sleep is currently low",
+    title: "Your sleep risk is high",
     description:
       "Poor sleep is a big part of your burnout score. Rest helps you do schoolwork better.",
   };
+}
+
+/** Display label so Low/High mean risk, not hours of sleep/study. */
+export function formatFactorRiskLabel(level: string | null | undefined): string {
+  if (!level) return "";
+  if (level === "Severe") return "Severe risk";
+  if (level === "High") return "High risk";
+  if (level === "Moderate") return "Moderate risk";
+  if (level === "Low") return "Low risk";
+  return level;
 }
 
 function withFactorTrendCopy(
@@ -929,6 +1290,8 @@ export function getFactorRecommendation(
     trend?: string | null;
     thisWeek?: boolean;
     previousLevel?: BurnoutLevel | null;
+    raw?: number | null;
+    factors?: StudentFactors | null;
   }
 ): Omit<FactorRecommendation, "normalized"> {
   const item = FACTOR_TIPS[key][level] ?? FACTOR_TIPS[key].Low;
@@ -936,20 +1299,22 @@ export function getFactorRecommendation(
   const useHistoryHeadings =
     previousLevel != null || options?.thisWeek === false;
   const factorTrend = factorLevelTrend(level, previousLevel);
+  const headed = withFactorTrendCopy(
+    key,
+    level,
+    item,
+    useHistoryHeadings ? options?.trend ?? factorTrend : null,
+    previousLevel
+  );
+  const scored = enrichFactorWithScores(key, level, headed, {
+    raw: options?.raw,
+    factors: options?.factors,
+  });
   return {
     key,
     level,
     factorTrend,
-    ...withGuidanceReferral(
-      withFactorTrendCopy(
-        key,
-        level,
-        item,
-        useHistoryHeadings ? options?.trend ?? factorTrend : null,
-        previousLevel
-      ),
-      level
-    ),
+    ...withGuidanceReferral(scored, level),
   };
 }
 
@@ -965,6 +1330,7 @@ export function getFactorRecommendations(
   const previousFactors = options?.previousFactors ?? null;
   return FACTOR_ORDER.map((key) => {
     const normalized = factors[key]?.normalized ?? 0;
+    const raw = factors[key]?.raw ?? null;
     const level = classifyFactorScore(normalized);
     const previousLevel = previousFactors
       ? classifyFactorScore(previousFactors[key]?.normalized ?? 0)
@@ -974,6 +1340,8 @@ export function getFactorRecommendations(
         trend: options?.trend,
         thisWeek: previousFactors ? false : options?.thisWeek,
         previousLevel,
+        raw,
+        factors,
       }),
       normalized,
     };
@@ -1018,10 +1386,22 @@ export function buildPersonalizedCounselingRecommendation(input: {
     previousFactors: input.previousFactors ?? null,
   });
 
+  const topElevated = factors.filter((f) => f.level !== "Low").slice(0, 2);
+  const focusNote =
+    topElevated.length > 0
+      ? ` This week, focus most on ${topElevated
+          .map((f) => f.category.toLowerCase())
+          .join(" and ")} based on your MFBI questionnaire scores.`
+      : " Your factor scores look steady — keep the habits that are working.";
+
   return {
     title: overall.title,
-    description: overall.description,
-    recommended_action: overall.recommended_action,
+    description: `${overall.description}${focusNote}`,
+    recommended_action: overallActionFromFactors(
+      overall.burnout_level,
+      overall.recommended_action,
+      factors
+    ),
     burnout_level: overall.burnout_level,
     basis,
     trend,
