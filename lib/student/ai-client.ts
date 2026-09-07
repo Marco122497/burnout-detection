@@ -1,4 +1,5 @@
 import type { BurnoutLevel } from "@/lib/student/mfbi";
+import { classifyMfbiScore } from "@/lib/student/mfbi";
 import type { PredictionResult } from "@/lib/student/predict";
 
 export type AiFeaturePayload = {
@@ -81,10 +82,28 @@ export function parseEarlyWarningRemarks(
   const idx = remarks.indexOf(EARLY_WARNING_PREFIX);
   if (idx === -1) return null;
   try {
-    return JSON.parse(remarks.slice(idx + EARLY_WARNING_PREFIX.length));
+    const parsed = JSON.parse(
+      remarks.slice(idx + EARLY_WARNING_PREFIX.length)
+    ) as EarlyWarningPayload;
+    return alignEarlyWarningLevels(parsed);
   } catch {
     return null;
   }
+}
+
+/**
+ * Keep next-week label aligned with the numeric score using MFBI bands.
+ * ML class labels and probability-weighted scores can otherwise disagree.
+ */
+export function alignEarlyWarningLevels(
+  early: EarlyWarningPayload
+): EarlyWarningPayload {
+  const score = early.next_week_score;
+  if (score == null || !Number.isFinite(Number(score))) return early;
+  return {
+    ...early,
+    next_week_risk: classifyMfbiScore(Number(score)),
+  };
 }
 
 const DEFAULT_AI_API_URL = "https://burnout-ai-1.onrender.com";
@@ -180,7 +199,13 @@ export async function callBurnoutAiEarlyWarning(
 
     const earlyWarning: EarlyWarningPayload = {
       trend: data.early_warning?.trend ?? "insufficient_history",
-      next_week_risk: next?.final_prediction ?? next?.risk_level ?? null,
+      next_week_risk: (() => {
+        const score = next?.risk_score;
+        if (score != null && Number.isFinite(Number(score))) {
+          return classifyMfbiScore(Number(score));
+        }
+        return next?.final_prediction ?? next?.risk_level ?? null;
+      })(),
       next_week_confidence: next?.random_forest_confidence ?? null,
       next_week_score: next?.risk_score ?? null,
       week2_risk: week2?.risk_level ?? null,

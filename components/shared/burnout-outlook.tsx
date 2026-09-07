@@ -32,10 +32,14 @@ import {
   ChartTooltip,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { riskLevelToChartScore, riskTone } from "@/components/shared/risk-display";
+import { riskTone } from "@/components/shared/risk-display";
 import type { EarlyWarningPayload } from "@/lib/student/ai-client";
 import { classifyTrendDirection } from "@/lib/student/burnout-trends";
-import { resolveMfbiBurnoutLevel } from "@/lib/student/mfbi";
+import {
+  classifyMfbiScore,
+  resolveMfbiBurnoutLevel,
+  type BurnoutLevel,
+} from "@/lib/student/mfbi";
 import { cn } from "@/lib/utils";
 
 const trendChartConfig = {
@@ -57,6 +61,62 @@ const TREND_RANGE_DESCRIPTION: Record<TrendRange, string> = {
   "8w": "Weekly MFBI for the last 8 monitoring weeks, plus AI outlook.",
   all: "Weekly MFBI history plus next-week and week-2 early-warning projections.",
 };
+
+/**
+ * Representative MFBI midpoint for a risk band — used only for chart
+ * continuity when the model returns a class label (not a measured MFBI).
+ */
+function bandMidpointScore(level: string | null | undefined): number | null {
+  if (level === "High" || level === "Severe") return 0.85;
+  if (level === "Moderate") return 0.55;
+  if (level === "Low") return 0.2;
+  return null;
+}
+
+/**
+ * Next-week ML returns both a class label and a probability-weighted
+ * risk_score. The score is NOT MFBI, so when both exist they can disagree
+ * (e.g. 0.58 with label Low). Prefer the score → MFBI band when a numeric
+ * score is present; otherwise use the model class label.
+ */
+export function resolveNextWeekDisplay(earlyWarning: EarlyWarningPayload | null): {
+  level: BurnoutLevel | null;
+  /** Value shown beside the level (aligned to MFBI bands when from score). */
+  score: number | null;
+  fromScore: boolean;
+} {
+  if (!earlyWarning) {
+    return { level: null, score: null, fromScore: false };
+  }
+  const rawScore = earlyWarning.next_week_score;
+  if (rawScore != null && Number.isFinite(Number(rawScore))) {
+    const score = Math.round(Number(rawScore) * 100) / 100;
+    return {
+      level: classifyMfbiScore(score),
+      score,
+      fromScore: true,
+    };
+  }
+  const level =
+    resolveMfbiBurnoutLevel(null, earlyWarning.next_week_risk) ?? null;
+  return {
+    level,
+    score: bandMidpointScore(level),
+    fromScore: false,
+  };
+}
+
+export function resolveWeek2Display(earlyWarning: EarlyWarningPayload | null): {
+  level: BurnoutLevel | null;
+  score: number | null;
+} {
+  const level =
+    resolveMfbiBurnoutLevel(null, earlyWarning?.week2_risk ?? null) ?? null;
+  return {
+    level,
+    score: bandMidpointScore(level),
+  };
+}
 
 export type WeeklyTrendPoint = {
   week: number;
@@ -267,8 +327,10 @@ export function EarlyWarningOutlookCard({
 }) {
   if (!earlyWarning && mfbiScore == null && !burnoutLevel) return null;
 
-  const nextWeekRisk = earlyWarning?.next_week_risk ?? null;
+  const nextWeek = resolveNextWeekDisplay(earlyWarning);
+  const week2 = resolveWeek2Display(earlyWarning);
   const hasMlNextWeek = Boolean(earlyWarning?.has_ml_next_week);
+  const currentLevel = resolveMfbiBurnoutLevel(mfbiScore, burnoutLevel);
 
   return (
     <Card>
@@ -278,9 +340,10 @@ export function EarlyWarningOutlookCard({
           Early warning outlook
         </CardTitle>
         <CardDescription>
-          Current risk is from your MFBI score. Next-week uses the trained
-          next-week model when history exists. Week-2 is a trend-based
-          projection, not a guaranteed forecast.
+          Current risk is from your MFBI score (Low ≤0.39 · Moderate ≤0.69 ·
+          High ≥0.70). Next-week uses the trained model; the number and label
+          use the same MFBI bands. Week-2 is a trend-based projection, not a
+          guaranteed forecast.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -290,25 +353,27 @@ export function EarlyWarningOutlookCard({
               icon: ActivityIcon,
               label: "Current status",
               score: mfbiScore,
-              level: burnoutLevel,
+              level: currentLevel,
               hint: "MFBI",
             },
             {
               icon: BrainCircuitIcon,
               label: "Next week",
-              score:
-                earlyWarning?.next_week_score ??
-                riskLevelToChartScore(nextWeekRisk),
+              score: nextWeek.score,
               level:
-                nextWeekRisk ??
+                nextWeek.level ??
                 (hasMlNextWeek ? null : "Need prior week"),
-              hint: hasMlNextWeek ? "ML early detection" : "Awaiting history",
+              hint: hasMlNextWeek
+                ? nextWeek.fromScore
+                  ? "ML score · MFBI bands"
+                  : "ML early detection"
+                : "Awaiting history",
             },
             {
               icon: TrendingUpIcon,
               label: "Week 2 projection",
-              score: riskLevelToChartScore(earlyWarning?.week2_risk),
-              level: earlyWarning?.week2_risk ?? null,
+              score: week2.score,
+              level: week2.level,
               hint: "Trend-based indicator",
             },
           ]}
@@ -381,11 +446,12 @@ export function BurnoutRiskTrendChart({
     };
   });
   const recentCards = pointsWithMovement.slice(-4);
-  const nextWeekLevel = earlyWarning?.next_week_risk ?? null;
-  const week2Level = earlyWarning?.week2_risk ?? null;
-  const nextScore =
-    earlyWarning?.next_week_score ?? riskLevelToChartScore(nextWeekLevel);
-  const week2Score = riskLevelToChartScore(week2Level);
+  const nextWeek = resolveNextWeekDisplay(earlyWarning);
+  const week2 = resolveWeek2Display(earlyWarning);
+  const nextWeekLevel = nextWeek.level;
+  const week2Level = week2.level;
+  const nextScore = nextWeek.score;
+  const week2Score = week2.score;
   const hasProjection = nextScore != null || week2Score != null;
 
   const nextDirection =
