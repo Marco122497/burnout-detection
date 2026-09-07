@@ -16,12 +16,15 @@ export function PageHeading({
       <div className="min-w-0">
         <div className="flex items-center gap-2.5">
           {Icon ? (
-            <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/40 text-foreground">
+            <span
+              data-slot="page-heading-icon"
+              className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/40 text-foreground"
+            >
               <Icon className="size-4" aria-hidden />
             </span>
           ) : null}
           <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
-            {title}
+            <span className="student-chum-marker">{title}</span>
           </h1>
         </div>
         {description ? (

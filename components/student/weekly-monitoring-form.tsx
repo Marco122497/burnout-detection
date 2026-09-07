@@ -91,7 +91,7 @@ function ScaleChoice({
   return (
     <label
       className={cn(
-        "group relative flex min-h-11 cursor-pointer items-start gap-2.5 rounded-lg border border-input bg-transparent px-3 py-2.5 text-start text-sm transition-colors select-none hover:bg-muted/50 has-focus-visible:border-ring has-focus-visible:ring-3 has-focus-visible:ring-ring/50 has-[:checked]:border-primary/40 has-[:checked]:bg-muted dark:bg-input/20 dark:has-[:checked]:bg-muted",
+        "student-chum-choice group relative flex min-h-12 cursor-pointer items-start gap-2.5 px-3.5 py-3 text-start text-sm select-none has-focus-visible:outline-none has-focus-visible:ring-3 has-focus-visible:ring-[color:var(--chum-green)]/35",
         disabled && "pointer-events-none cursor-not-allowed opacity-50"
       )}
     >
@@ -107,11 +107,11 @@ function ScaleChoice({
       />
       <span
         aria-hidden="true"
-        className="pointer-events-none relative flex size-4 shrink-0 translate-y-0.5 items-center justify-center rounded-full border border-input group-has-[:checked]:border-primary group-has-[:checked]:bg-primary group-has-[:checked]:text-primary-foreground dark:bg-input/30 dark:group-has-[:checked]:bg-primary"
+        className="student-chum-choice-dot pointer-events-none relative flex size-4 shrink-0 translate-y-0.5 items-center justify-center rounded-full border"
       >
-        <CheckIcon className="hidden size-3.5 group-has-[:checked]:block" />
+        <CheckIcon className="hidden size-3 group-has-[:checked]:block" />
       </span>
-      <span className="pointer-events-none min-w-0 flex-1 font-medium leading-snug">
+      <span className="pointer-events-none min-w-0 flex-1 font-semibold leading-snug">
         {displayScore} — {label}
       </span>
     </label>
@@ -194,31 +194,35 @@ export function WeeklyMonitoringForm({
 
   return (
     <div className="space-y-6">
-      <Card id="weekly-monitoring-status">
+      <Card id="weekly-monitoring-status" className="overflow-visible">
         <CardHeader>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="space-y-1.5">
-              <CardTitle>Weekly monitoring form</CardTitle>
+              <CardTitle className="text-xl font-bold">
+                Weekly monitoring form
+              </CardTitle>
               <CardDescription>
                 Complete all four sections in one submission. Scores, MFBI, and
                 burnout prediction are computed automatically.
               </CardDescription>
             </div>
             {alreadySubmitted ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-900">
+              <span className="student-chum-pill">
                 <CheckCircle2Icon className="size-3.5" />
                 Already submitted
               </span>
-            ) : null}
+            ) : (
+              <span className="student-chum-pill">Open this week</span>
+            )}
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="rounded-lg border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+          <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--muted)]/60 px-4 py-3 text-sm text-muted-foreground">
             {term ? (
               <p>
                 Active term: {term.academic_year} · {term.semester}. Current
                 week:{" "}
-                <span className="font-medium text-foreground">
+                <span className="font-semibold text-foreground">
                   {currentWeek}
                 </span>
                 {!monitoringEnabled
@@ -231,19 +235,19 @@ export function WeeklyMonitoringForm({
               <p>No active academic term configured.</p>
             )}
             {alreadySubmitted && monitoringEnabled ? (
-              <p className="mt-1 text-emerald-800">
+              <p className="student-chum-tip mt-3 px-3 py-2 text-sm">
                 You have already submitted monitoring for this week. Come back
                 when the next weekly window opens.
               </p>
             ) : null}
             {!monitoringEnabled && term ? (
-              <p className="mt-1 text-amber-800">
+              <p className="mt-2 text-amber-800 dark:text-amber-200">
                 Monitoring is closed. The form unlocks when Guidance opens the
                 next weekly monitoring window.
               </p>
             ) : null}
             {!ready ? (
-              <p className="mt-1 text-amber-800">
+              <p className="mt-2 text-amber-800 dark:text-amber-200">
                 Questionnaires are not seeded yet. Run{" "}
                 <code>supabase/phase2-student.sql</code>.
               </p>
@@ -263,10 +267,15 @@ export function WeeklyMonitoringForm({
       >
         <input type="hidden" name="week_number" value={currentWeek ?? 1} />
 
-        {sections.map((section) => (
+        {sections.map((section, sectionIndex) => (
           <Card key={section.key}>
             <CardHeader>
-              <CardTitle className="text-lg">
+              <div className="mb-1">
+                <span className="student-chum-pill">
+                  Step {sectionIndex + 1} of {sections.length}
+                </span>
+              </div>
+              <CardTitle className="text-lg font-bold">
                 {sectionTitles[section.key] ?? section.questionnaire_name}
               </CardTitle>
               <CardDescription>
@@ -288,12 +297,12 @@ export function WeeklyMonitoringForm({
                     key={question.question_id}
                     data-question-id={question.question_id}
                     className={cn(
-                      "space-y-3 rounded-lg border p-3",
+                      "space-y-3 rounded-2xl border border-[color:var(--border)] bg-[color:var(--muted)]/35 p-3.5",
                       isMissing && "border-destructive bg-destructive/5"
                     )}
                     disabled={disabled}
                   >
-                    <legend className="px-1 text-sm font-medium">
+                    <legend className="px-1 text-sm font-bold">
                       {index + 1}. {question.question_text}
                       {question.reverse_scored ? (
                         <span className="ml-2 text-xs font-normal text-muted-foreground">
@@ -301,7 +310,7 @@ export function WeeklyMonitoringForm({
                         </span>
                       ) : null}
                     </legend>
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-[repeat(auto-fit,minmax(8rem,1fr))]">
+                    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-[repeat(auto-fit,minmax(9rem,1fr))]">
                       {options.map((option) => {
                         const displayScore =
                           section.key === "pss"
@@ -338,11 +347,24 @@ export function WeeklyMonitoringForm({
       </form>
 
       <Card>
-        <CardContent className="flex flex-col gap-2 pt-6 sm:flex-row sm:items-center">
+        <CardContent className="flex flex-col gap-3 pt-6 sm:flex-row sm:items-center sm:justify-end">
+          {!alreadySubmitted && monitoringEnabled && ready ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              className="rounded-full px-5"
+              disabled={disabled}
+              onClick={clearAnswers}
+            >
+              Clear answers
+            </Button>
+          ) : null}
           <Button
             type="submit"
             form="weekly-monitoring-form"
             size="lg"
+            className="rounded-full px-6 text-base"
             disabled={disabled}
           >
             {pending ? (
@@ -353,20 +375,9 @@ export function WeeklyMonitoringForm({
             ) : alreadySubmitted ? (
               "Already submitted"
             ) : (
-              "Submit weekly monitoring"
+              "Submit weekly monitoring →"
             )}
           </Button>
-          {!alreadySubmitted && monitoringEnabled && ready ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="lg"
-              disabled={disabled}
-              onClick={clearAnswers}
-            >
-              Clear answers
-            </Button>
-          ) : null}
         </CardContent>
       </Card>
     </div>

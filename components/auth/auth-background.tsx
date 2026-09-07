@@ -25,10 +25,10 @@ export function AuthBackground() {
       className="pointer-events-none absolute inset-0 overflow-hidden"
     >
       <div className="absolute inset-0 bg-background" />
-      <div className="absolute inset-0 bg-[radial-gradient(120%_80%_at_10%_-10%,_oklch(0.94_0.03_195_/_0.55),_transparent_55%),radial-gradient(90%_70%_at_100%_100%,_oklch(0.93_0.025_210_/_0.4),_transparent_50%)] dark:bg-[radial-gradient(120%_80%_at_10%_-10%,_oklch(0.28_0.03_210_/_0.45),_transparent_55%),radial-gradient(90%_70%_at_100%_100%,_oklch(0.26_0.025_195_/_0.35),_transparent_50%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(120%_80%_at_10%_-10%,_rgb(45_190_120_/_0.14),_transparent_55%),radial-gradient(90%_70%_at_100%_100%,_rgb(45_190_120_/_0.1),_transparent_50%)] dark:bg-[radial-gradient(120%_80%_at_10%_-10%,_rgb(45_190_120_/_0.12),_transparent_55%),radial-gradient(90%_70%_at_100%_100%,_rgb(31_154_92_/_0.12),_transparent_50%)]" />
 
       <svg
-        className="absolute -inset-[24%] size-[148%] text-foreground/[0.05] dark:text-foreground/[0.08]"
+        className="absolute -inset-[24%] size-[148%] text-[color:var(--chum-green,#2dbe78)]/[0.12] dark:text-[color:var(--chum-green,#2dbe78)]/[0.16]"
         viewBox="0 0 100 100"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"

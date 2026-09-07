@@ -223,11 +223,14 @@ export function GuidanceDashboard({
   return (
     <div className="space-y-8">
       <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <PageHeading
-          title={`Welcome, ${firstName}`}
-          description="Administrator overview for the current monitoring week — student burnout risk, submissions, and early-warning alerts."
-          icon={LayoutDashboardIcon}
-        />
+        <div className="min-w-0 space-y-2">
+          <span className="student-chum-pill w-fit">Guidance dashboard</span>
+          <PageHeading
+            title={`Welcome, ${firstName}`}
+            description="Administrator overview for the current monitoring week — student burnout risk, submissions, and early-warning alerts."
+            icon={LayoutDashboardIcon}
+          />
+        </div>
 
         <div className="flex w-full min-w-0 flex-col gap-1.5 sm:w-auto sm:min-w-[220px]">
           <span className="text-xs font-medium text-muted-foreground">
@@ -240,7 +243,7 @@ export function GuidanceDashboard({
               setYearFilter(value);
             }}
           >
-            <SelectTrigger className="w-full sm:w-[240px]">
+            <SelectTrigger className="w-full rounded-xl sm:w-[240px]">
               <SelectValue placeholder="All Years" />
             </SelectTrigger>
             <SelectContent>

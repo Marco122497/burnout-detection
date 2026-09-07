@@ -248,7 +248,8 @@ export function InstructorDashboard({
   return (
     <div className="min-w-0 max-w-full space-y-8 overflow-x-hidden">
       <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div className="min-w-0">
+        <div className="min-w-0 space-y-2">
+          <span className="student-chum-pill w-fit">Instructor dashboard</span>
           <PageHeading title="Instructor Dashboard" icon={LayoutDashboardIcon} />
           {data.departmentName ? (
             <p className="mt-1 break-words text-base font-medium text-foreground">
@@ -277,7 +278,7 @@ export function InstructorDashboard({
               setYearFilter(value);
             }}
           >
-            <SelectTrigger className="w-full sm:w-[240px]">
+            <SelectTrigger className="w-full rounded-xl sm:w-[240px]">
               <SelectValue placeholder="All Years" />
             </SelectTrigger>
             <SelectContent>

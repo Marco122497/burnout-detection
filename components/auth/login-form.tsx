@@ -71,9 +71,9 @@ export function LoginForm() {
         </div>
       ) : null}
 
-      <Card className="w-full max-w-md border-border/80 shadow-sm">
+      <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl">Sign in</CardTitle>
+          <CardTitle className="text-2xl font-bold">Sign in</CardTitle>
           <CardDescription>
             Sign in with your school email or student ID number.
           </CardDescription>
@@ -90,6 +90,7 @@ export function LoginForm() {
                 placeholder="enter your email or student ID"
                 required
                 disabled={busy}
+                className="h-10 rounded-xl"
               />
             </div>
             <div className="space-y-2">
@@ -102,6 +103,7 @@ export function LoginForm() {
                   placeholder="enter your password"
                   required
                   disabled={busy}
+                  className="h-10 rounded-xl"
                 />
               </div>
               <p className="text-center text-xs text-muted-foreground">
@@ -110,7 +112,12 @@ export function LoginForm() {
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-3">
-            <Button type="submit" className="w-full" disabled={busy} size="lg">
+            <Button
+              type="submit"
+              className="w-full rounded-full font-bold"
+              disabled={busy}
+              size="lg"
+            >
               {redirecting ? (
                 <>
                   <Loader2 className="animate-spin" />

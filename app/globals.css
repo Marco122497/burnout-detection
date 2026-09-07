@@ -53,73 +53,84 @@
     "Aptos Narrow", "Aptos", "Segoe UI", system-ui, -apple-system,
     BlinkMacSystemFont, sans-serif;
   --font-display: var(--font-aptos-narrow);
-  --background: oklch(0.99 0.005 210);
-  --foreground: oklch(0.22 0.02 230);
+  --chum-green: #2dbe78;
+  --chum-green-deep: #1f9a5c;
+  --chum-green-soft: #e8f8ef;
+  --chum-ink: #1f2933;
+  --chum-muted: #6b7280;
+  --chum-amber: #f5c542;
+  --background: oklch(0.99 0.005 155);
+  --foreground: #1f2933;
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.22 0.02 230);
+  --card-foreground: #1f2933;
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.22 0.02 230);
-  --primary: oklch(0.42 0.07 210);
-  --primary-foreground: oklch(0.98 0.01 200);
-  --secondary: oklch(0.95 0.015 210);
-  --secondary-foreground: oklch(0.3 0.03 220);
-  --muted: oklch(0.96 0.01 210);
-  --muted-foreground: oklch(0.5 0.02 230);
-  --accent: oklch(0.94 0.025 195);
-  --accent-foreground: oklch(0.28 0.04 210);
+  --popover-foreground: #1f2933;
+  --primary: #2dbe78;
+  --primary-foreground: #ffffff;
+  --secondary: #f3f4f6;
+  --secondary-foreground: #1f2933;
+  --muted: #f3f4f6;
+  --muted-foreground: #6b7280;
+  --accent: #e8f8ef;
+  --accent-foreground: #1f9a5c;
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.9 0.01 220);
-  --input: oklch(0.9 0.01 220);
-  --ring: oklch(0.55 0.05 210);
-  --chart-1: oklch(0.65 0.08 195);
-  --chart-2: oklch(0.55 0.06 230);
-  --chart-3: oklch(0.45 0.05 210);
-  --chart-4: oklch(0.7 0.06 160);
-  --chart-5: oklch(0.4 0.04 250);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.98 0.01 210);
-  --sidebar-foreground: oklch(0.22 0.02 230);
-  --sidebar-primary: oklch(0.42 0.07 210);
-  --sidebar-primary-foreground: oklch(0.98 0.01 200);
-  --sidebar-accent: oklch(0.94 0.02 200);
-  --sidebar-accent-foreground: oklch(0.28 0.04 210);
-  --sidebar-border: oklch(0.9 0.01 220);
-  --sidebar-ring: oklch(0.55 0.05 210);
+  --border: #d7e5dc;
+  --input: #d7e5dc;
+  --ring: #2dbe78;
+  --chart-1: oklch(0.72 0.14 155);
+  --chart-2: oklch(0.8 0.14 95);
+  --chart-3: oklch(0.68 0.16 40);
+  --chart-4: oklch(0.7 0.06 200);
+  --chart-5: oklch(0.55 0.05 230);
+  --radius: 1rem;
+  --sidebar: #f7fbf8;
+  --sidebar-foreground: #1f2933;
+  --sidebar-primary: #2dbe78;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e8f8ef;
+  --sidebar-accent-foreground: #1f9a5c;
+  --sidebar-border: #d7e5dc;
+  --sidebar-ring: #2dbe78;
 }
 
 .dark {
-  /* Soft dark gray (not pure black) for readable dark mode */
-  --background: oklch(0.32 0.012 230);
-  --foreground: oklch(0.96 0.008 210);
-  --card: oklch(0.38 0.012 230);
-  --card-foreground: oklch(0.96 0.008 210);
-  --popover: oklch(0.38 0.012 230);
-  --popover-foreground: oklch(0.96 0.008 210);
-  --primary: oklch(0.78 0.05 200);
-  --primary-foreground: oklch(0.28 0.02 230);
-  --secondary: oklch(0.42 0.012 230);
-  --secondary-foreground: oklch(0.96 0.008 210);
-  --muted: oklch(0.42 0.01 230);
-  --muted-foreground: oklch(0.78 0.015 220);
-  --accent: oklch(0.44 0.02 210);
-  --accent-foreground: oklch(0.96 0.008 210);
+  /* Soft dark green-gray for readable dark mode */
+  --chum-green: #3dd68c;
+  --chum-green-deep: #9ae6b4;
+  --chum-green-soft: #244a38;
+  --chum-ink: #f3faf6;
+  --chum-muted: #b6c4bc;
+  --background: oklch(0.28 0.02 155);
+  --foreground: #f3faf6;
+  --card: #24302a;
+  --card-foreground: #f3faf6;
+  --popover: #24302a;
+  --popover-foreground: #f3faf6;
+  --primary: #3dd68c;
+  --primary-foreground: #143526;
+  --secondary: #2a3b33;
+  --secondary-foreground: #f3faf6;
+  --muted: #2a3b33;
+  --muted-foreground: #b6c4bc;
+  --accent: #244a38;
+  --accent-foreground: #d8f5e6;
   --destructive: oklch(0.7 0.17 25);
-  --border: oklch(1 0 0 / 14%);
-  --input: oklch(1 0 0 / 16%);
-  --ring: oklch(0.65 0.04 210);
-  --chart-1: oklch(0.72 0.08 195);
-  --chart-2: oklch(0.68 0.06 230);
-  --chart-3: oklch(0.62 0.05 160);
-  --chart-4: oklch(0.75 0.07 85);
-  --chart-5: oklch(0.65 0.08 40);
-  --sidebar: oklch(0.3 0.012 230);
-  --sidebar-foreground: oklch(0.96 0.008 210);
-  --sidebar-primary: oklch(0.72 0.06 200);
-  --sidebar-primary-foreground: oklch(0.28 0.02 230);
-  --sidebar-accent: oklch(0.4 0.015 220);
-  --sidebar-accent-foreground: oklch(0.96 0.008 210);
-  --sidebar-border: oklch(1 0 0 / 12%);
-  --sidebar-ring: oklch(0.65 0.04 210);
+  --border: #355445;
+  --input: #355445;
+  --ring: #3dd68c;
+  --chart-1: oklch(0.72 0.14 155);
+  --chart-2: oklch(0.78 0.12 95);
+  --chart-3: oklch(0.7 0.14 40);
+  --chart-4: oklch(0.68 0.06 200);
+  --chart-5: oklch(0.65 0.08 230);
+  --sidebar: #1d2923;
+  --sidebar-foreground: #f3faf6;
+  --sidebar-primary: #3dd68c;
+  --sidebar-primary-foreground: #143526;
+  --sidebar-accent: #244a38;
+  --sidebar-accent-foreground: #d8f5e6;
+  --sidebar-border: #355445;
+  --sidebar-ring: #3dd68c;
 }
 
 @layer base {
@@ -301,4 +312,250 @@
     break-after: avoid;
     page-break-after: avoid;
   }
+}
+
+/* ── Chum surface extras (fonts, cards, pills) under AppShell / Auth ── */
+.student-chum,
+.chum-app {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: clip;
+  font-family: var(--font-chum-sans), "Nunito", system-ui, sans-serif;
+  color: var(--foreground);
+  background: transparent;
+}
+
+.student-chum [data-slot="card-title"],
+.student-chum h1,
+.student-chum h2 {
+  font-family: var(--font-chum-display), "Quicksand", system-ui, sans-serif;
+  letter-spacing: -0.02em;
+}
+
+.student-chum [data-slot="card"] {
+  border-radius: 1.15rem;
+  background: var(--card);
+  box-shadow: 0 1px 2px rgb(20 60 40 / 6%);
+  --tw-ring-shadow: 0 0 #0000;
+  --tw-ring-offset-shadow: 0 0 #0000;
+  outline: 1px solid var(--border);
+}
+
+.student-chum [data-slot="button"],
+.student-chum a[class*="bg-primary"] {
+  border-radius: 999px;
+  font-weight: 700;
+  box-shadow: 0 4px 12px -8px rgb(45 190 120 / 55%);
+}
+
+.student-chum [data-slot="input"],
+.student-chum [data-slot="select-trigger"],
+.student-chum textarea {
+  border-radius: 0.85rem;
+}
+
+.student-chum [data-slot="table-header"] {
+  background: var(--chum-green-soft);
+}
+
+.student-chum [data-slot="table-head"] {
+  color: var(--chum-green-deep);
+  font-weight: 700;
+}
+
+.student-chum [data-slot="table"] {
+  overflow: hidden;
+  border-radius: 1rem;
+}
+
+.student-chum .student-chum-choice {
+  border-radius: 1rem;
+  border: 1.5px solid #e5e7eb;
+  background: #fff;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.student-chum .student-chum-choice:hover {
+  border-color: rgb(45 190 120 / 45%);
+  background: #f7fdf9;
+}
+
+.student-chum .student-chum-choice:has(:checked) {
+  border-color: var(--chum-green);
+  background: var(--chum-green-soft);
+  box-shadow: 0 0 0 3px rgb(45 190 120 / 18%);
+  transform: translateY(-1px);
+}
+
+.student-chum .student-chum-choice-dot {
+  border-color: #cbd5e1;
+}
+
+.student-chum .student-chum-choice:has(:checked) .student-chum-choice-dot {
+  border-color: var(--chum-green);
+  background: var(--chum-green);
+  color: #fff;
+}
+
+.student-chum .student-chum-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 999px;
+  padding: 0.25rem 0.7rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: var(--chum-green-soft);
+  color: var(--chum-green-deep);
+}
+
+.student-chum .student-chum-tip {
+  border-radius: 1rem;
+  border: 1px solid #f3e0a8;
+  background: #fff9e1;
+  color: #5c4813;
+}
+
+.student-chum .student-chum-marker {
+  display: inline-block;
+  position: relative;
+}
+
+.student-chum .student-chum-marker::after {
+  content: "";
+  position: absolute;
+  left: -0.15rem;
+  right: -0.15rem;
+  bottom: 0.05rem;
+  height: 0.45rem;
+  z-index: -1;
+  border-radius: 999px;
+  background: rgb(245 197 66 / 75%);
+  transform: rotate(-1.5deg);
+}
+
+.student-chum [data-slot="page-heading-icon"] {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 1rem;
+  border-color: var(--border);
+  background: var(--chum-green-soft);
+  color: var(--chum-green-deep);
+}
+
+.student-chum h1 {
+  font-weight: 700;
+}
+
+/* Sidebar + top bar */
+.chum-app,
+.student-chum {
+  --sidebar: #f7fbf8;
+  --sidebar-foreground: var(--chum-ink);
+  --sidebar-primary: var(--chum-green);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--chum-green-soft);
+  --sidebar-accent-foreground: var(--chum-green-deep);
+  --sidebar-border: #d7e5dc;
+  --sidebar-ring: var(--chum-green);
+}
+
+.chum-app [data-slot="app-topbar"],
+.student-chum [data-slot="app-topbar"] {
+  background: rgb(255 255 255 / 92%);
+  border-bottom-color: var(--border);
+  backdrop-filter: blur(8px);
+}
+
+.chum-app [data-slot="sidebar-inner"],
+.student-chum [data-slot="sidebar-inner"],
+.chum-app [data-slot="sidebar"],
+.student-chum [data-slot="sidebar"] {
+  background: var(--sidebar);
+}
+
+.chum-app [data-sidebar="menu-button"][data-active],
+.student-chum [data-sidebar="menu-button"][data-active] {
+  background: var(--chum-green-soft) !important;
+  color: var(--chum-green-deep) !important;
+  font-weight: 700;
+}
+
+.chum-app [data-sidebar="menu-button"]:hover,
+.student-chum [data-sidebar="menu-button"]:hover {
+  background: rgb(45 190 120 / 10%);
+}
+
+.chum-app [data-slot="alert-dialog-content"],
+.student-chum [data-slot="alert-dialog-content"],
+.chum-app [data-slot="dialog-content"],
+.student-chum [data-slot="dialog-content"] {
+  border-radius: 1.15rem;
+  box-shadow: 0 1px 2px rgb(20 60 40 / 6%);
+  outline: 1px solid rgb(215 229 220 / 90%);
+}
+
+.chum-app .chum-modal-panel,
+.student-chum .chum-modal-panel {
+  border-radius: 1.15rem;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(20 60 40 / 8%);
+  outline: 1px solid rgb(215 229 220 / 90%);
+}
+
+.dark .student-chum {
+  --chum-ink: #f3faf6;
+  --chum-muted: #b6c4bc;
+  --chum-green-soft: #244a38;
+  --foreground: var(--chum-ink);
+  --card: #24302a;
+  --card-foreground: var(--chum-ink);
+  --muted: #2a3b33;
+  --muted-foreground: var(--chum-muted);
+  --border: #355445;
+  --input: #355445;
+  --secondary: #2a3b33;
+  --secondary-foreground: var(--chum-ink);
+  --sidebar: #1d2923;
+  --sidebar-foreground: var(--chum-ink);
+  --sidebar-accent: #244a38;
+  --sidebar-accent-foreground: #d8f5e6;
+  --sidebar-border: #355445;
+}
+
+.dark .student-chum [data-slot="card"] {
+  background: var(--card);
+  outline-color: rgb(255 255 255 / 10%);
+}
+
+.dark .chum-app [data-slot="app-topbar"],
+.dark .student-chum [data-slot="app-topbar"] {
+  background: rgb(36 48 42 / 92%);
+}
+
+.dark .student-chum .student-chum-choice {
+  background: #1d2923;
+  border-color: #355445;
+}
+
+.dark .student-chum .student-chum-choice:hover,
+.dark .student-chum .student-chum-choice:has(:checked) {
+  background: #244a38;
+}
+
+.dark .student-chum .student-chum-tip {
+  background: #3d3420;
+  border-color: #6b5a2e;
+  color: #f5e6b8;
+}
+
+.dark .chum-app .chum-modal-panel,
+.dark .student-chum .chum-modal-panel {
+  background: var(--card);
+  outline-color: rgb(255 255 255 / 10%);
 }

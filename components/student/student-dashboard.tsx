@@ -53,12 +53,15 @@ export function StudentDashboard({
 }) {
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
-          Welcome, {profile.first_name}
+      <div className="space-y-2">
+        <p className="student-chum-pill w-fit">Student dashboard</p>
+        <h1 className="text-3xl font-bold tracking-tight text-[color:var(--chum-ink)] sm:text-4xl">
+          Welcome,{" "}
+          <span className="student-chum-marker">{profile.first_name}</span>
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Your burnout risk and weekly monitoring status.
+        <p className="max-w-xl text-sm text-muted-foreground sm:text-base">
+          Track your burnout risk, finish weekly monitoring, and follow
+          counseling tips — all in one place.
         </p>
       </div>
 
@@ -101,14 +104,17 @@ export function StudentDashboard({
         {data.monitoringStatus === "Pending" ? (
           <Link
             href="/student/monitoring"
-            className={cn(buttonVariants({ size: "sm" }), "mt-1 w-full")}
+            className={cn(
+              buttonVariants({ size: "lg" }),
+              "mt-2 w-full rounded-full px-5 font-bold"
+            )}
           >
             <HeartPulseIcon />
-            Complete Week {data.currentWeek ?? "—"} monitoring
+            Complete Week {data.currentWeek ?? "—"} monitoring →
           </Link>
         ) : (
           <p className="flex items-center gap-1.5 pt-1 text-xs text-muted-foreground">
-            <CheckCircle2Icon className="size-3.5 text-emerald-600" />
+            <CheckCircle2Icon className="size-3.5 text-[color:var(--chum-green-deep)]" />
             {data.monitoringStatus === "Submitted"
               ? `Week ${data.currentWeek ?? "—"} monitoring submitted`
               : `Week ${data.currentWeek ?? "—"} monitoring is closed`}
@@ -210,8 +216,8 @@ export function StudentDashboard({
                     ) : null}
                   </div>
                   {data.recommendation.recommended_action ? (
-                    <p className="rounded-lg border bg-muted/40 px-3 py-2 text-sm text-foreground">
-                      <span className="font-medium">Action: </span>
+                    <p className="student-chum-tip px-3 py-2.5 text-sm">
+                      <span className="font-bold">Action: </span>
                       {data.recommendation.recommended_action}
                     </p>
                   ) : null}
@@ -230,7 +236,7 @@ export function StudentDashboard({
                       {data.factorRecommendations.map((item) => (
                         <li
                           key={item.key}
-                          className="rounded-lg border border-border/70 px-3 py-2.5"
+                          className="student-chum-choice rounded-2xl px-3.5 py-3"
                         >
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0 space-y-0.5">
@@ -285,10 +291,11 @@ export function StudentDashboard({
                 <Link
                   href="/student/recommendations"
                   className={cn(
-                    buttonVariants({ variant: "outline", size: "sm" })
+                    buttonVariants({ size: "default" }),
+                    "rounded-full px-4 font-bold"
                   )}
                 >
-                  View full counseling recommendation
+                  View full counseling recommendation →
                 </Link>
               </>
             ) : (

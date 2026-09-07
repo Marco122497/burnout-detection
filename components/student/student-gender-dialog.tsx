@@ -22,7 +22,7 @@ import {
 import { Label } from "@/components/ui/label";
 
 const selectClassName =
-  "flex h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50";
+  "flex h-10 w-full rounded-xl border border-input bg-transparent px-3 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50";
 
 const initialState: StudentActionState = {};
 
@@ -52,7 +52,7 @@ export function StudentGenderDialog() {
     >
       <AlertDialogContent className="data-[size=default]:max-w-sm data-[size=default]:sm:max-w-md">
         <AlertDialogHeader>
-          <AlertDialogMedia>
+          <AlertDialogMedia className="bg-[color:var(--chum-green-soft,#e8f8ef)] text-[color:var(--chum-green-deep,#1f9a5c)]">
             <UserRoundIcon />
           </AlertDialogMedia>
           <AlertDialogTitle>Select your gender</AlertDialogTitle>
@@ -89,7 +89,7 @@ export function StudentGenderDialog() {
             type="submit"
             form="student-gender-form"
             disabled={pending}
-            className="sm:col-span-2"
+            className="rounded-full sm:col-span-2"
           >
             {pending ? (
               <>

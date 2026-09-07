@@ -49,19 +49,19 @@ export function StudentResearchConsentGate({
       aria-modal="true"
       aria-labelledby="research-consent-title"
     >
-      <div className="my-auto w-full max-w-2xl rounded-xl bg-popover text-popover-foreground shadow-lg ring-1 ring-foreground/10">
-        <div className="border-b px-5 py-4 sm:px-6">
+      <div className="chum-modal-panel my-auto w-full max-w-2xl text-foreground">
+        <div className="border-b border-[color:var(--border)] px-5 py-4 sm:px-6">
           <div className="flex items-start gap-3">
-            <div className="inline-flex size-10 shrink-0 items-center justify-center rounded-md bg-muted">
+            <div className="inline-flex size-10 shrink-0 items-center justify-center rounded-2xl bg-[color:var(--chum-green-soft)] text-[color:var(--chum-green-deep)]">
               <FileTextIcon className="size-5" />
             </div>
             <div className="min-w-0 space-y-1">
-              <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+              <p className="student-chum-pill w-fit text-[0.7rem]">
                 Electronic informed consent · {RESEARCH_CONSENT_VERSION}
               </p>
               <h2
                 id="research-consent-title"
-                className="font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight"
+                className="text-xl font-bold tracking-tight"
               >
                 Informed Consent
               </h2>
@@ -164,7 +164,7 @@ export function StudentResearchConsentGate({
               variant="outline"
               size="lg"
               disabled={pending}
-              className={cn("sm:min-w-40")}
+              className={cn("rounded-full sm:min-w-40")}
             >
               {pending ? <Loader2 className="animate-spin" /> : null}
               I Do Not Agree
@@ -175,7 +175,7 @@ export function StudentResearchConsentGate({
               value="Agreed"
               size="lg"
               disabled={!canAgree}
-              className="sm:min-w-48"
+              className="rounded-full sm:min-w-48"
             >
               {pending ? <Loader2 className="animate-spin" /> : null}
               I Agree and Continue

@@ -7,6 +7,7 @@ import {
   isStudentRole,
 } from "@/lib/auth/roles";
 import { AppSidebar } from "@/components/app-sidebar";
+import { ChumTheme } from "@/components/chum-theme";
 import { AppBreadcrumb } from "@/components/layout/app-breadcrumb";
 import { AppPageSkeleton } from "@/components/layout/app-page-skeleton";
 import {
@@ -51,7 +52,10 @@ function AppShellContent({
     <>
       <AppSidebar profile={profile} />
       <SidebarInset>
-        <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b bg-background/90 px-3 backdrop-blur">
+        <header
+          data-slot="app-topbar"
+          className="flex h-14 shrink-0 items-center justify-between gap-2 border-b px-3"
+        >
           <div className="flex min-w-0 items-center gap-2">
             <SidebarTrigger />
             <Separator
@@ -89,16 +93,18 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   return (
-    <SidebarProvider>
-      <NavigationPendingProvider>
-        <AppShellContent
-          profile={profile}
-          email={email}
-          notifications={notifications}
-        >
-          {children}
-        </AppShellContent>
-      </NavigationPendingProvider>
-    </SidebarProvider>
+    <ChumTheme className="min-h-svh">
+      <SidebarProvider className="min-h-svh">
+        <NavigationPendingProvider>
+          <AppShellContent
+            profile={profile}
+            email={email}
+            notifications={notifications}
+          >
+            {children}
+          </AppShellContent>
+        </NavigationPendingProvider>
+      </SidebarProvider>
+    </ChumTheme>
   );
 }

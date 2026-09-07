@@ -99,7 +99,11 @@ export function AppSidebar({
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>
-            {isStudent ? "Student menu" : "Menu"}
+            {isStudent
+              ? "Student menu"
+              : profile.role === "Instructor"
+                ? "Instructor menu"
+                : "Guidance menu"}
           </SidebarGroupLabel>
           <SidebarMenu>
             {navItems.map((item) => {
