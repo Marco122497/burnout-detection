@@ -29,7 +29,10 @@ import {
   type AnswerMap,
 } from "@/lib/student/scoring";
 import { getActiveTerm, getCurrentWeekNumber } from "@/lib/student/terms";
-import { RESEARCH_CONSENT_VERSION } from "@/lib/student/research-consent";
+import {
+  hasAgreedResearchConsent,
+  RESEARCH_CONSENT_VERSION,
+} from "@/lib/student/research-consent";
 import { formatYearLevel } from "@/lib/utils";
 
 export type StudentActionState = {
@@ -112,7 +115,12 @@ async function submitWeeklyMonitoringInner(
 ): Promise<StudentActionState> {
   const { supabase, user, profile } = await requireRole(["Student"]);
 
-  if (profile.research_consent_status !== "Agreed") {
+  if (
+    !hasAgreedResearchConsent(
+      profile.research_consent_status,
+      profile.research_consent_version
+    )
+  ) {
     return {
       error:
         "Please complete the informed consent form before submitting weekly monitoring.",

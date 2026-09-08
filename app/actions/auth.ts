@@ -215,11 +215,29 @@ export async function login(
       return { error: "Invalid email or ID number and password." };
     }
 
-    const { data: profile, error: profileError } = await supabase
+    let { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("role, is_active")
+      .select(
+        "role, is_active, research_consent_status, research_consent_version"
+      )
       .eq("id", data.user.id)
       .maybeSingle();
+
+    if (profileError?.message?.includes("research_consent")) {
+      const legacy = await supabase
+        .from("profiles")
+        .select("role, is_active")
+        .eq("id", data.user.id)
+        .maybeSingle();
+      profile = legacy.data
+        ? {
+            ...legacy.data,
+            research_consent_status: null,
+            research_consent_version: null,
+          }
+        : null;
+      profileError = legacy.error;
+    }
 
     if (profileError || !profile) {
       await supabase.auth.signOut();

@@ -24,7 +24,12 @@ export const metadata = {
 export default async function StudentMonitoringPage() {
   const { supabase, user, profile } = await requireRole(["Student"]);
 
-  if (!hasAgreedResearchConsent(profile.research_consent_status)) {
+  if (
+    !hasAgreedResearchConsent(
+      profile.research_consent_status,
+      profile.research_consent_version
+    )
+  ) {
     return (
       <div className="space-y-6">
         <PageHeading

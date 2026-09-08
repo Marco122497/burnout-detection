@@ -9,10 +9,15 @@ import {
   type StudentActionState,
 } from "@/app/actions/student";
 import { useActionToast } from "@/hooks/use-action-toast";
-import { Button } from "@/components/ui/button";
 import {
-  RESEARCH_CONSENT_VERSION,
-} from "@/lib/student/research-consent";
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { RESEARCH_CONSENT_VERSION } from "@/lib/student/research-consent";
 import { cn } from "@/lib/utils";
 
 const initialState: StudentActionState = {};
@@ -25,6 +30,7 @@ export function StudentResearchConsentGate({
   declined?: boolean;
 }) {
   const router = useRouter();
+  const [open, setOpen] = useState(true);
   const [readUnderstood, setReadUnderstood] = useState(false);
   const [voluntarilyAgreed, setVoluntarilyAgreed] = useState(false);
   const [state, formAction, pending] = useActionState(
@@ -36,47 +42,53 @@ export function StudentResearchConsentGate({
 
   useEffect(() => {
     if (!state.success) return;
+    setOpen(false);
     router.refresh();
   }, [state.success, router]);
 
   const canAgree = readUnderstood && voluntarilyAgreed && !pending;
 
   return (
-    <div
-      className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-black/40 p-4 py-8 supports-backdrop-filter:backdrop-blur-xs sm:items-center"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="research-consent-title"
+    <AlertDialog
+      open={open}
+      onOpenChange={(next) => {
+        // Keep open until the student records a decision successfully.
+        if (!state.success) return;
+        setOpen(next);
+      }}
     >
-      <div className="chum-modal-panel my-auto w-full max-w-2xl text-foreground">
+      <AlertDialogContent className="max-h-[90vh] gap-0 overflow-hidden p-0 data-[size=default]:max-w-lg data-[size=default]:sm:max-w-2xl">
         <div className="border-b border-[color:var(--border)] px-5 py-4 sm:px-6">
           <div className="flex items-start gap-3">
-            <div className="inline-flex size-10 shrink-0 items-center justify-center rounded-2xl bg-[color:var(--chum-green-soft)] text-[color:var(--chum-green-deep)]">
+            <div className="inline-flex size-10 shrink-0 items-center justify-center rounded-2xl bg-[color:var(--chum-green-soft,#e8f8ef)] text-[color:var(--chum-green-deep,#1f9a5c)]">
               <FileTextIcon className="size-5" />
             </div>
-            <div className="min-w-0 space-y-1">
+            <div className="min-w-0 space-y-1 text-left">
               <p className="student-chum-pill w-fit text-[0.7rem]">
-                Electronic informed consent · {RESEARCH_CONSENT_VERSION}
+                Electronic{" "}
+                <span className="font-extrabold">informed consent</span> ·{" "}
+                {RESEARCH_CONSENT_VERSION}
               </p>
-              <h2
-                id="research-consent-title"
-                className="text-xl font-bold tracking-tight"
-              >
+              <AlertDialogTitle className="text-xl font-bold tracking-tight sm:text-2xl">
                 Informed Consent
-              </h2>
+              </AlertDialogTitle>
               {studentNumber ? (
-                <p className="text-sm text-muted-foreground">
+                <AlertDialogDescription className="text-sm text-muted-foreground">
                   Student ID:{" "}
                   <span className="font-medium text-foreground">
                     {studentNumber}
                   </span>
-                </p>
-              ) : null}
+                </AlertDialogDescription>
+              ) : (
+                <AlertDialogDescription className="sr-only">
+                  Electronic informed consent form
+                </AlertDialogDescription>
+              )}
             </div>
           </div>
         </div>
 
-        <div className="max-h-[min(28rem,55vh)] space-y-4 overflow-y-auto px-5 py-4 text-sm leading-relaxed text-muted-foreground sm:px-6">
+        <div className="max-h-[min(22rem,45vh)] space-y-3 overflow-y-auto px-5 py-4 text-sm leading-relaxed text-muted-foreground sm:px-6">
           {declined ? (
             <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-amber-950">
               You previously selected <strong>I Do Not Agree</strong>. Weekly
@@ -118,7 +130,11 @@ export function StudentResearchConsentGate({
           </p>
         </div>
 
-        <form action={formAction} className="space-y-4 border-t px-5 py-4 sm:px-6">
+        <form
+          id="student-research-consent-form"
+          action={formAction}
+          className="space-y-3 border-t px-5 py-4 sm:px-6"
+        >
           <div className="space-y-2.5">
             <label className="flex cursor-pointer items-start gap-2.5 text-sm text-foreground">
               <input
@@ -152,34 +168,36 @@ export function StudentResearchConsentGate({
             name="voluntarily_agreed"
             value={voluntarilyAgreed ? "1" : "0"}
           />
-
-          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <Button
-              type="submit"
-              name="decision"
-              value="Declined"
-              variant="outline"
-              size="lg"
-              disabled={pending}
-              className={cn("rounded-full sm:min-w-40")}
-            >
-              {pending ? <Loader2 className="animate-spin" /> : null}
-              I Do Not Agree
-            </Button>
-            <Button
-              type="submit"
-              name="decision"
-              value="Agreed"
-              size="lg"
-              disabled={!canAgree}
-              className="rounded-full sm:min-w-48"
-            >
-              {pending ? <Loader2 className="animate-spin" /> : null}
-              I Agree and Continue
-            </Button>
-          </div>
         </form>
-      </div>
-    </div>
+
+        <AlertDialogFooter className="border-t px-5 py-4 sm:px-6">
+          <Button
+            type="submit"
+            form="student-research-consent-form"
+            name="decision"
+            value="Declined"
+            variant="outline"
+            size="lg"
+            disabled={pending}
+            className={cn("rounded-full")}
+          >
+            {pending ? <Loader2 className="animate-spin" /> : null}
+            I Do Not Agree
+          </Button>
+          <Button
+            type="submit"
+            form="student-research-consent-form"
+            name="decision"
+            value="Agreed"
+            size="lg"
+            disabled={!canAgree}
+            className="rounded-full"
+          >
+            {pending ? <Loader2 className="animate-spin" /> : null}
+            I Agree and Continue
+          </Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

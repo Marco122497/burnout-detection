@@ -3,7 +3,7 @@ import type { NavNotification } from "@/components/layout/nav-notifications";
 import { StudentGenderDialog } from "@/components/student/student-gender-dialog";
 import { StudentResearchConsentGate } from "@/components/student/student-research-consent-gate";
 import { requireUser } from "@/lib/auth/session";
-import { hasAgreedResearchConsent } from "@/lib/student/research-consent";
+import { needsResearchConsent } from "@/lib/student/research-consent";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +35,11 @@ export default async function AppLayout({
 
   const isStudent = profile.role === "Student";
   const needsConsent =
-    isStudent && !hasAgreedResearchConsent(profile.research_consent_status);
+    isStudent &&
+    needsResearchConsent(
+      profile.research_consent_status,
+      profile.research_consent_version
+    );
   const needsGender =
     isStudent &&
     !needsConsent &&
@@ -43,11 +47,15 @@ export default async function AppLayout({
     profile.sex !== "Female";
 
   return (
-    <AppShell
-      profile={profile}
-      email={user.email ?? null}
-      notifications={notifications}
-    >
+    <>
+      <AppShell
+        profile={profile}
+        email={user.email ?? null}
+        notifications={notifications}
+      >
+        {children}
+      </AppShell>
+      {/* Outside AppShell so nav pending skeleton cannot hide these dialogs */}
       {needsConsent ? (
         <StudentResearchConsentGate
           studentNumber={profile.student_number}
@@ -55,7 +63,6 @@ export default async function AppLayout({
         />
       ) : null}
       {needsGender ? <StudentGenderDialog /> : null}
-      {children}
-    </AppShell>
+    </>
   );
 }
