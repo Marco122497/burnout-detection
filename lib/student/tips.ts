@@ -108,7 +108,7 @@ const OVERALL: Record<BurnoutLevel, OverallRecommendation> = {
     burnout_level: "Moderate",
     title: "Make a small change this week.",
     description:
-      "Your burnout score is medium. Stress, schoolwork, study time, or sleep still need attention. A small change now can stop it from getting worse.",
+      "Your burnout score is medium. Stress, schoolwork, study time, or sleep may need attention. A small change now can stop it from getting worse.",
     recommended_action:
       "Pick one thing to ease this week: sleep earlier, do less extra work, or stop a long study night.",
   },
@@ -168,7 +168,7 @@ const FACTOR_TIPS: Record<
     Moderate: {
       category: "Stress",
       title: "Your stress is moderate",
-      description: "You are still under some pressure. Keep calming habits so it does not climb again.",
+      description: "You are under some pressure. Keep calming habits so it does not climb.",
       recommended_action: "Breathe slowly for 5 minutes a day. Write down 2 things that worry you.",
       tips: [
         "Breathe slowly for 5–10 minutes each day.",
@@ -227,8 +227,8 @@ const FACTOR_TIPS: Record<
     },
     Moderate: {
       category: "Schoolwork",
-      title: "Your schoolwork is still heavy",
-      description: "Your class load is still medium-high. Keep tasks organized so burnout does not climb again.",
+      title: "Your schoolwork is somewhat heavy",
+      description: "Your class load is medium-high. Keep tasks organized so burnout does not climb.",
       recommended_action: "List every task and due date. Drop or delay one extra thing this week.",
       tips: [
         "Write all tasks and due dates in one list.",
@@ -501,7 +501,7 @@ function tipsForRawScore(key: FactorKey, raw: number): string[] {
     }
     if (raw < 17.5) {
       return [
-        "Your study hours are climbing — set a stop time before sleep suffers.",
+        "Your study hours are in a range where sleep can suffer — set a stop time this week.",
         "Swap one long reread for practice questions or flashcards.",
         "Study in two daytime blocks instead of one late night.",
       ];
@@ -529,7 +529,7 @@ function tipsForRawScore(key: FactorKey, raw: number): string[] {
   }
   if (raw < 70) {
     return [
-      "Your sleep answers show rising risk — aim for 7+ hours for the next 3 nights.",
+      "Your sleep answers show moderate risk — aim for 7+ hours for the next 3 nights.",
       "Move studying out of bed so your brain links bed with sleep.",
       "Skip caffeine after mid-afternoon for the rest of this week.",
     ];
@@ -1124,7 +1124,7 @@ function resolveDynamicFactorHeading(
       return {
         title: "Your stress is moderate",
         description:
-          "You are still under some pressure. Keep calming habits so it does not climb again.",
+          "You are under some pressure. Keep calming habits so it does not climb.",
       };
     }
     if (level === "Severe") {
@@ -1148,9 +1148,9 @@ function resolveDynamicFactorHeading(
     }
     if (level === "Moderate") {
       return {
-        title: "Your schoolwork is still heavy",
+        title: "Your schoolwork is somewhat heavy",
         description:
-          "Your class load is still medium-high. Keep tasks organized so burnout does not climb again.",
+          "Your class load is medium-high. Keep tasks organized so burnout does not climb.",
       };
     }
     if (level === "Severe") {
@@ -1351,6 +1351,8 @@ export function getFactorRecommendations(
 /**
  * Historical-based personalized counseling recommendation:
  * previous week + latest week → trend → outlook → per-factor actions.
+ * First week (no real prior monitoring) ignores synthetic baseline trends
+ * so copy does not sound like a prior week was monitored.
  */
 export function buildPersonalizedCounselingRecommendation(input: {
   currentLevel: BurnoutLevel | null | undefined;
@@ -1361,11 +1363,19 @@ export function buildPersonalizedCounselingRecommendation(input: {
   factors?: StudentFactors | null;
   previousFactors?: StudentFactors | null;
 }): CounselingRecommendation | null {
-  const recommendationTrend = resolveRecommendationTrend(
-    input.earlyWarningTrend,
-    input.currentMfbi,
-    input.previousMfbi
-  );
+  const hasPriorWeek =
+    (input.previousMfbi != null &&
+      Number.isFinite(Number(input.previousMfbi))) ||
+    input.previousFactors != null;
+
+  const recommendationTrend = hasPriorWeek
+    ? resolveRecommendationTrend(
+        input.earlyWarningTrend,
+        input.currentMfbi,
+        input.previousMfbi
+      )
+    : null;
+
   const { level, basis, trend } = resolveRecommendationLevel(
     input.currentLevel,
     input.nextWeekRisk ?? null,
@@ -1374,16 +1384,16 @@ export function buildPersonalizedCounselingRecommendation(input: {
   if (!level) return null;
 
   const overall = getOverallRecommendation(level, {
-    trend,
+    trend: recommendationTrend,
     currentMfbi: input.currentMfbi ?? null,
-    previousMfbi: input.previousMfbi ?? null,
+    previousMfbi: hasPriorWeek ? input.previousMfbi ?? null : null,
   });
   if (!overall) return null;
 
   const factors = getFactorRecommendations(input.factors, {
-    trend,
-    thisWeek: false,
-    previousFactors: input.previousFactors ?? null,
+    trend: recommendationTrend,
+    thisWeek: !hasPriorWeek,
+    previousFactors: hasPriorWeek ? input.previousFactors ?? null : null,
   });
 
   const topElevated = factors.filter((f) => f.level !== "Low").slice(0, 2);
@@ -1392,7 +1402,9 @@ export function buildPersonalizedCounselingRecommendation(input: {
       ? ` This week, focus most on ${topElevated
           .map((f) => f.category.toLowerCase())
           .join(" and ")} based on your MFBI questionnaire scores.`
-      : " Your factor scores look steady — keep the habits that are working.";
+      : hasPriorWeek
+        ? " Your factor scores look steady — keep the habits that are working."
+        : " Keep checking stress, schoolwork, study time, and sleep each week.";
 
   return {
     title: overall.title,
@@ -1408,7 +1420,7 @@ export function buildPersonalizedCounselingRecommendation(input: {
     currentLevel: input.currentLevel ?? null,
     nextWeekRisk: input.nextWeekRisk ?? null,
     currentMfbi: input.currentMfbi ?? null,
-    previousMfbi: input.previousMfbi ?? null,
+    previousMfbi: hasPriorWeek ? input.previousMfbi ?? null : null,
     factors,
   };
 }
