@@ -11,7 +11,6 @@ import {
 import { useActionToast } from "@/hooks/use-action-toast";
 import { Button } from "@/components/ui/button";
 import {
-  RESEARCH_CONSENT_STUDY_TITLE,
   RESEARCH_CONSENT_VERSION,
 } from "@/lib/student/research-consent";
 import { cn } from "@/lib/utils";
@@ -87,13 +86,11 @@ export function StudentResearchConsentGate({
           ) : null}
 
           <p>
-            You are invited to participate in the study entitled{" "}
-            <span className="font-medium text-foreground">
-              “{RESEARCH_CONSENT_STUDY_TITLE}”
-            </span>
+            You are invited by the Guidance Office to take part in this academic
+            burnout monitoring and early-warning system for college students.
           </p>
           <p>
-            The purpose of this study is to develop and evaluate an AI-based
+            The purpose of this system is to develop and evaluate an AI-based
             system that uses selected academic and behavioral information,
             including stress level, academic workload, sleep hours, and study
             time, to provide an early indication of academic burnout risk.
@@ -108,7 +105,7 @@ export function StudentResearchConsentGate({
             Your participation is voluntary. You may choose not to participate
             or withdraw from the study without academic penalty or disadvantage.
             Your information will be treated confidentially and accessed only by
-            authorized persons for the purposes of the study.
+            authorized persons for the purposes of the system.
           </p>
           <p>
             The system provides an early-warning assessment and is not a medical
