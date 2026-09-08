@@ -158,7 +158,14 @@ export function GuidanceDashboardCharts({
                 margin={{ left: 0, right: 12 }}
               >
                 <CartesianGrid horizontal={false} />
-                <XAxis type="number" domain={[0, 1]} tickLine={false} axisLine={false} />
+                <XAxis
+                  type="number"
+                  domain={[0, 1]}
+                  ticks={[0, 0.25, 0.5, 0.75, 1]}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(value: number) => String(value)}
+                />
                 <YAxis
                   type="category"
                   dataKey="label"
@@ -235,9 +242,11 @@ export function GuidanceDashboardCharts({
                 />
                 <YAxis
                   domain={[0, 1]}
+                  ticks={[0, 0.25, 0.5, 0.75, 1]}
                   tickLine={false}
                   axisLine={false}
-                  width={32}
+                  width={40}
+                  tickFormatter={(value: number) => String(value)}
                 />
                 <ChartTooltip
                   cursor={false}

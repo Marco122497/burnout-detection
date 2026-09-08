@@ -3,8 +3,17 @@ import {
   type BurnoutLevel,
   type MfbiResult,
 } from "@/lib/student/mfbi";
+import {
+  FIRST_WEEK_BASELINE_PRIOR,
+} from "@/lib/student/first-week-baseline";
 import { STUDY_TIME_SCORE_MAX } from "@/lib/student/scale-options";
 import type { SectionScores } from "@/lib/student/scoring";
+
+export {
+  FIRST_WEEK_BASELINE_LEVEL,
+  FIRST_WEEK_BASELINE_MFBI,
+  FIRST_WEEK_BASELINE_PRIOR,
+} from "@/lib/student/first-week-baseline";
 
 export type PredictionResult = {
   decision_tree_prediction: BurnoutLevel;
@@ -144,25 +153,19 @@ export async function predictBurnoutRiskWithAi(
   try {
     const { callBurnoutAiEarlyWarning } = await import("@/lib/student/ai-client");
 
+    const priorWeek = options?.priorWeek ?? FIRST_WEEK_BASELINE_PRIOR;
+
     const features = {
       stress_score: sections.stress_score,
       academic_workload_score: sections.academic_workload_score,
       study_time_score: sections.study_time_score,
       sleep_hours_score: sections.sleep_hours_score,
       mfbi_score: mfbi.mfbi_score,
-      ...(options?.priorWeek
-        ? {
-            stress_trend:
-              sections.stress_score - options.priorWeek.stress_score,
-            workload_trend:
-              sections.academic_workload_score -
-              options.priorWeek.academic_workload_score,
-            study_trend:
-              sections.study_time_score - options.priorWeek.study_time_score,
-            sleep_trend:
-              sections.sleep_hours_score - options.priorWeek.sleep_hours_score,
-          }
-        : {}),
+      stress_trend: sections.stress_score - priorWeek.stress_score,
+      workload_trend:
+        sections.academic_workload_score - priorWeek.academic_workload_score,
+      study_trend: sections.study_time_score - priorWeek.study_time_score,
+      sleep_trend: sections.sleep_hours_score - priorWeek.sleep_hours_score,
     };
 
     const aiResult = await callBurnoutAiEarlyWarning(features, {

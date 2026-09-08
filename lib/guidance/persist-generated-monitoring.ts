@@ -1,17 +1,18 @@
 import { classifyTrendDirection } from "@/lib/student/burnout-trends";
 import { computeMfbi } from "@/lib/student/mfbi";
-import { predictBurnoutRiskWithAi } from "@/lib/student/predict";
+import {
+  FIRST_WEEK_BASELINE_LEVEL,
+  FIRST_WEEK_BASELINE_MFBI,
+  FIRST_WEEK_BASELINE_PRIOR,
+  predictBurnoutRiskWithAi,
+  type PriorWeekScores,
+} from "@/lib/student/predict";
 import type { AnswerMap, SectionScores } from "@/lib/student/scoring";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
-export type PriorWeekScores = {
-  stress_score: number;
-  academic_workload_score: number;
-  study_time_score: number;
-  sleep_hours_score: number;
-};
+export type { PriorWeekScores };
 
 /**
  * Random submission time for the currently open monitoring week.
@@ -149,11 +150,20 @@ export async function persistGeneratedMonitoringRow(input: {
     };
   }
 
+  const historyLevels =
+    input.historyLevels.length > 0
+      ? [...input.historyLevels, mfbi.burnout_risk_level]
+      : [FIRST_WEEK_BASELINE_LEVEL, mfbi.burnout_risk_level];
+  const historyMfbi =
+    input.historyMfbi.length > 0
+      ? [...input.historyMfbi, Number(mfbiRow.mfbi_score)]
+      : [FIRST_WEEK_BASELINE_MFBI, Number(mfbiRow.mfbi_score)];
+
   const prediction = await predictBurnoutRiskWithAi(mfbi, scores, {
     studentId: input.studentId,
-    priorWeek: input.priorWeek,
-    historyLevels: [...input.historyLevels, mfbi.burnout_risk_level],
-    historyMfbi: [...input.historyMfbi, Number(mfbiRow.mfbi_score)],
+    priorWeek: input.priorWeek ?? FIRST_WEEK_BASELINE_PRIOR,
+    historyLevels,
+    historyMfbi,
   });
   const { error: predictionError } = await admin.from("ml_predictions").insert({
     mfbi_id: mfbiRow.mfbi_id,

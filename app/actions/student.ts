@@ -16,7 +16,12 @@ import {
   type BurnoutLevel,
 } from "@/lib/student/mfbi";
 import { saveBurnoutTrend } from "@/lib/student/burnout-trends";
-import { predictBurnoutRiskWithAi } from "@/lib/student/predict";
+import {
+  FIRST_WEEK_BASELINE_LEVEL,
+  FIRST_WEEK_BASELINE_MFBI,
+  FIRST_WEEK_BASELINE_PRIOR,
+  predictBurnoutRiskWithAi,
+} from "@/lib/student/predict";
 import { getWeeklyMonitoringSections } from "@/lib/student/questionnaires";
 import {
   computeSectionScores,
@@ -283,10 +288,6 @@ async function submitWeeklyMonitoringInner(
     }
   }
 
-  // Include the week being submitted in trend history.
-  historyLevels.push(mfbi.burnout_risk_level);
-  historyMfbi.push(mfbi.mfbi_score);
-
   if (priorRows && priorRows.length > 0) {
     const last = priorRows[priorRows.length - 1];
     priorWeek = {
@@ -295,7 +296,17 @@ async function submitWeeklyMonitoringInner(
       study_time_score: Number(last.study_time_score),
       sleep_hours_score: Number(last.sleep_hours_score),
     };
+  } else {
+    // First monitoring week: no earlier row. Use a fixed MFBI 0.50 Moderate
+    // baseline so next-week ML gets real trend deltas vs mid-scale priors.
+    priorWeek = FIRST_WEEK_BASELINE_PRIOR;
+    historyLevels.push(FIRST_WEEK_BASELINE_LEVEL);
+    historyMfbi.push(FIRST_WEEK_BASELINE_MFBI);
   }
+
+  // Include the week being submitted in trend history.
+  historyLevels.push(mfbi.burnout_risk_level);
+  historyMfbi.push(mfbi.mfbi_score);
 
   const prediction = await predictBurnoutRiskWithAi(mfbi, scores, {
     studentId: user.id,

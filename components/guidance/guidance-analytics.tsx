@@ -436,9 +436,19 @@ export function GuidanceAnalyticsView({
                       <YAxis
                         tickLine={false}
                         axisLine={false}
-                        width={28}
+                        width={yearMetric === "average" ? 40 : 28}
                         domain={
                           yearMetric === "average" ? [0, 1] : [0, "auto"]
+                        }
+                        ticks={
+                          yearMetric === "average"
+                            ? [0, 0.25, 0.5, 0.75, 1]
+                            : undefined
+                        }
+                        tickFormatter={
+                          yearMetric === "average"
+                            ? (value: number) => String(value)
+                            : undefined
                         }
                       />
                       <ChartTooltip content={<ChartTooltipContent />} />
@@ -504,8 +514,10 @@ export function GuidanceAnalyticsView({
                       <XAxis
                         type="number"
                         domain={[0, 1]}
+                        ticks={[0, 0.25, 0.5, 0.75, 1]}
                         tickLine={false}
                         axisLine={false}
+                        tickFormatter={(value: number) => String(value)}
                       />
                       <YAxis
                         type="category"

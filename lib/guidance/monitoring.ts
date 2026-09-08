@@ -30,6 +30,8 @@ export type GuidanceSearchFilters = {
   year_level?: string;
   section?: string;
   risk?: string;
+  /** `submitted` | `pending` — current monitoring week */
+  submission?: string;
 };
 
 function stressLevelFromScore(score: number | null | undefined) {
@@ -1022,6 +1024,12 @@ export function filterGuidanceStudentRows(
       } else if (bucket !== filters.risk) {
         return false;
       }
+    }
+    if (filters.submission === "submitted" && !row.submittedThisWeek) {
+      return false;
+    }
+    if (filters.submission === "pending" && row.submittedThisWeek) {
+      return false;
     }
     return true;
   });

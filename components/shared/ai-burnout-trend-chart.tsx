@@ -175,15 +175,20 @@ export function AiBurnoutTrendChart({
               accessibilityLayer
               data={chartData}
               margin={{
-                left: 12,
+                left: 4,
                 right: 12,
                 top: 12,
               }}
             >
               <CartesianGrid vertical={false} />
               <YAxis
-                hide
-                domain={[0, (dataMax: number) => Math.max(dataMax * 1.25, 0.25)]}
+                domain={[0, 1]}
+                ticks={[0, 0.25, 0.5, 0.75, 1]}
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+                width={40}
+                tickFormatter={(value: number) => String(value)}
               />
               <XAxis
                 dataKey="weekLabel"

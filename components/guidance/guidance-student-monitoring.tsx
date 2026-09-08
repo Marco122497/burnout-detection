@@ -66,6 +66,9 @@ export function GuidanceStudentMonitoring({
   );
   const [section, setSection] = useState(searchParams.get("section") ?? "");
   const [risk, setRisk] = useState(searchParams.get("risk") ?? "");
+  const [submission, setSubmission] = useState(
+    searchParams.get("submission") ?? ""
+  );
 
   const sectionOptions = useMemo(() => {
     return [
@@ -113,6 +116,8 @@ export function GuidanceStudentMonitoring({
           return false;
         }
       }
+      if (submission === "submitted" && !row.submittedThisWeek) return false;
+      if (submission === "pending" && row.submittedThisWeek) return false;
       return true;
     });
 
@@ -132,7 +137,7 @@ export function GuidanceStudentMonitoring({
       }
       return a.full_name.localeCompare(b.full_name);
     });
-  }, [rows, q, departmentId, course, yearLevel, section, risk]);
+  }, [rows, q, departmentId, course, yearLevel, section, risk, submission]);
 
   const selectedDepartment = departments.find(
     (dept) => String(dept.department_id) === departmentId
@@ -160,7 +165,7 @@ export function GuidanceStudentMonitoring({
 
   useEffect(() => {
     setPage(1);
-  }, [q, departmentId, course, yearLevel, section, risk, setPage]);
+  }, [q, departmentId, course, yearLevel, section, risk, submission, setPage]);
 
   function applyFilters(event: React.FormEvent) {
     event.preventDefault();
@@ -171,6 +176,7 @@ export function GuidanceStudentMonitoring({
     if (yearLevel) params.set("year_level", yearLevel);
     if (section) params.set("section", section);
     if (risk) params.set("risk", risk);
+    if (submission) params.set("submission", submission);
     const query = params.toString();
     router.push(
       query ? `/guidance/monitoring?${query}` : "/guidance/monitoring"
@@ -183,14 +189,14 @@ export function GuidanceStudentMonitoring({
         <CardHeader>
           <CardTitle>Search students</CardTitle>
           <CardDescription>
-            Monitor students across all departments. Filter by department,
-            course, year level, section, or burnout risk.
+            Monitor students across all departments. Filter by department, year
+            level, or whether they submitted this week.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form
             onSubmit={applyFilters}
-            className="flex flex-col gap-3 lg:flex-row lg:items-end"
+            className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-end"
           >
             <div className="w-full space-y-2 lg:w-64 lg:shrink-0">
               <Label htmlFor="q">Student</Label>
@@ -233,6 +239,19 @@ export function GuidanceStudentMonitoring({
                 ))}
               </select>
             </div>
+            <div className="w-full space-y-2 lg:w-44 lg:shrink-0">
+              <Label htmlFor="submission">This week</Label>
+              <select
+                id="submission"
+                value={submission}
+                onChange={(e) => setSubmission(e.target.value)}
+                className={selectClassName}
+              >
+                <option value="">All</option>
+                <option value="submitted">Submitted</option>
+                <option value="pending">Not submitted</option>
+              </select>
+            </div>
             <div className="flex shrink-0 flex-wrap gap-2">
               <Button type="submit">Apply filters</Button>
               {departmentId ? (
@@ -258,6 +277,7 @@ export function GuidanceStudentMonitoring({
                   setYearLevel("");
                   setSection("");
                   setRisk("");
+                  setSubmission("");
                   router.push("/guidance/monitoring");
                 }}
               >

@@ -36,6 +36,10 @@ import { riskTone } from "@/components/shared/risk-display";
 import type { EarlyWarningPayload } from "@/lib/student/ai-client";
 import { classifyTrendDirection } from "@/lib/student/burnout-trends";
 import {
+  FIRST_WEEK_BASELINE_LEVEL,
+  FIRST_WEEK_BASELINE_MFBI,
+} from "@/lib/student/first-week-baseline";
+import {
   classifyMfbiScore,
   resolveMfbiBurnoutLevel,
   type BurnoutLevel,
@@ -362,12 +366,12 @@ export function EarlyWarningOutlookCard({
               score: nextWeek.score,
               level:
                 nextWeek.level ??
-                (hasMlNextWeek ? null : "Need prior week"),
+                (hasMlNextWeek ? null : "Unavailable"),
               hint: hasMlNextWeek
                 ? nextWeek.fromScore
                   ? "ML score · MFBI bands"
                   : "ML early detection"
-                : "Awaiting history",
+                : "Submit monitoring to unlock",
             },
             {
               icon: TrendingUpIcon,
@@ -482,28 +486,72 @@ export function BurnoutRiskTrendChart({
     level: string;
     direction: string | null;
     delta: number | null;
-    kind: "actual" | "next" | "week2";
+    kind: "actual" | "baseline" | "next" | "week2";
     isCurrent: boolean;
   };
 
-  const chartData: ChartPoint[] = pointsWithMovement.map((point, index) => {
-    const isLast = index === pointsWithMovement.length - 1;
+  const includesHistoryStart =
+    visibleData.length > 0 && data[0]?.week === visibleData[0]?.week;
+
+  const chartSeries = includesHistoryStart
+    ? [
+        {
+          week: Math.max(0, (visibleData[0]?.week ?? 1) - 1),
+          score: FIRST_WEEK_BASELINE_MFBI,
+          level: FIRST_WEEK_BASELINE_LEVEL,
+          direction: null as string | null,
+          delta: null as number | null,
+          isBaseline: true as const,
+        },
+        ...pointsWithMovement.map((point, index) => {
+          if (index !== 0 || point.score == null) return point;
+          const direction = classifyTrendDirection(
+            point.score,
+            FIRST_WEEK_BASELINE_MFBI
+          );
+          const delta =
+            Math.round((point.score - FIRST_WEEK_BASELINE_MFBI) * 100) / 100;
+          return {
+            ...point,
+            direction:
+              point.direction && point.direction !== "insufficient_history"
+                ? point.direction
+                : direction,
+            delta: point.delta ?? delta,
+          };
+        }),
+      ]
+    : pointsWithMovement.map((point) => ({ ...point, isBaseline: false as const }));
+
+  const chartData: ChartPoint[] = chartSeries.map((point, index) => {
+    const isBaseline = Boolean(
+      "isBaseline" in point && point.isBaseline
+    );
+    const isLastActual = !isBaseline && index === chartSeries.length - 1;
     return {
-      week: isLast ? "Current" : `W${point.week}`,
-      weekLabel: isLast ? `Week ${point.week} · Current` : `Week ${point.week}`,
+      week: isBaseline
+        ? "Base"
+        : isLastActual
+          ? "Current"
+          : `W${point.week}`,
+      weekLabel: isBaseline
+        ? "Fixed baseline · 0.50"
+        : isLastActual
+          ? `Week ${point.week} · Current`
+          : `Week ${point.week}`,
       weekNumber: point.week,
       score: point.score ?? 0,
       nextProjection:
-        isLast && nextScore != null ? (point.score ?? 0) : null,
+        isLastActual && nextScore != null ? (point.score ?? 0) : null,
       week2Projection:
-        isLast && nextScore == null && week2Score != null
+        isLastActual && nextScore == null && week2Score != null
           ? (point.score ?? 0)
           : null,
       level: point.level ?? "—",
       direction: point.direction ?? null,
       delta: point.delta ?? null,
-      kind: "actual" as const,
-      isCurrent: isLast,
+      kind: isBaseline ? ("baseline" as const) : ("actual" as const),
+      isCurrent: isLastActual,
     };
   });
 
@@ -540,7 +588,12 @@ export function BurnoutRiskTrendChart({
   }
 
   const showDots = chartData.length <= 12;
-  const latestMovement = pointsWithMovement[pointsWithMovement.length - 1];
+  const adjustedActualPoints = includesHistoryStart
+    ? chartSeries.filter((point) => !("isBaseline" in point && point.isBaseline))
+    : pointsWithMovement;
+  const latestMovement =
+    adjustedActualPoints[adjustedActualPoints.length - 1] ??
+    pointsWithMovement[pointsWithMovement.length - 1];
 
   return (
     <Card className={className}>
@@ -639,7 +692,7 @@ export function BurnoutRiskTrendChart({
                     const point = payload[0]?.payload as ChartPoint | undefined;
                     if (!point) return null;
                     const displayScore =
-                      point.kind === "actual"
+                      point.kind === "actual" || point.kind === "baseline"
                         ? point.score
                         : point.kind === "next"
                           ? point.nextProjection
@@ -647,6 +700,7 @@ export function BurnoutRiskTrendChart({
                     const directionLabel = formatDirectionLabel(point.direction);
                     const isNextProjection = point.kind === "next";
                     const isTrendProjection = point.kind === "week2";
+                    const isBaseline = point.kind === "baseline";
 
                     return (
                       <div
@@ -658,7 +712,9 @@ export function BurnoutRiskTrendChart({
                               ? "border-amber-500/40"
                               : isTrendProjection
                                 ? "border-violet-500/40"
-                                : "border-border/50"
+                                : isBaseline
+                                  ? "border-slate-400/40"
+                                  : "border-border/50"
                         )}
                       >
                         <div className="min-w-0">
@@ -669,6 +725,10 @@ export function BurnoutRiskTrendChart({
                             {point.isCurrent ? (
                               <span className="ml-1 font-semibold text-blue-700 dark:text-blue-300">
                                 · Current
+                              </span>
+                            ) : isBaseline ? (
+                              <span className="ml-1 font-semibold text-slate-600 dark:text-slate-300">
+                                · Reference
                               </span>
                             ) : isNextProjection ? (
                               <span className="ml-1 font-semibold text-amber-700 dark:text-amber-300">
@@ -752,34 +812,68 @@ export function BurnoutRiskTrendChart({
               </LineChart>
             </ChartContainer>
 
-            {hasProjection ? (
+            {hasProjection || includesHistoryStart ? (
               <p className="text-[11px] text-muted-foreground">
-                <span className="font-medium text-blue-600 dark:text-blue-400">
-                  Blue solid
-                </span>{" "}
-                = recorded MFBI.{" "}
-                <span className="font-medium text-amber-600 dark:text-amber-400">
-                  Amber dashed
-                </span>{" "}
-                = next-week ML prediction.{" "}
-                <span className="font-medium text-violet-600 dark:text-violet-400">
-                  Violet dashed
-                </span>{" "}
-                = week-2 trend projection.
+                {includesHistoryStart ? (
+                  <>
+                    <span className="font-medium text-slate-600 dark:text-slate-300">
+                      Base
+                    </span>{" "}
+                    = fixed MFBI 0.50 reference (not a monitoring week).{" "}
+                  </>
+                ) : null}
+                {hasProjection ? (
+                  <>
+                    <span className="font-medium text-blue-600 dark:text-blue-400">
+                      Blue solid
+                    </span>{" "}
+                    = recorded MFBI.{" "}
+                    <span className="font-medium text-amber-600 dark:text-amber-400">
+                      Amber dashed
+                    </span>{" "}
+                    = next-week ML prediction.{" "}
+                    <span className="font-medium text-violet-600 dark:text-violet-400">
+                      Violet dashed
+                    </span>{" "}
+                    = week-2 trend projection.
+                  </>
+                ) : null}
               </p>
             ) : null}
 
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {recentCards.map((point) => {
                 const isCurrent = point.week === latest?.week;
+                const firstVisibleIsHistoryStart =
+                  includesHistoryStart &&
+                  point.week === visibleData[0]?.week;
+                const cardPoint =
+                  firstVisibleIsHistoryStart && point.score != null
+                    ? {
+                        ...point,
+                        direction:
+                          point.direction &&
+                          point.direction !== "insufficient_history"
+                            ? point.direction
+                            : classifyTrendDirection(
+                                point.score,
+                                FIRST_WEEK_BASELINE_MFBI
+                              ),
+                        delta:
+                          point.delta ??
+                          Math.round(
+                            (point.score - FIRST_WEEK_BASELINE_MFBI) * 100
+                          ) / 100,
+                      }
+                    : point;
                 return (
                   <TrendWeekCard
                     key={point.week}
                     label={`Week ${point.week}`}
-                    score={point.score}
-                    level={point.level}
-                    direction={point.direction}
-                    delta={point.delta}
+                    score={cardPoint.score}
+                    level={cardPoint.level}
+                    direction={cardPoint.direction}
+                    delta={cardPoint.delta}
                     current={isCurrent}
                   />
                 );

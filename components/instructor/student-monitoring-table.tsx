@@ -53,6 +53,9 @@ export function StudentMonitoringTable({
     searchParams.get("year_level") ?? ""
   );
   const [risk, setRisk] = useState(searchParams.get("risk") ?? "");
+  const [submission, setSubmission] = useState(
+    searchParams.get("submission") ?? ""
+  );
 
   const filtered = useMemo(() => {
     const matched = rows.filter((row) => {
@@ -73,6 +76,8 @@ export function StudentMonitoringTable({
           return false;
         }
       }
+      if (submission === "submitted" && !row.submittedThisWeek) return false;
+      if (submission === "pending" && row.submittedThisWeek) return false;
       return true;
     });
 
@@ -92,7 +97,7 @@ export function StudentMonitoringTable({
       }
       return a.full_name.localeCompare(b.full_name);
     });
-  }, [rows, q, yearLevel, risk]);
+  }, [rows, q, yearLevel, risk, submission]);
 
   const {
     page,
@@ -105,7 +110,7 @@ export function StudentMonitoringTable({
 
   useEffect(() => {
     setPage(1);
-  }, [q, yearLevel, risk, setPage]);
+  }, [q, yearLevel, risk, submission, setPage]);
 
   function applyFilters(event: React.FormEvent) {
     event.preventDefault();
@@ -113,6 +118,7 @@ export function StudentMonitoringTable({
     if (q.trim()) params.set("q", q.trim());
     if (yearLevel) params.set("year_level", yearLevel);
     if (risk) params.set("risk", risk);
+    if (submission) params.set("submission", submission);
     const query = params.toString();
     router.push(
       query ? `/instructor/monitoring?${query}` : "/instructor/monitoring"
@@ -126,13 +132,13 @@ export function StudentMonitoringTable({
           <CardTitle>Search students</CardTitle>
           <CardDescription>
             Students are limited to your assigned department. Filter by year
-            level or burnout risk.
+            level, burnout risk, or submission status.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form
             onSubmit={applyFilters}
-            className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
+            className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5"
           >
             <div className="space-y-2 lg:col-span-2">
               <Label htmlFor="q">Student</Label>
@@ -173,7 +179,20 @@ export function StudentMonitoringTable({
                 <option value="High">High</option>
               </select>
             </div>
-            <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-4">
+            <div className="space-y-2">
+              <Label htmlFor="submission">This week</Label>
+              <select
+                id="submission"
+                value={submission}
+                onChange={(e) => setSubmission(e.target.value)}
+                className={selectClassName}
+              >
+                <option value="">All</option>
+                <option value="submitted">Submitted</option>
+                <option value="pending">Not submitted</option>
+              </select>
+            </div>
+            <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-5">
               <Button type="submit">Apply filters</Button>
               <Button
                 type="button"
@@ -182,6 +201,7 @@ export function StudentMonitoringTable({
                   setQ("");
                   setYearLevel("");
                   setRisk("");
+                  setSubmission("");
                   router.push("/instructor/monitoring");
                 }}
               >
