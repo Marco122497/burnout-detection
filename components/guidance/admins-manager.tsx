@@ -23,6 +23,10 @@ import {
 } from "@/app/actions/guidance";
 import { DefaultInitialPasswordField } from "@/components/guidance/default-initial-password-field";
 import { DEFAULT_INITIAL_PASSWORD_NOTE } from "@/lib/auth/defaults";
+import {
+  isPrimaryGuidanceEmail,
+  PRIMARY_GUIDANCE_MANAGE_ERROR,
+} from "@/lib/auth/protected-accounts";
 import { useActionToast } from "@/hooks/use-action-toast";
 import { useTablePagination } from "@/hooks/use-table-pagination";
 import {
@@ -238,7 +242,14 @@ export function AdminsManager({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {pageItems.map((admin) => (
+                  {pageItems.map((admin) => {
+                    const isPrimary = isPrimaryGuidanceEmail(admin.email);
+                    const canManage =
+                      !isPrimary || admin.id === currentUserId;
+                    const manageLockedHint = PRIMARY_GUIDANCE_MANAGE_ERROR;
+                    const isSelf = admin.id === currentUserId;
+
+                    return (
                     <TableRow key={admin.id}>
                       <TableCell>
                         <div className="flex items-start gap-2.5">
@@ -256,9 +267,14 @@ export function AdminsManager({
                           <div className="min-w-0">
                             <p className="font-medium">
                               {admin.full_name}
-                              {admin.id === currentUserId ? (
+                              {isSelf ? (
                                 <span className="ml-1.5 text-xs text-muted-foreground">
                                   (you)
+                                </span>
+                              ) : null}
+                              {isPrimary ? (
+                                <span className="ml-1.5 text-xs font-medium text-emerald-700">
+                                  Primary
                                 </span>
                               ) : null}
                             </p>
@@ -293,13 +309,16 @@ export function AdminsManager({
                                   size="icon-sm"
                                   variant="ghost"
                                   aria-label="Edit"
+                                  disabled={!canManage}
                                   onClick={() => setEditingId(admin.id)}
                                 >
                                   <PencilIcon />
                                 </Button>
                               }
                             />
-                            <TooltipContent>Edit</TooltipContent>
+                            <TooltipContent>
+                              {canManage ? "Edit" : manageLockedHint}
+                            </TooltipContent>
                           </Tooltip>
                           <Tooltip>
                             <TooltipTrigger
@@ -309,9 +328,9 @@ export function AdminsManager({
                                   size="icon-sm"
                                   variant="ghost"
                                   disabled={
+                                    !canManage ||
                                     togglePending ||
-                                    (admin.id === currentUserId &&
-                                      admin.is_active)
+                                    (isSelf && admin.is_active)
                                   }
                                   aria-label={
                                     admin.is_active
@@ -329,11 +348,13 @@ export function AdminsManager({
                               }
                             />
                             <TooltipContent>
-                              {admin.id === currentUserId && admin.is_active
-                                ? "You cannot deactivate your own account"
-                                : admin.is_active
-                                  ? "Deactivate"
-                                  : "Activate"}
+                              {!canManage
+                                ? manageLockedHint
+                                : isSelf && admin.is_active
+                                  ? "You cannot deactivate your own account"
+                                  : admin.is_active
+                                    ? "Deactivate"
+                                    : "Activate"}
                             </TooltipContent>
                           </Tooltip>
                           <Tooltip>
@@ -344,13 +365,16 @@ export function AdminsManager({
                                   size="icon-sm"
                                   variant="ghost"
                                   aria-label="Reset password"
+                                  disabled={!canManage}
                                   onClick={() => setResetId(admin.id)}
                                 >
                                   <KeyRoundIcon />
                                 </Button>
                               }
                             />
-                            <TooltipContent>Reset password</TooltipContent>
+                            <TooltipContent>
+                              {canManage ? "Reset password" : manageLockedHint}
+                            </TooltipContent>
                           </Tooltip>
                           <Tooltip>
                             <TooltipTrigger
@@ -361,7 +385,9 @@ export function AdminsManager({
                                   variant="ghost"
                                   aria-label="Delete admin"
                                   disabled={
-                                    deletePending || admin.id === currentUserId
+                                    deletePending ||
+                                    !canManage ||
+                                    (isSelf && !isPrimary)
                                   }
                                   onClick={() => setDeletingId(admin.id)}
                                 >
@@ -370,15 +396,18 @@ export function AdminsManager({
                               }
                             />
                             <TooltipContent>
-                              {admin.id === currentUserId
-                                ? "You cannot delete your own account"
-                                : "Delete"}
+                              {!canManage
+                                ? manageLockedHint
+                                : isSelf && !isPrimary
+                                  ? "You cannot delete your own account"
+                                  : "Delete"}
                             </TooltipContent>
                           </Tooltip>
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
               <TablePagination

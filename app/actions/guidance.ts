@@ -5,6 +5,11 @@ import { headers } from "next/headers";
 
 import { toAuditLogRow } from "@/lib/audit";
 import { DEFAULT_INITIAL_PASSWORD } from "@/lib/auth/defaults";
+import {
+  canManagePrimaryGuidanceAccount,
+  isPrimaryGuidanceEmail,
+  PRIMARY_GUIDANCE_MANAGE_ERROR,
+} from "@/lib/auth/protected-accounts";
 import { getSessionUser, requireRole } from "@/lib/auth/session";
 import type { BulkStudentDraft } from "@/lib/guidance/bulk-students";
 import { fillDepartmentMonitoring } from "@/lib/guidance/fill-department-monitoring";
@@ -22,6 +27,27 @@ async function getIp() {
     headerStore.get("x-real-ip") ||
     null
   );
+}
+
+async function assertCanManageTargetUser(
+  admin: ReturnType<typeof createAdminClient>,
+  actorId: string,
+  targetId: string
+): Promise<GuidanceActionState | null> {
+  const { data: authUser, error } = await admin.auth.admin.getUserById(targetId);
+  if (error || !authUser.user) {
+    return { error: "User account not found." };
+  }
+  if (
+    !canManagePrimaryGuidanceAccount({
+      actorId,
+      targetId,
+      targetEmail: authUser.user.email,
+    })
+  ) {
+    return { error: PRIMARY_GUIDANCE_MANAGE_ERROR };
+  }
+  return null;
 }
 
 const CODE_STOP_WORDS = new Set(["of", "in", "and", "the", "for", "a", "an"]);
@@ -1148,6 +1174,9 @@ export async function updateUser(
     return { error: "User not found." };
   }
 
+  const manageBlock = await assertCanManageTargetUser(admin, user.id, user_id);
+  if (manageBlock) return manageBlock;
+
   const { data: authUser, error: authLookupError } =
     await admin.auth.admin.getUserById(user_id);
   if (authLookupError || !authUser.user) {
@@ -1275,6 +1304,9 @@ export async function toggleUserStatus(
     };
   }
 
+  const manageBlock = await assertCanManageTargetUser(admin, user.id, user_id);
+  if (manageBlock) return manageBlock;
+
   const { error } = await admin
     .from("profiles")
     .update({ is_active })
@@ -1327,6 +1359,9 @@ export async function resetUserPassword(
     };
   }
 
+  const manageBlock = await assertCanManageTargetUser(admin, user.id, user_id);
+  if (manageBlock) return manageBlock;
+
   const { error } = await admin.auth.admin.updateUserById(user_id, {
     password: new_password,
   });
@@ -1367,10 +1402,6 @@ export async function deleteManagedUser(
     return { error: "Invalid user." };
   }
 
-  if (user_id === user.id) {
-    return { error: "You cannot delete your own account." };
-  }
-
   if (
     expectedRole &&
     expectedRole !== "Student" &&
@@ -1388,6 +1419,17 @@ export async function deleteManagedUser(
       error:
         "Missing SUPABASE_SERVICE_ROLE_KEY. Add it to .env.local to manage users.",
     };
+  }
+
+  const manageBlock = await assertCanManageTargetUser(admin, user.id, user_id);
+  if (manageBlock) return manageBlock;
+
+  if (user_id === user.id) {
+    const { data: selfAuth } = await admin.auth.admin.getUserById(user_id);
+    // Only the primary Guidance owner may delete their own account.
+    if (!isPrimaryGuidanceEmail(selfAuth.user?.email)) {
+      return { error: "You cannot delete your own account." };
+    }
   }
 
   const { data: target } = await admin
