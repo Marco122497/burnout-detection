@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,6 +18,25 @@ const python = fs.existsSync(winVenv)
     : process.platform === "win32"
       ? "py"
       : "python3";
+
+/** Windows Application Control often blocks freshly installed sklearn *.pyd files. */
+function unblockSklearnOnWindows() {
+  if (process.platform !== "win32") return;
+  const sklearnDir = path.join(root, "venv", "Lib", "site-packages", "sklearn");
+  if (!fs.existsSync(sklearnDir)) return;
+
+  spawnSync(
+    "powershell.exe",
+    [
+      "-NoProfile",
+      "-Command",
+      `Get-ChildItem -LiteralPath '${sklearnDir.replace(/'/g, "''")}' -Recurse -Include *.pyd,*.dll -ErrorAction SilentlyContinue | Unblock-File -ErrorAction SilentlyContinue`,
+    ],
+    { stdio: "ignore" }
+  );
+}
+
+unblockSklearnOnWindows();
 
 const child = spawn(python, ["training/train.py"], {
   cwd: root,
