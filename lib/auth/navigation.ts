@@ -11,6 +11,7 @@ import {
   HistoryIcon,
   KeyRoundIcon,
   LayoutDashboardIcon,
+  SettingsIcon,
   ShieldIcon,
   LightbulbIcon,
   MegaphoneIcon,
@@ -146,6 +147,11 @@ export function getNavItems(role: UserRole, home: string): NavItem[] {
       title: "Announcements",
       url: `${home}/announcements`,
       icon: MegaphoneIcon,
+    },
+    {
+      title: "Settings",
+      url: `${home}/settings`,
+      icon: SettingsIcon,
     },
     { title: "Profile", url: "/profile", icon: UserRoundIcon },
     {

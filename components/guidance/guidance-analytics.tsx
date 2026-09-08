@@ -131,15 +131,15 @@ export function GuidanceAnalyticsView({
   modelEvaluation,
   aiHealthy,
   metricsSource,
-  preparedBy,
-  preparedRole = "Guidance Counselor",
+  schoolAdministratorName = "SR. LEONILA M. SAJELAN, MCM",
+  schoolAdministratorTitle = "School Vice-President",
 }: {
   data: Analytics;
   modelEvaluation: ModelEvaluationSnapshot;
   aiHealthy: boolean;
   metricsSource?: AiModelStatus["metricsSource"];
-  preparedBy?: string;
-  preparedRole?: string;
+  schoolAdministratorName?: string;
+  schoolAdministratorTitle?: string;
 }) {
   const { navigate, isPending, pendingHref } = useNavigationPending();
   const [alertPendingId, setAlertPendingId] = useState<string | null>(null);
@@ -219,10 +219,10 @@ export function GuidanceAnalyticsView({
       </table>
       <p style="margin-top:16px;font-size:12px;color:#555">Generated from Burnout Analytics for immediate intervention follow-up.</p>`,
       {
-        preparedBy,
-        preparedRole,
-        notedBy: "School Administrator",
-        notedByRole: "School Administrator",
+        preparedBy: "Guidance Counselor",
+        preparedRole: "Guidance Counselor",
+        notedBy: schoolAdministratorName,
+        notedByRole: schoolAdministratorTitle,
       }
     );
   }

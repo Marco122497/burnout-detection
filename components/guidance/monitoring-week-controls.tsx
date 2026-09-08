@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { CalendarClockIcon, Loader2 } from "lucide-react";
 
 import {
@@ -11,6 +11,17 @@ import {
 } from "@/app/actions/guidance";
 import { useActionToast } from "@/hooks/use-action-toast";
 import type { AcademicTerm } from "@/lib/student/terms";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -27,6 +38,7 @@ export function MonitoringWeekControls({
 }: {
   term: AcademicTerm | null;
 }) {
+  const [openConfirmOpen, setOpenConfirmOpen] = useState(false);
   const [openState, openAction, openPending] = useActionState(
     openNextMonitoringWeek,
     initialState
@@ -43,6 +55,12 @@ export function MonitoringWeekControls({
   useActionToast(openState);
   useActionToast(closeState);
   useActionToast(resetState);
+
+  useEffect(() => {
+    if (openState.success || openState.error) {
+      setOpenConfirmOpen(false);
+    }
+  }, [openState.success, openState.error]);
 
   const week = term?.monitoring_week ?? 1;
   const enabled = Boolean(term?.monitoring_enabled);
@@ -96,18 +114,20 @@ export function MonitoringWeekControls({
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <form action={openAction}>
-                <Button type="submit" disabled={pending}>
-                  {openPending ? (
-                    <>
-                      <Loader2 className="size-4 animate-spin" />
-                      Opening…
-                    </>
-                  ) : (
-                    `Open Week ${nextWeek}`
-                  )}
-                </Button>
-              </form>
+              <Button
+                type="button"
+                disabled={pending}
+                onClick={() => setOpenConfirmOpen(true)}
+              >
+                {openPending ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" />
+                    Opening…
+                  </>
+                ) : (
+                  `Open Week ${nextWeek}`
+                )}
+              </Button>
               <form action={closeAction}>
                 <Button
                   type="submit"
@@ -141,6 +161,51 @@ export function MonitoringWeekControls({
                 </Button>
               </form>
             </div>
+
+            <AlertDialog
+              open={openConfirmOpen}
+              onOpenChange={(next) => {
+                if (openPending) return;
+                setOpenConfirmOpen(next);
+              }}
+            >
+              <AlertDialogContent size="sm">
+                <AlertDialogHeader>
+                  <AlertDialogMedia>
+                    <CalendarClockIcon />
+                  </AlertDialogMedia>
+                  <AlertDialogTitle>
+                    Open Week {nextWeek}?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will close Week {week} as the previous week and open
+                    Week {nextWeek} for student submissions. Students who have
+                    not submitted Week {week} will no longer be able to submit
+                    that week.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <form action={openAction} id="open-next-monitoring-week" />
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={openPending}>
+                    Cancel
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    type="submit"
+                    form="open-next-monitoring-week"
+                    disabled={openPending}
+                  >
+                    {openPending ? (
+                      <>
+                        <Loader2 className="size-4 animate-spin" />
+                        Opening…
+                      </>
+                    ) : (
+                      `Yes, open Week ${nextWeek}`
+                    )}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </>
         ) : (
           <p className="text-sm text-muted-foreground">

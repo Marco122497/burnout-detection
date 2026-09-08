@@ -6,6 +6,8 @@ export type PrintReportOptions = {
   preparedRole?: string;
   notedBy?: string;
   notedByRole?: string;
+  approvedBy?: string;
+  approvedByRole?: string;
   /** Extra meta items under the header (Report No., Period, etc.). */
   meta?: { label: string; value: string }[];
 };
@@ -68,8 +70,16 @@ export function openPrintReport(
 
   const preparedBy = options.preparedBy?.trim() || "—";
   const preparedRole = options.preparedRole?.trim() || "Staff";
-  const notedBy = options.notedBy?.trim() || "Guidance Counselor";
-  const notedByRole = options.notedByRole?.trim() || "Guidance Counselor";
+  const notedBy =
+    options.notedBy?.trim() || "SR. LEONILA M. SAJELAN, MCM";
+  const notedByRole =
+    options.notedByRole?.trim() || "School Vice-President";
+  const approvedBy = options.approvedBy?.trim();
+  const approvedByRole =
+    options.approvedByRole?.trim() ||
+    approvedBy ||
+    "School Vice-President";
+  const hasApprovedBy = Boolean(approvedBy);
 
   const metaItems = [
     { label: "Prepared by", value: preparedBy },
@@ -246,6 +256,10 @@ export function openPrintReport(
       gap: 40px;
       margin-top: 40px;
     }
+    .sign-approved {
+      margin-top: 40px;
+      max-width: 50%;
+    }
     .sign-label {
       margin: 0;
       font-size: 10px;
@@ -342,6 +356,19 @@ export function openPrintReport(
           <p class="sign-date">Date: __________</p>
         </div>
       </section>
+      ${
+        hasApprovedBy
+          ? `<section class="sign-approved">
+        <div>
+          <p class="sign-label">Approved by</p>
+          <div class="sign-line"></div>
+          <p class="sign-name">${escapeHtml(approvedBy!)}</p>
+          <p class="sign-role">${escapeHtml(approvedByRole)}</p>
+          <p class="sign-date">Date: __________</p>
+        </div>
+      </section>`
+          : ""
+      }
 
       <footer class="doc-footer">
         ${formatAppFooterLabel()}

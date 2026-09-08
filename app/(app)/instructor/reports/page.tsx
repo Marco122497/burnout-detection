@@ -2,6 +2,7 @@ import { FileBarChartIcon } from "lucide-react";
 
 import { InstructorReportsPanel } from "@/components/instructor/instructor-reports";
 import { PageHeading } from "@/components/layout/page-heading";
+import { getSchoolAdministratorSignatory } from "@/lib/app-settings";
 import { requireRole } from "@/lib/auth/session";
 import { buildFormalName } from "@/lib/auth/roles";
 import {
@@ -37,12 +38,14 @@ export default async function InstructorReportsPage({
   const reportType = resolveInstructorReportType(params.type);
   const { from, to } = resolveReportDateRange(params);
 
-  const [rows, term, departmentName, weeklyTrends] = await Promise.all([
-    getInstructorStudentRows(supabase, profile.department_id),
-    getActiveTerm(supabase),
-    getDepartmentName(supabase, profile.department_id),
-    getDepartmentWeeklySeries(supabase, profile.department_id, { from, to }),
-  ]);
+  const [rows, term, departmentName, weeklyTrends, schoolAdministrator] =
+    await Promise.all([
+      getInstructorStudentRows(supabase, profile.department_id),
+      getActiveTerm(supabase),
+      getDepartmentName(supabase, profile.department_id),
+      getDepartmentWeeklySeries(supabase, profile.department_id, { from, to }),
+      getSchoolAdministratorSignatory(supabase),
+    ]);
   const currentWeek = term ? getCurrentWeekNumber(term) : null;
 
   return (
@@ -64,6 +67,8 @@ export default async function InstructorReportsPage({
         to={to}
         preparedBy={buildFormalName(profile) || profile.role}
         preparedRole={profile.role}
+        schoolAdministratorName={schoolAdministrator.name}
+        schoolAdministratorTitle={schoolAdministrator.title}
       />
     </div>
   );

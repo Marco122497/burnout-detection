@@ -263,8 +263,8 @@ export function GuidanceReportsPanel({
   reportType,
   from,
   to,
-  preparedBy,
-  preparedRole = "Guidance Counselor",
+  schoolAdministratorName = "SR. LEONILA M. SAJELAN, MCM",
+  schoolAdministratorTitle = "School Vice-President",
 }: {
   rows: GuidanceStudentRow[];
   departments: Department[];
@@ -272,8 +272,8 @@ export function GuidanceReportsPanel({
   reportType: GuidanceReportType;
   from: string;
   to: string;
-  preparedBy?: string;
-  preparedRole?: string;
+  schoolAdministratorName?: string;
+  schoolAdministratorTitle?: string;
 }) {
   const generatedAt = useMemo(() => new Date(), []);
   const periodLabel = formatReportPeriodLabel(from, to);
@@ -580,11 +580,11 @@ export function GuidanceReportsPanel({
         sectionGroupColumns={
           "sectionGroupColumns" in report ? report.sectionGroupColumns : undefined
         }
-        generatedBy={preparedBy || preparedRole}
-        generatedRole={preparedRole}
+        generatedBy="Guidance Counselor"
+        generatedRole="Guidance Counselor"
         generatedAt={generatedAt}
-        notedByName="School Administrator"
-        notedByRole="School Administrator"
+        notedByName={schoolAdministratorName}
+        notedByRole={schoolAdministratorTitle}
         periodLabel={periodLabel}
         total={report.total}
         totalLabel={report.totalLabel}

@@ -2,8 +2,8 @@ import { FileBarChartIcon } from "lucide-react";
 
 import { GuidanceReportsPanel } from "@/components/guidance/guidance-reports";
 import { PageHeading } from "@/components/layout/page-heading";
+import { getSchoolAdministratorSignatory } from "@/lib/app-settings";
 import { requireRole } from "@/lib/auth/session";
-import { buildFormalName } from "@/lib/auth/roles";
 import { getGuidanceStudentRows } from "@/lib/guidance/monitoring";
 import { getDepartments } from "@/lib/guidance/queries";
 import {
@@ -27,15 +27,16 @@ export default async function GuidanceReportsPage({
 }: {
   searchParams: Promise<{ type?: string; from?: string; to?: string }>;
 }) {
-  const { supabase, profile } = await requireRole(["Guidance Counselor"]);
+  const { supabase } = await requireRole(["Guidance Counselor"]);
   const params = await searchParams;
   const reportType = resolveGuidanceReportType(params.type);
   const { from, to } = resolveReportDateRange(params);
 
-  const [rows, term, departments] = await Promise.all([
+  const [rows, term, departments, schoolAdministrator] = await Promise.all([
     getGuidanceStudentRows(supabase),
     getActiveTerm(supabase),
     getDepartments(supabase),
+    getSchoolAdministratorSignatory(supabase),
   ]);
   const currentWeek = term ? getCurrentWeekNumber(term) : null;
 
@@ -55,8 +56,8 @@ export default async function GuidanceReportsPage({
         reportType={reportType}
         from={from}
         to={to}
-        preparedBy={buildFormalName(profile) || profile.role}
-        preparedRole={profile.role}
+        schoolAdministratorName={schoolAdministrator.name}
+        schoolAdministratorTitle={schoolAdministrator.title}
       />
     </div>
   );

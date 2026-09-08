@@ -4,6 +4,11 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 
 import { toAuditLogRow } from "@/lib/audit";
+import {
+  APP_SETTING_KEYS,
+  DEFAULT_SCHOOL_ADMINISTRATOR_NAME,
+  DEFAULT_SCHOOL_ADMINISTRATOR_TITLE,
+} from "@/lib/app-settings";
 import { DEFAULT_INITIAL_PASSWORD } from "@/lib/auth/defaults";
 import {
   canManagePrimaryGuidanceAccount,
@@ -1947,6 +1952,84 @@ export async function sendStudentBurnoutAlert(
         error instanceof Error
           ? error.message
           : "Failed to send burnout alert.",
+    };
+  }
+}
+
+export async function updateSchoolAdministratorSignatory(
+  _prev: GuidanceActionState,
+  formData: FormData
+): Promise<GuidanceActionState> {
+  try {
+    const { supabase, user, profile } = await requireRole([
+      "Guidance Counselor",
+    ]);
+
+    const name =
+      String(formData.get("school_administrator_name") ?? "").trim() ||
+      DEFAULT_SCHOOL_ADMINISTRATOR_NAME;
+    const title =
+      String(formData.get("school_administrator_title") ?? "").trim() ||
+      name ||
+      DEFAULT_SCHOOL_ADMINISTRATOR_TITLE;
+
+    if (name.length > 120 || title.length > 120) {
+      return { error: "Name and title must be 120 characters or fewer." };
+    }
+
+    const rows = [
+      {
+        key: APP_SETTING_KEYS.schoolAdministratorName,
+        value: name,
+        updated_by: user.id,
+      },
+      {
+        key: APP_SETTING_KEYS.schoolAdministratorTitle,
+        value: title,
+        updated_by: user.id,
+      },
+    ];
+
+    const { error } = await supabase.from("app_settings").upsert(rows, {
+      onConflict: "key",
+    });
+
+    if (error) {
+      return {
+        error:
+          error.message.includes("app_settings") ||
+          error.code === "42P01" ||
+          error.message.toLowerCase().includes("does not exist")
+            ? "App settings table is missing. Run supabase/phase11-app-settings.sql first."
+            : error.message,
+      };
+    }
+
+    await supabase.from("audit_logs").insert(
+      toAuditLogRow({
+        user_id: user.id,
+        user_role: profile.role,
+        action: "UPDATE_SCHOOL_ADMINISTRATOR_SIGNATORY",
+        action_type: "UPDATE",
+        table_name: "app_settings",
+        record_id: APP_SETTING_KEYS.schoolAdministratorName,
+        description: `Updated School Administrator signatory to "${name}" / "${title}"`,
+        ip_address: await getIp(),
+      })
+    );
+
+    revalidatePath("/guidance/settings");
+    revalidatePath("/guidance/reports");
+    revalidatePath("/guidance/analytics");
+    revalidatePath("/instructor/reports");
+
+    return { success: "School Administrator signatory saved." };
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to save School Administrator signatory.",
     };
   }
 }

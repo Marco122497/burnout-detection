@@ -18,6 +18,30 @@ export type FormalReportSectionGroup = {
   sections?: FormalReportSection[];
 };
 
+function SignatoryBlock({
+  label,
+  name,
+  role,
+  date,
+}: {
+  label: string;
+  name: string;
+  role: string;
+  date: string;
+}) {
+  return (
+    <div className="text-sm">
+      <p className="text-[10px] font-medium tracking-[0.16em] text-[#6b7280] uppercase">
+        {label}
+      </p>
+      <div className="mt-10 w-48 border-b border-[#111111]" />
+      <p className="mt-2 font-medium uppercase">{name}</p>
+      <p className="text-[12px] uppercase text-[#4b5563]">{role}</p>
+      <p className="mt-1 text-[12px] text-[#4b5563]">Date: {date}</p>
+    </div>
+  );
+}
+
 export function FormalReportDocument({
   title,
   tableTitle = "Report Data",
@@ -29,8 +53,10 @@ export function FormalReportDocument({
   generatedBy,
   generatedRole = "Staff",
   generatedAt,
-  notedByName = "School Administrator",
-  notedByRole = "School Administrator",
+  notedByName = "SR. LEONILA M. SAJELAN, MCM",
+  notedByRole = "School Vice-President",
+  approvedByName,
+  approvedByRole,
   periodLabel,
   totalLabel = "Total",
   total,
@@ -49,6 +75,8 @@ export function FormalReportDocument({
   generatedAt: Date;
   notedByName?: string;
   notedByRole?: string;
+  approvedByName?: string;
+  approvedByRole?: string;
   periodLabel?: string;
   totalLabel?: string;
   total?: string | number;
@@ -310,29 +338,31 @@ export function FormalReportDocument({
         </p>
       </section>
 
-      <section className="report-keep mt-10 grid grid-cols-1 gap-10 sm:grid-cols-2">
-        <div className="text-sm">
-          <p className="text-[10px] font-medium tracking-[0.16em] text-[#6b7280] uppercase">
-            Prepared by
-          </p>
-          <div className="mt-10 w-48 border-b border-[#111111]" />
-          <p className="mt-2 font-medium uppercase">{generatedBy || "—"}</p>
-          <p className="text-[12px] uppercase text-[#4b5563]">
-            {generatedRole || "Staff"}
-          </p>
-          <p className="mt-1 text-[12px] text-[#4b5563]">
-            Date: {preparedDate}
-          </p>
+      <section className="report-keep mt-10 space-y-10">
+        <div className="grid grid-cols-1 gap-10 sm:grid-cols-2">
+          <SignatoryBlock
+            label="Prepared by"
+            name={generatedBy || "—"}
+            role={generatedRole || "Staff"}
+            date={preparedDate}
+          />
+          <SignatoryBlock
+            label="Noted by"
+            name={notedByName}
+            role={notedByRole}
+            date="__________"
+          />
         </div>
-        <div className="text-sm">
-          <p className="text-[10px] font-medium tracking-[0.16em] text-[#6b7280] uppercase">
-            Noted by
-          </p>
-          <div className="mt-10 w-48 border-b border-[#111111]" />
-          <p className="mt-2 font-medium uppercase">{notedByName}</p>
-          <p className="text-[12px] uppercase text-[#4b5563]">{notedByRole}</p>
-          <p className="mt-1 text-[12px] text-[#4b5563]">Date: __________</p>
-        </div>
+        {approvedByName ? (
+          <div className="grid grid-cols-1 gap-10 sm:grid-cols-2">
+            <SignatoryBlock
+              label="Approved by"
+              name={approvedByName}
+              role={approvedByRole || approvedByName}
+              date="__________"
+            />
+          </div>
+        ) : null}
       </section>
 
       <footer className="report-doc-footer report-keep mt-12 flex items-end justify-between gap-4 border-t border-[#d1d5db] pt-2 text-[11px] text-[#6b7280]">
