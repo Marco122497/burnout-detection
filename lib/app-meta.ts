@@ -2,7 +2,7 @@ export const APP_VERSION = "1.1.1.24-beta";
 
 export const APP_COMPANY = "MarcoD Solutions, Inc.";
 
-export const APP_DEVELOPER = "M A R C O";
+export const APP_DEVELOPER = "M A R C O X K U R A P I K A";
 
 export const APP_BUILD_TIME =
   process.env.NEXT_PUBLIC_BUILD_TIME ?? "2026-01-01T00:00:00.000Z";
