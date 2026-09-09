@@ -21,6 +21,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
+import { FIRST_WEEK_BASELINE_MFBI } from "@/lib/student/first-week-baseline";
 
 const chartConfig = {
   average: { label: "Avg MFBI", color: "#2563eb" },
@@ -48,9 +49,9 @@ const TREND_RANGE_OPTIONS: { id: TrendRange; label: string }[] = [
 ];
 
 const TREND_RANGE_DESCRIPTION: Record<TrendRange, string> = {
-  "4w": "Average MFBI for the last 4 monitoring weeks, plus AI outlook.",
-  "8w": "Average MFBI for the last 8 monitoring weeks, plus AI outlook.",
-  all: "Average burnout score (MFBI) by monitoring week, plus AI outlook.",
+  "4w": "Base reference, average MFBI for the last 4 weeks, plus AI outlook.",
+  "8w": "Base reference, average MFBI for the last 8 weeks, plus AI outlook.",
+  all: "Base reference, average burnout score (MFBI) by week, plus AI outlook.",
 };
 
 function averageProjectedScore(
@@ -76,7 +77,7 @@ export function AiBurnoutTrendChart({
   weeklyTrends,
   earlyWarningStudents = [],
   emptyMessage = "No weekly trend yet.",
-  title = "Burnout Trend",
+  title = "AI Burnout Trend",
   className,
 }: {
   weeklyTrends: WeeklyPoint[];
@@ -103,18 +104,34 @@ export function AiBurnoutTrendChart({
     weekLabel: string;
     average: number | null;
     projection: number | null;
-    kind: "actual" | "next" | "week2";
+    kind: "baseline" | "actual" | "next" | "week2";
   };
 
-  const chartData: ChartPoint[] = visibleTrends.map((point, index) => {
-    const isLast = index === visibleTrends.length - 1;
-    return {
-      weekLabel: `Week ${point.week}`,
-      average: Number(point.average.toFixed(2)),
-      projection:
-        isLast && hasProjection ? Number(point.average.toFixed(2)) : null,
+  const includesHistoryStart =
+    visibleTrends.length > 0 &&
+    weeklyTrends.length > 0 &&
+    visibleTrends[0]?.week === weeklyTrends[0]?.week;
+
+  const chartData: ChartPoint[] = [];
+
+  if (includesHistoryStart) {
+    chartData.push({
+      weekLabel: "Base",
+      average: FIRST_WEEK_BASELINE_MFBI,
+      projection: null,
+      kind: "baseline",
+    });
+  }
+
+  visibleTrends.forEach((point, index) => {
+    const isCurrent = index === visibleTrends.length - 1;
+    const average = Number(point.average.toFixed(2));
+    chartData.push({
+      weekLabel: isCurrent ? "Current" : `Week ${point.week}`,
+      average,
+      projection: isCurrent && hasProjection ? average : null,
       kind: "actual",
-    };
+    });
   });
 
   if (nextScore != null) {
@@ -201,16 +218,21 @@ export function AiBurnoutTrendChart({
               <ChartTooltip
                 content={
                   <ChartTooltipContent
-                    className="w-[180px]"
+                    className="w-[200px]"
                     formatter={(value, name, item) => {
                       if (value == null) return null;
                       const kind = String(item?.payload?.kind ?? "actual");
                       const label =
-                        kind === "next"
-                          ? "Next-week AI outlook"
-                          : kind === "week2"
-                            ? "Week-2 AI outlook"
-                            : seriesLabel(name);
+                        kind === "baseline"
+                          ? "Fixed baseline"
+                          : kind === "next"
+                            ? "Next-week AI outlook"
+                            : kind === "week2"
+                              ? "Week-2 AI outlook"
+                              : kind === "actual" &&
+                                  item?.payload?.weekLabel === "Current"
+                                ? "Current avg MFBI"
+                                : seriesLabel(name);
                       return (
                         <div className="flex w-full items-center justify-between gap-4">
                           <span className="text-muted-foreground">{label}</span>
@@ -246,11 +268,16 @@ export function AiBurnoutTrendChart({
             </LineChart>
           </ChartContainer>
         )}
-        {hasProjection && chartData.length > 0 ? (
+        {chartData.length > 0 ? (
           <p className="text-[11px] text-muted-foreground">
+            {includesHistoryStart
+              ? "Base = fixed MFBI 0.50 reference (not a monitoring week). "
+              : null}
             Solid line = recorded average MFBI
-            {latest ? ` (latest Week ${latest.week})` : ""}. Dashed line = AI
-            early-warning outlook (Next = ML next-week, W+2 = trend projection).
+            {latest ? ` (Current = Week ${latest.week})` : ""}.
+            {hasProjection
+              ? " Dashed line = AI early-warning outlook (Next = ML next-week, W+2 = trend projection)."
+              : null}
           </p>
         ) : null}
       </CardContent>

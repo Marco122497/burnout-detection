@@ -639,11 +639,24 @@ export function getGuidanceAnalytics(
 
   const courseMap = new Map<
     string,
-    { scores: number[]; low: number; moderate: number; high: number; total: number }
+    {
+      code: string;
+      name: string;
+      scores: number[];
+      low: number;
+      moderate: number;
+      high: number;
+      total: number;
+    }
   >();
   for (const row of rows) {
-    const label = (row.course || "").trim() || "Unassigned";
-    const entry = courseMap.get(label) ?? {
+    const code = (row.department_code || "").trim();
+    const name =
+      (row.department_name || row.course || "").trim() || "Unassigned";
+    const key = code || name;
+    const entry = courseMap.get(key) ?? {
+      code: code || key,
+      name,
       scores: [],
       low: 0,
       moderate: 0,
@@ -656,13 +669,14 @@ export function getGuidanceAnalytics(
     if (bucket === "Low") entry.low += 1;
     else if (bucket === "Moderate") entry.moderate += 1;
     else if (bucket === "High") entry.high += 1;
-    courseMap.set(label, entry);
+    courseMap.set(key, entry);
   }
 
   const byCourse = [...courseMap.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([label, entry]) => ({
-      label,
+    .sort(([, a], [, b]) => a.code.localeCompare(b.code))
+    .map(([, entry]) => ({
+      label: entry.name,
+      code: entry.code,
       average: entry.scores.length ? avg(entry.scores)! : 0,
       count: entry.total,
       low: entry.low,

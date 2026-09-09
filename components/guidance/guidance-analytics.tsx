@@ -59,8 +59,8 @@ const riskConfig = {
 } satisfies ChartConfig;
 
 const yearConfig = {
-  highRiskCount: { label: "High-risk students", color: "var(--primary)" },
-  average: { label: "Avg MFBI", color: "var(--chart-2)" },
+  average: { label: "Average MFBI", color: "#2563eb" },
+  highRiskCount: { label: "High Risk", color: "oklch(0.68 0.19 40)" },
 } satisfies ChartConfig;
 
 const courseConfig = {
@@ -89,7 +89,7 @@ function OverviewCard({
 
   return (
     <Card>
-      <CardHeader className="gap-1.5 py-1">
+      <CardHeader className="items-center gap-1.5 py-1 text-center">
         <CardDescription className="text-sm font-medium">
           {label}
         </CardDescription>
@@ -133,6 +133,7 @@ export function GuidanceAnalyticsView({
   metricsSource,
   schoolAdministratorName = "SR. LEONILA M. SAJELAN, MCM",
   schoolAdministratorTitle = "School Vice-President",
+  showAiModelStatus = false,
 }: {
   data: Analytics;
   modelEvaluation: ModelEvaluationSnapshot;
@@ -140,15 +141,13 @@ export function GuidanceAnalyticsView({
   metricsSource?: AiModelStatus["metricsSource"];
   schoolAdministratorName?: string;
   schoolAdministratorTitle?: string;
+  showAiModelStatus?: boolean;
 }) {
   const { navigate, isPending, pendingHref } = useNavigationPending();
   const [alertPendingId, setAlertPendingId] = useState<string | null>(null);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [alertError, setAlertError] = useState<string | null>(null);
   const [isAlertPending, startAlertTransition] = useTransition();
-  const [yearMetric, setYearMetric] = useState<"highRiskCount" | "average">(
-    "highRiskCount"
-  );
 
   const pieData = data.riskOverview.map((item) => ({
     ...item,
@@ -160,23 +159,34 @@ export function GuidanceAnalyticsView({
     .filter((item) => item.count > 0)
     .map((item) => ({
       ...item,
+      code: item.code || item.label,
       average: Number(item.average.toFixed(2)),
     }));
 
-  const highestYearLevel =
+  const highestAvgYear =
     data.byYearLevel.length === 0
       ? null
-      : [...data.byYearLevel].sort((a, b) =>
-          yearMetric === "average"
-            ? b.average - a.average
-            : b.highRiskCount - a.highRiskCount
+      : [...data.byYearLevel].sort((a, b) => b.average - a.average)[0];
+  const highestRiskYear =
+    data.byYearLevel.length === 0
+      ? null
+      : [...data.byYearLevel].sort(
+          (a, b) => b.highRiskCount - a.highRiskCount
         )[0];
 
-  const highestYearSummary = highestYearLevel
-    ? yearMetric === "average"
-      ? `Highest: ${highestYearLevel.label} · MFBI ${highestYearLevel.average.toFixed(2)}`
-      : `Highest: ${highestYearLevel.label} · ${highestYearLevel.highRiskCount} high-risk`
-    : null;
+  const highestYearSummary =
+    highestAvgYear || highestRiskYear
+      ? [
+          highestAvgYear
+            ? `Highest MFBI: ${highestAvgYear.label} · ${highestAvgYear.average.toFixed(2)}`
+            : null,
+          highestRiskYear
+            ? `Most high-risk: ${highestRiskYear.label} · ${highestRiskYear.highRiskCount}`
+            : null,
+        ]
+          .filter(Boolean)
+          .join(" · ")
+      : null;
 
   const highestCourse =
     courseChartData.length === 0
@@ -184,7 +194,11 @@ export function GuidanceAnalyticsView({
       : [...courseChartData].sort((a, b) => b.average - a.average)[0];
 
   const highestCourseSummary = highestCourse
-    ? `Highest: ${highestCourse.label} · MFBI ${highestCourse.average.toFixed(2)}`
+    ? `Highest: ${highestCourse.code}${
+        highestCourse.label !== highestCourse.code
+          ? ` · ${highestCourse.label}`
+          : ""
+      } · MFBI ${highestCourse.average.toFixed(2)}`
     : null;
 
   function sendAlert(studentId: string) {
@@ -265,6 +279,204 @@ export function GuidanceAnalyticsView({
             week2HighCount={data.week2HighCount}
           />
         </div>
+      </section>
+
+      <div className="grid items-stretch gap-4 lg:grid-cols-2">
+        {/* By Year Level */}
+        <section className="flex min-w-0 h-full flex-col">
+          <Card className="flex h-full flex-col">
+            <CardHeader className="gap-1.5">
+              <CardTitle className="text-lg">Burnout by Year Level</CardTitle>
+              <CardDescription>
+                Average MFBI and high-risk student counts across year levels.
+                {highestYearSummary ? (
+                  <>
+                    {" "}
+                    <span className="font-medium text-foreground">
+                      {highestYearSummary}
+                    </span>
+                  </>
+                ) : null}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="mt-auto min-w-0 space-y-2 px-2 sm:px-(--card-spacing)">
+              {data.byYearLevel.length === 0 ? (
+                <p className="flex h-[320px] items-center justify-center text-sm text-muted-foreground">
+                  No year-level data yet.
+                </p>
+              ) : (
+                <ChartContainer
+                  config={yearConfig}
+                  className="aspect-auto h-[320px] w-full max-w-full"
+                >
+                  <BarChart
+                    data={data.byYearLevel.map((row) => ({
+                      ...row,
+                      average: Number(row.average.toFixed(2)),
+                    }))}
+                    margin={{ top: 8, right: 12, bottom: 8, left: 4 }}
+                  >
+                    <CartesianGrid
+                      vertical={false}
+                      strokeDasharray="4 4"
+                      stroke="var(--border)"
+                    />
+                    <XAxis
+                      dataKey="label"
+                      tickLine={false}
+                      axisLine={false}
+                      interval={0}
+                      tickMargin={8}
+                      height={72}
+                      tickFormatter={(value: string) =>
+                        value.replace(" Year", "")
+                      }
+                    />
+                    <YAxis
+                      yAxisId="mfbi"
+                      domain={[0, 1]}
+                      ticks={[0, 0.25, 0.5, 0.75, 1]}
+                      tickLine={false}
+                      axisLine={false}
+                      width={40}
+                      tickFormatter={(value: number) => String(value)}
+                    />
+                    <YAxis
+                      yAxisId="count"
+                      orientation="right"
+                      allowDecimals={false}
+                      tickLine={false}
+                      axisLine={false}
+                      width={36}
+                    />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <ChartLegend content={<ChartLegendContent />} />
+                    <Bar
+                      yAxisId="mfbi"
+                      dataKey="average"
+                      fill="var(--color-average)"
+                      radius={[4, 4, 0, 0]}
+                      barSize={28}
+                    />
+                    <Bar
+                      yAxisId="count"
+                      dataKey="highRiskCount"
+                      fill="var(--color-highRiskCount)"
+                      radius={[4, 4, 0, 0]}
+                      barSize={28}
+                    />
+                  </BarChart>
+                </ChartContainer>
+              )}
+            </CardContent>
+          </Card>
+        </section>
+
+        {/* By Program/Course */}
+        <section className="flex min-w-0 h-full flex-col">
+          <Card className="flex h-full flex-col">
+            <CardHeader className="gap-1.5">
+              <CardTitle className="text-lg">
+                Burnout by Program / Course
+              </CardTitle>
+              <CardDescription>
+                Average burnout risk by academic program — highlights programs
+                that may need extra support.
+                {highestCourseSummary ? (
+                  <>
+                    {" "}
+                    <span className="font-medium text-foreground">
+                      {highestCourseSummary}
+                    </span>
+                  </>
+                ) : null}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="mt-auto min-w-0 space-y-2 px-2 sm:px-(--card-spacing)">
+              {courseChartData.length === 0 ? (
+                <p className="flex h-[320px] items-center justify-center text-sm text-muted-foreground">
+                  No program data yet.
+                </p>
+              ) : (
+                <ChartContainer
+                  config={courseConfig}
+                  className="aspect-auto h-[320px] w-full max-w-full"
+                >
+                  <BarChart
+                    data={courseChartData}
+                    margin={{ top: 8, right: 12, bottom: 8, left: 4 }}
+                    barCategoryGap={12}
+                  >
+                    <CartesianGrid
+                      vertical={false}
+                      strokeDasharray="4 4"
+                      stroke="var(--border)"
+                    />
+                    <XAxis
+                      dataKey="code"
+                      tickLine={false}
+                      axisLine={false}
+                      tickMargin={8}
+                      interval={0}
+                      angle={-40}
+                      textAnchor="end"
+                      height={72}
+                    />
+                    <YAxis
+                      type="number"
+                      domain={[0, 1]}
+                      ticks={[0, 0.25, 0.5, 0.75, 1]}
+                      tickLine={false}
+                      axisLine={false}
+                      tickMargin={8}
+                      width={40}
+                      tickFormatter={(value: number) => String(value)}
+                    />
+                    <ChartTooltip
+                      content={
+                        <ChartTooltipContent
+                          labelFormatter={(_, payload) => {
+                            const row = payload?.[0]?.payload as
+                              | { code?: string; label?: string }
+                              | undefined;
+                            if (!row) return "";
+                            return row.label && row.label !== row.code
+                              ? `${row.code} · ${row.label}`
+                              : row.code || row.label || "";
+                          }}
+                        />
+                      }
+                    />
+                    <ChartLegend content={<ChartLegendContent />} />
+                    <Bar
+                      dataKey="average"
+                      fill="var(--color-average)"
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={56}
+                    />
+                  </BarChart>
+                </ChartContainer>
+              )}
+            </CardContent>
+          </Card>
+        </section>
+      </div>
+
+      <section>
+        <BurnoutByGenderCard
+          byGender={data.byGender ?? []}
+          mostProneGender={data.mostProneGender}
+          mostProneGenderNote={data.mostProneGenderNote}
+          byGenderVariable={data.byGenderVariable ?? []}
+        />
+      </section>
+
+      {/* 3. Burnout Trend */}
+      <section>
+        <AiBurnoutTrendChart
+          weeklyTrends={data.weeklyTrends}
+          earlyWarningStudents={data.aiProjectionStudents}
+        />
       </section>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -348,199 +560,6 @@ export function GuidanceAnalyticsView({
                   }}
                 />
               </div>
-            </CardContent>
-          </Card>
-        </section>
-      </div>
-
-      <section>
-        <BurnoutByGenderCard
-          byGender={data.byGender ?? []}
-          mostProneGender={data.mostProneGender}
-          mostProneGenderNote={data.mostProneGenderNote}
-          byGenderVariable={data.byGenderVariable ?? []}
-        />
-      </section>
-
-      {/* 3. Burnout Trend */}
-      <section>
-        <AiBurnoutTrendChart
-          weeklyTrends={data.weeklyTrends}
-          earlyWarningStudents={data.aiProjectionStudents}
-        />
-      </section>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        {/* By Year Level */}
-        <section className="min-w-0">
-          <Card>
-            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div className="min-w-0">
-                <CardTitle className="text-lg">Burnout by Year Level</CardTitle>
-                <CardDescription>
-                  Compare burnout across year levels.
-                </CardDescription>
-                {highestYearSummary ? (
-                  <p className="mt-1.5 text-xs font-medium text-foreground">
-                    {highestYearSummary}
-                  </p>
-                ) : null}
-              </div>
-              <select
-                value={yearMetric}
-                onChange={(event) =>
-                  setYearMetric(
-                    event.target.value as "highRiskCount" | "average"
-                  )
-                }
-                aria-label="Year level metric"
-                className="h-8 w-full shrink-0 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 sm:w-auto"
-              >
-                <option value="highRiskCount">High-risk count</option>
-                <option value="average">Average MFBI</option>
-              </select>
-            </CardHeader>
-            <CardContent className="min-w-0 space-y-2 px-2 sm:px-(--card-spacing)">
-              {data.byYearLevel.length === 0 ? (
-                <p className="flex h-56 items-center justify-center text-sm text-muted-foreground">
-                  No year-level data yet.
-                </p>
-              ) : (
-                <>
-                  {highestYearSummary ? (
-                    <div className="flex justify-end px-1">
-                      <p className="rounded-md bg-muted/60 px-2.5 py-1 text-xs font-semibold tracking-tight">
-                        {highestYearSummary}
-                      </p>
-                    </div>
-                  ) : null}
-                  <ChartContainer
-                    config={yearConfig}
-                    className="aspect-auto h-[260px] w-full max-w-full"
-                  >
-                    <BarChart
-                      data={data.byYearLevel}
-                      margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
-                    >
-                      <CartesianGrid vertical={false} />
-                      <XAxis
-                        dataKey="label"
-                        tickLine={false}
-                        axisLine={false}
-                        interval={0}
-                        tickMargin={8}
-                        tickFormatter={(value: string) =>
-                          value.replace(" Year", "")
-                        }
-                      />
-                      <YAxis
-                        tickLine={false}
-                        axisLine={false}
-                        width={yearMetric === "average" ? 40 : 28}
-                        domain={
-                          yearMetric === "average" ? [0, 1] : [0, "auto"]
-                        }
-                        ticks={
-                          yearMetric === "average"
-                            ? [0, 0.25, 0.5, 0.75, 1]
-                            : undefined
-                        }
-                        tickFormatter={
-                          yearMetric === "average"
-                            ? (value: number) => String(value)
-                            : undefined
-                        }
-                      />
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar
-                        dataKey={yearMetric}
-                        fill={`var(--color-${yearMetric})`}
-                        radius={[4, 4, 0, 0]}
-                        barSize={50}
-                      />
-                    </BarChart>
-                  </ChartContainer>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </section>
-
-        {/* By Program/Course */}
-        <section className="min-w-0">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">
-                Burnout by Program / Course
-              </CardTitle>
-              <CardDescription>
-                Average burnout risk by academic program — highlights programs
-                that may need extra support.
-              </CardDescription>
-              {highestCourseSummary ? (
-                <p className="mt-1.5 text-xs font-medium text-foreground">
-                  {highestCourseSummary}
-                </p>
-              ) : null}
-            </CardHeader>
-            <CardContent className="min-w-0 space-y-2 px-2 sm:px-(--card-spacing)">
-              {courseChartData.length === 0 ? (
-                <p className="flex h-56 items-center justify-center text-sm text-muted-foreground">
-                  No program data yet.
-                </p>
-              ) : (
-                <>
-                  {highestCourseSummary ? (
-                    <div className="flex justify-end px-1">
-                      <p className="rounded-md bg-muted/60 px-2.5 py-1 text-xs font-semibold tracking-tight">
-                        {highestCourseSummary}
-                      </p>
-                    </div>
-                  ) : null}
-                  <ChartContainer
-                    config={courseConfig}
-                    className="aspect-auto w-full max-w-full"
-                    style={{
-                      height: Math.max(140, courseChartData.length * 40),
-                    }}
-                  >
-                    <BarChart
-                      data={courseChartData}
-                      layout="vertical"
-                      margin={{ top: 4, right: 12, bottom: 4, left: 4 }}
-                      barCategoryGap={10}
-                    >
-                      <CartesianGrid horizontal={false} />
-                      <XAxis
-                        type="number"
-                        domain={[0, 1]}
-                        ticks={[0, 0.25, 0.5, 0.75, 1]}
-                        tickLine={false}
-                        axisLine={false}
-                        tickFormatter={(value: number) => String(value)}
-                      />
-                      <YAxis
-                        type="category"
-                        dataKey="label"
-                        width={70}
-                        tickLine={false}
-                        axisLine={false}
-                        tickMargin={4}
-                        tickFormatter={(value: string) =>
-                          value.length > 8 ? `${value.slice(0, 8)}…` : value
-                        }
-                      />
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar
-                        dataKey="average"
-                        fill="var(--color-average)"
-                        radius={[0, 4, 4, 0]}
-                        maxBarSize={50}
-                      />
-                    </BarChart>
-                  </ChartContainer>
-                </>
-              )}
             </CardContent>
           </Card>
         </section>
@@ -865,11 +884,13 @@ export function GuidanceAnalyticsView({
           </CardContent>
         </Card>
         </div>
-        <AiModelStatusCard
-          modelEvaluation={modelEvaluation}
-          aiHealthy={aiHealthy}
-          metricsSource={metricsSource}
-        />
+        {showAiModelStatus ? (
+          <AiModelStatusCard
+            modelEvaluation={modelEvaluation}
+            aiHealthy={aiHealthy}
+            metricsSource={metricsSource}
+          />
+        ) : null}
       </section>
 
       {/* 11. Heatmap */}
@@ -890,19 +911,26 @@ export function GuidanceAnalyticsView({
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[480px] text-left text-sm">
-                  <thead className="border-b text-muted-foreground">
-                    <tr>
-                      <th className="px-2 py-1.5 font-medium">Program</th>
-                      <th className="px-2 py-1.5 font-medium">Low</th>
-                      <th className="px-2 py-1.5 font-medium">Moderate</th>
-                      <th className="px-2 py-1.5 font-medium">High</th>
-                      <th className="px-2 py-1.5 font-medium">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.byCourse.map((row) => (
-                      <tr key={row.label} className="border-b last:border-0">
-                        <td className="px-2 py-1.5 font-medium">{row.label}</td>
+                    <thead className="border-b text-muted-foreground">
+                      <tr>
+                        <th className="px-2 py-1.5 font-medium">Code</th>
+                        <th className="px-2 py-1.5 font-medium">Program</th>
+                        <th className="px-2 py-1.5 font-medium">Low</th>
+                        <th className="px-2 py-1.5 font-medium">Moderate</th>
+                        <th className="px-2 py-1.5 font-medium">High</th>
+                        <th className="px-2 py-1.5 font-medium">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.byCourse.map((row) => (
+                        <tr
+                          key={row.code || row.label}
+                          className="border-b last:border-0"
+                        >
+                          <td className="px-2 py-1.5 font-medium tabular-nums">
+                            {row.code || "—"}
+                          </td>
+                          <td className="px-2 py-1.5">{row.label}</td>
                         <td className="px-2 py-1.5">
                           <span className="rounded-md bg-emerald-100 px-2 py-0.5 text-emerald-900 tabular-nums">
                             {row.low}

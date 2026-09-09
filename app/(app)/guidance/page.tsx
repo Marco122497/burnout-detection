@@ -1,4 +1,5 @@
 import { GuidanceDashboard } from "@/components/guidance/guidance-dashboard";
+import { isPrimaryGuidanceEmail } from "@/lib/auth/protected-accounts";
 import { requireRole } from "@/lib/auth/session";
 import { getAiModelStatus } from "@/lib/guidance/model-metrics";
 import {
@@ -12,7 +13,9 @@ export const metadata = {
 };
 
 export default async function GuidanceDashboardPage() {
-  const { supabase, profile } = await requireRole(["Guidance Counselor"]);
+  const { supabase, profile, user } = await requireRole([
+    "Guidance Counselor",
+  ]);
   const [studentRows, weeklySeries, aiStatus] = await Promise.all([
     getGuidanceStudentRows(supabase),
     getUniversityWeeklySeries(supabase),
@@ -28,6 +31,7 @@ export default async function GuidanceDashboardPage() {
       modelEvaluation={aiStatus.modelEvaluation}
       aiHealthy={aiStatus.aiHealthy}
       metricsSource={aiStatus.metricsSource}
+      showAiModelStatus={isPrimaryGuidanceEmail(user.email)}
     />
   );
 }

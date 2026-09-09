@@ -68,11 +68,15 @@ function OverviewCard({
   value,
   hint,
   tone,
+  emphasize = false,
+  compact = false,
 }: {
   label: string;
   value: string | number;
   hint?: string;
   tone?: "low" | "moderate" | "high" | "neutral";
+  emphasize?: boolean;
+  compact?: boolean;
 }) {
   const toneClass =
     tone === "low"
@@ -84,21 +88,50 @@ function OverviewCard({
           : "";
 
   return (
-    <Card>
-      <CardHeader className="gap-1 py-1">
-        <CardDescription className="text-xs font-medium uppercase tracking-wide">
+    <Card
+      className={cn(
+        emphasize &&
+          "border-orange-300/80 bg-orange-50/70 shadow-sm dark:border-orange-900 dark:bg-orange-950/30",
+        compact && "border-border/70 bg-muted/20 shadow-none"
+      )}
+    >
+      <CardHeader
+        className={cn(
+          "items-center gap-1 text-center",
+          compact ? "py-2" : "py-3"
+        )}
+      >
+        {emphasize ? (
+          <p className="text-[10px] font-semibold tracking-[0.14em] text-orange-800/80 uppercase dark:text-orange-300/80">
+            Priority
+          </p>
+        ) : null}
+        <CardDescription
+          className={cn(
+            "font-medium tracking-wide uppercase",
+            compact ? "text-[10px] text-muted-foreground" : "text-xs"
+          )}
+        >
           {label}
         </CardDescription>
         <CardTitle
           className={cn(
-            "font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight tabular-nums",
+            "font-[family-name:var(--font-display)] font-semibold tracking-tight tabular-nums",
+            compact ? "text-xl sm:text-2xl" : "text-4xl sm:text-5xl",
             toneClass
           )}
         >
           {value}
         </CardTitle>
         {hint ? (
-          <p className="text-xs text-muted-foreground">{hint}</p>
+          <p
+            className={cn(
+              "text-muted-foreground",
+              compact ? "text-[11px]" : "text-xs sm:text-sm"
+            )}
+          >
+            {hint}
+          </p>
         ) : null}
       </CardHeader>
     </Card>
@@ -111,12 +144,14 @@ export function GuidanceDashboard({
   modelEvaluation,
   aiHealthy,
   metricsSource,
+  showAiModelStatus = false,
 }: {
   firstName: string;
   data: Analytics;
   modelEvaluation: ModelEvaluationSnapshot;
   aiHealthy: boolean;
   metricsSource?: AiModelStatus["metricsSource"];
+  showAiModelStatus?: boolean;
 }) {
   const { navigate, isPending, pendingHref } = useNavigationPending();
   const [yearFilter, setYearFilter] = React.useState("all");
@@ -259,31 +294,56 @@ export function GuidanceDashboard({
       </div>
 
       <section>
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
-          <OverviewCard label="Total Students" value={scoped.totalStudents} />
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <OverviewCard
-            label="Students Monitored"
-            value={scoped.monitoredCount}
-            hint="Completed this week"
+            label="High Risk"
+            value={scoped.high}
+            hint="Need follow-up this week"
+            tone="high"
+            emphasize
           />
-          <OverviewCard label="Low Risk" value={scoped.low} tone="low" />
-          <OverviewCard
-            label="Moderate Risk"
-            value={scoped.moderate}
-            tone="moderate"
-          />
-          <OverviewCard label="High Risk" value={scoped.high} tone="high" />
-          <OverviewCard
-            label="Pending Assessments"
-            value={scoped.pendingCount}
-            hint="Not submitted this week"
-          />
-        </div>
-        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
           <AiEarlyWarningOverviewCards
             earlyWarningCount={scoped.earlyWarningCount}
             nextWeekHighCount={scoped.nextWeekHighCount}
             week2HighCount={scoped.week2HighCount}
+            mode="hero"
+          />
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
+          <OverviewCard
+            label="Total Students"
+            value={scoped.totalStudents}
+            compact
+          />
+          <OverviewCard
+            label="Students Monitored"
+            value={scoped.monitoredCount}
+            hint="Completed this week"
+            compact
+          />
+          <OverviewCard
+            label="Low Risk"
+            value={scoped.low}
+            tone="low"
+            compact
+          />
+          <OverviewCard
+            label="Moderate Risk"
+            value={scoped.moderate}
+            tone="moderate"
+            compact
+          />
+          <OverviewCard
+            label="Pending Assessments"
+            value={scoped.pendingCount}
+            hint="Not submitted this week"
+            compact
+          />
+          <AiEarlyWarningOverviewCards
+            earlyWarningCount={scoped.earlyWarningCount}
+            nextWeekHighCount={scoped.nextWeekHighCount}
+            week2HighCount={scoped.week2HighCount}
+            mode="secondary"
           />
         </div>
       </section>
@@ -550,11 +610,13 @@ export function GuidanceDashboard({
           </CardContent>
         </Card>
 
-        <AiModelStatusCard
-          modelEvaluation={modelEvaluation}
-          aiHealthy={aiHealthy}
-          metricsSource={metricsSource}
-        />
+        {showAiModelStatus ? (
+          <AiModelStatusCard
+            modelEvaluation={modelEvaluation}
+            aiHealthy={aiHealthy}
+            metricsSource={metricsSource}
+          />
+        ) : null}
       </div>
     </div>
   );

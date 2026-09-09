@@ -20,7 +20,6 @@ import { PageHeading } from "@/components/layout/page-heading";
 import {
   AiEarlyWarningOverviewCards,
   AiEarlyWarningStudentsCard,
-  AiModelStatusCard,
 } from "@/components/shared/ai-early-warning-panel";
 import { WeeklyBurnoutRiskTrendChart } from "@/components/shared/weekly-burnout-risk-trend-chart";
 import { Button } from "@/components/ui/button";
@@ -47,10 +46,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatDateTime } from "@/lib/auth/roles";
-import type {
-  AiModelStatus,
-  ModelEvaluationSnapshot,
-} from "@/lib/guidance/model-metrics";
 import type { InstructorDashboardData } from "@/lib/instructor/queries";
 import { cn } from "@/lib/utils";
 
@@ -79,13 +74,15 @@ function OverviewCard({
   value,
   hint,
   tone,
-  emphasize,
+  emphasize = false,
+  compact = false,
 }: {
   label: string;
   value: string | number;
   hint?: string;
   tone?: "low" | "moderate" | "high" | "neutral";
   emphasize?: boolean;
+  compact?: boolean;
 }) {
   const toneClass =
     tone === "low"
@@ -100,23 +97,47 @@ function OverviewCard({
     <Card
       className={cn(
         emphasize &&
-          "border-orange-300/80 bg-orange-50/60 dark:border-orange-900 dark:bg-orange-950/30"
+          "border-orange-300/80 bg-orange-50/70 shadow-sm dark:border-orange-900 dark:bg-orange-950/30",
+        compact && "border-border/70 bg-muted/20 shadow-none"
       )}
     >
-      <CardHeader className="gap-1 py-1">
-        <CardDescription className="text-xs font-medium uppercase tracking-wide">
+      <CardHeader
+        className={cn(
+          "items-center gap-1 text-center",
+          compact ? "py-2" : "py-3"
+        )}
+      >
+        {emphasize ? (
+          <p className="text-[10px] font-semibold tracking-[0.14em] text-orange-800/80 uppercase dark:text-orange-300/80">
+            Priority
+          </p>
+        ) : null}
+        <CardDescription
+          className={cn(
+            "font-medium tracking-wide uppercase",
+            compact ? "text-[10px] text-muted-foreground" : "text-xs"
+          )}
+        >
           {label}
         </CardDescription>
         <CardTitle
           className={cn(
-            "font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl",
+            "font-[family-name:var(--font-display)] font-semibold tracking-tight tabular-nums",
+            compact ? "text-xl sm:text-2xl" : "text-4xl sm:text-5xl",
             toneClass
           )}
         >
           {value}
         </CardTitle>
         {hint ? (
-          <p className="text-xs text-muted-foreground">{hint}</p>
+          <p
+            className={cn(
+              "text-muted-foreground",
+              compact ? "text-[11px]" : "text-xs sm:text-sm"
+            )}
+          >
+            {hint}
+          </p>
         ) : null}
       </CardHeader>
     </Card>
@@ -142,15 +163,9 @@ function alertDotClass(tone: InstructorDashboardData["recentAlerts"][number]["to
 
 export function InstructorDashboard({
   data,
-  modelEvaluation,
-  aiHealthy,
-  metricsSource,
 }: {
   firstName?: string;
   data: InstructorDashboardData;
-  modelEvaluation: ModelEvaluationSnapshot;
-  aiHealthy: boolean;
-  metricsSource?: AiModelStatus["metricsSource"];
 }) {
   const { navigate, isPending, pendingHref } = useNavigationPending();
   const [yearFilter, setYearFilter] = React.useState("all");
@@ -294,42 +309,53 @@ export function InstructorDashboard({
       </div>
 
       <section className="min-w-0">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <OverviewCard
+            label="High Risk"
+            value={scoped.highRiskCount}
+            hint={`${scoped.highRiskPercent}% · Need follow-up this week`}
+            tone="high"
+            emphasize
+          />
+          <AiEarlyWarningOverviewCards
+            earlyWarningCount={scoped.earlyWarningCount}
+            nextWeekHighCount={scoped.nextWeekHighCount}
+            week2HighCount={scoped.week2HighCount}
+            mode="hero"
+          />
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
           <OverviewCard
             label="My Students"
             value={scoped.totalStudents}
             hint="In department"
+            compact
           />
           <OverviewCard
             label="Monitored"
             value={scoped.monitoredCount}
             hint={`${monitoredPercent}% this week`}
+            compact
           />
           <OverviewCard
             label="Low Risk"
             value={scoped.lowRiskCount}
             hint={`${scoped.lowRiskPercent}%`}
             tone="low"
+            compact
           />
           <OverviewCard
             label="Moderate Risk"
             value={scoped.moderateRiskCount}
             hint={`${scoped.moderateRiskPercent}%`}
             tone="moderate"
+            compact
           />
-          <OverviewCard
-            label="High Risk"
-            value={scoped.highRiskCount}
-            hint={`${scoped.highRiskPercent}%`}
-            tone="high"
-            emphasize
-          />
-        </div>
-        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
           <AiEarlyWarningOverviewCards
             earlyWarningCount={scoped.earlyWarningCount}
             nextWeekHighCount={scoped.nextWeekHighCount}
             week2HighCount={scoped.week2HighCount}
+            mode="secondary"
           />
         </div>
       </section>
@@ -710,12 +736,6 @@ export function InstructorDashboard({
           </CardContent>
         </Card>
       </div>
-
-      <AiModelStatusCard
-        modelEvaluation={modelEvaluation}
-        aiHealthy={aiHealthy}
-        metricsSource={metricsSource}
-      />
     </div>
   );
 }

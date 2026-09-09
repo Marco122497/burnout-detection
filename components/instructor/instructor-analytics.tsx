@@ -20,7 +20,6 @@ import { PageHeading } from "@/components/layout/page-heading";
 import {
   AiEarlyWarningOverviewCards,
   AiEarlyWarningStudentsCard,
-  AiModelStatusCard,
 } from "@/components/shared/ai-early-warning-panel";
 import { WeeklyBurnoutRiskTrendChart } from "@/components/shared/weekly-burnout-risk-trend-chart";
 import { AiBurnoutTrendChart } from "@/components/shared/ai-burnout-trend-chart";
@@ -48,10 +47,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type {
-  AiModelStatus,
-  ModelEvaluationSnapshot,
-} from "@/lib/guidance/model-metrics";
 import type { getInstructorAnalytics } from "@/lib/instructor/queries";
 import { cn } from "@/lib/utils";
 
@@ -106,7 +101,7 @@ function OverviewCard({
           "border-orange-300/80 bg-orange-50/60 dark:border-orange-900 dark:bg-orange-950/30"
       )}
     >
-      <CardHeader className="gap-1 py-1">
+      <CardHeader className="items-center gap-1 py-1 text-center">
         <CardDescription className="text-xs font-medium uppercase tracking-wide">
           {label}
         </CardDescription>
@@ -152,15 +147,9 @@ function alertDotClass(tone: Analytics["recentChanges"][number]["tone"]) {
 export function InstructorAnalyticsView({
   data,
   departmentName,
-  modelEvaluation,
-  aiHealthy,
-  metricsSource,
 }: {
   data: Analytics;
   departmentName: string | null;
-  modelEvaluation: ModelEvaluationSnapshot;
-  aiHealthy: boolean;
-  metricsSource?: AiModelStatus["metricsSource"];
 }) {
   const { navigate, isPending, pendingHref } = useNavigationPending();
   const [yearFilter, setYearFilter] = React.useState("all");
@@ -816,12 +805,6 @@ export function InstructorAnalyticsView({
           </CardContent>
         </Card>
       </div>
-
-      <AiModelStatusCard
-        modelEvaluation={modelEvaluation}
-        aiHealthy={aiHealthy}
-        metricsSource={metricsSource}
-      />
     </div>
   );
 }
