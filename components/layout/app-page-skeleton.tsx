@@ -32,13 +32,24 @@ function HeadingSkeleton({
   );
 }
 
-function StatCardSkeleton() {
+function StatCardSkeleton({ compact = false }: { compact?: boolean }) {
   return (
-    <Card>
-      <CardHeader className="gap-1 py-1">
-        <Skeleton className="h-3 w-20" />
-        <Skeleton className="h-8 w-16" />
-        <Skeleton className="h-3 w-24" />
+    <Card
+      className={
+        compact ? "border-border/70 bg-muted/20 shadow-none" : undefined
+      }
+    >
+      <CardHeader
+        className={
+          compact
+            ? "items-center gap-1 py-2 text-center"
+            : "items-center gap-1 py-3 text-center"
+        }
+      >
+        {!compact ? <Skeleton className="h-2.5 w-14" /> : null}
+        <Skeleton className={compact ? "h-2.5 w-16" : "h-3 w-24"} />
+        <Skeleton className={compact ? "h-7 w-12" : "h-12 w-20"} />
+        <Skeleton className={compact ? "h-2.5 w-20" : "h-3 w-32"} />
       </CardHeader>
     </Card>
   );
@@ -47,7 +58,7 @@ function StatCardSkeleton() {
 function ChartCardSkeleton({ height = "h-[260px]" }: { height?: string }) {
   return (
     <Card className="min-w-0 overflow-hidden">
-      <CardHeader>
+      <CardHeader className="gap-1.5">
         <Skeleton className="h-5 w-48" />
         <Skeleton className="h-4 w-72 max-w-full" />
       </CardHeader>
@@ -137,22 +148,22 @@ function InstructorDashboardSkeleton() {
         withAction
       />
       <section className="min-w-0 space-y-3">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-          {Array.from({ length: 5 }).map((_, index) => (
-            <StatCardSkeleton key={index} />
-          ))}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <StatCardSkeleton />
+          <StatCardSkeleton />
         </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, index) => (
-            <StatCardSkeleton key={index} />
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <StatCardSkeleton key={index} compact />
           ))}
         </div>
       </section>
-      <div className="grid min-w-0 gap-4 lg:grid-cols-2">
-        <ChartCardSkeleton />
-        <ChartCardSkeleton />
+      <div className="grid min-w-0 items-stretch gap-4 lg:grid-cols-2">
+        <ChartCardSkeleton height="h-[280px]" />
+        <ChartCardSkeleton height="h-[280px]" />
       </div>
       <TableCardSkeleton />
+      <TableCardSkeleton rows={4} columns={5} />
     </div>
   );
 }
@@ -160,24 +171,28 @@ function InstructorDashboardSkeleton() {
 function GuidanceDashboardSkeleton() {
   return (
     <div className="space-y-8">
-      <HeadingSkeleton titleWidth="w-52" descriptionWidth="w-96" />
+      <HeadingSkeleton
+        titleWidth="w-52"
+        descriptionWidth="w-96"
+        withAction
+      />
       <section className="space-y-3">
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
-          {Array.from({ length: 6 }).map((_, index) => (
-            <StatCardSkeleton key={index} />
-          ))}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <StatCardSkeleton />
+          <StatCardSkeleton />
         </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, index) => (
-            <StatCardSkeleton key={index} />
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
+          {Array.from({ length: 7 }).map((_, index) => (
+            <StatCardSkeleton key={index} compact />
           ))}
         </div>
       </section>
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid items-stretch gap-4 lg:grid-cols-2">
         <ChartCardSkeleton height="h-[220px]" />
-        <ChartCardSkeleton />
+        <ChartCardSkeleton height="h-[250px]" />
       </div>
       <TableCardSkeleton />
+      <TableCardSkeleton rows={4} columns={5} />
     </div>
   );
 }
@@ -247,7 +262,55 @@ function StudentDashboardSkeleton() {
   );
 }
 
-function AnalyticsSkeleton() {
+function GuidanceAnalyticsSkeleton() {
+  return (
+    <div className="min-w-0 max-w-full space-y-8 overflow-x-hidden">
+      <HeadingSkeleton titleWidth="w-64" descriptionWidth="w-96" />
+      <section className="space-y-4">
+        <div className="space-y-2">
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-4 w-80 max-w-full" />
+        </div>
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <StatCardSkeleton key={index} />
+          ))}
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <StatCardSkeleton key={index} />
+          ))}
+        </div>
+      </section>
+      <div className="grid items-stretch gap-4 lg:grid-cols-2">
+        <ChartCardSkeleton height="h-[320px]" />
+        <ChartCardSkeleton height="h-[320px]" />
+      </div>
+      <ChartCardSkeleton height="h-[220px]" />
+      <ChartCardSkeleton height="h-[250px]" />
+      <div className="grid gap-4 lg:grid-cols-2">
+        <ChartCardSkeleton height="h-[200px]" />
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-5 w-56" />
+            <Skeleton className="h-4 w-72 max-w-full" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Skeleton className="h-10 w-28" />
+            <Skeleton className="h-3 w-full rounded-full" />
+          </CardContent>
+        </Card>
+      </div>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <TableCardSkeleton rows={4} columns={3} />
+        <TableCardSkeleton rows={4} columns={4} />
+      </div>
+      <TableCardSkeleton rows={5} columns={6} />
+    </div>
+  );
+}
+
+function InstructorAnalyticsSkeleton() {
   return (
     <div className="min-w-0 max-w-full space-y-8 overflow-x-hidden">
       <HeadingSkeleton
@@ -255,19 +318,25 @@ function AnalyticsSkeleton() {
         descriptionWidth="w-80"
         withAction
       />
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        {Array.from({ length: 5 }).map((_, index) => (
-          <StatCardSkeleton key={index} />
-        ))}
-      </div>
+      <section className="min-w-0 space-y-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <StatCardSkeleton key={index} />
+          ))}
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <StatCardSkeleton key={index} />
+          ))}
+        </div>
+      </section>
+      <ChartCardSkeleton height="h-[220px]" />
       <div className="grid min-w-0 gap-4 lg:grid-cols-2">
-        <ChartCardSkeleton />
-        <ChartCardSkeleton />
+        <ChartCardSkeleton height="h-[280px]" />
+        <ChartCardSkeleton height="h-[280px]" />
       </div>
-      <div className="grid min-w-0 gap-4 lg:grid-cols-2">
-        <ChartCardSkeleton height="h-48" />
-        <TableCardSkeleton rows={5} columns={4} />
-      </div>
+      <ChartCardSkeleton height="h-[250px]" />
+      <TableCardSkeleton rows={5} columns={5} />
     </div>
   );
 }
@@ -652,7 +721,9 @@ export function pageSkeletonForPath(href: string) {
   if (path.startsWith("/instructor/monitoring")) {
     return <TablePageSkeleton withFilters />;
   }
-  if (path.startsWith("/instructor/analytics")) return <AnalyticsSkeleton />;
+  if (path.startsWith("/instructor/analytics")) {
+    return <InstructorAnalyticsSkeleton />;
+  }
   if (path.startsWith("/instructor/reports")) {
     return <ReportsSkeleton cards={3} />;
   }
@@ -668,7 +739,9 @@ export function pageSkeletonForPath(href: string) {
   if (path.startsWith("/guidance/monitoring")) {
     return <TablePageSkeleton withFilters withWeekControls />;
   }
-  if (path.startsWith("/guidance/analytics")) return <AnalyticsSkeleton />;
+  if (path.startsWith("/guidance/analytics")) {
+    return <GuidanceAnalyticsSkeleton />;
+  }
   if (path.startsWith("/guidance/reports")) {
     return <ReportsSkeleton cards={5} />;
   }
