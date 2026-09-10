@@ -12,6 +12,8 @@ type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 export type StudentMonitorRow = {
   id: string;
   full_name: string;
+  first_name?: string | null;
+  last_name?: string | null;
   student_number: string | null;
   email?: string | null;
   profile_picture?: string | null;
@@ -370,6 +372,8 @@ export async function getInstructorStudentRows(
     return {
       id: student.id,
       full_name: buildFullName(student),
+      first_name: student.first_name ?? null,
+      last_name: student.last_name ?? null,
       student_number: student.student_number,
       profile_picture: student.profile_picture ?? null,
       sex:

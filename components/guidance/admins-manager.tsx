@@ -4,6 +4,7 @@ import { useActionState, useEffect, useMemo, useState } from "react";
 import {
   KeyRoundIcon,
   Loader2,
+  MoreHorizontalIcon,
   PencilIcon,
   PlusIcon,
   SearchIcon,
@@ -54,6 +55,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -65,11 +73,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 
 const initialState: GuidanceActionState = {};
 const selectClassName =
@@ -231,14 +234,21 @@ export function AdminsManager({
             </p>
           ) : (
             <>
-              <Table>
+              <Table containerClassName="overflow-x-hidden">
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Employee no.</TableHead>
-                    <TableHead>Designation</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead>Admin</TableHead>
+                    <TableHead className="hidden md:table-cell">
+                      Employee no.
+                    </TableHead>
+                    <TableHead className="hidden lg:table-cell">
+                      Designation
+                    </TableHead>
+                    <TableHead className="w-10 text-right">
+                      <span className="sr-only md:not-sr-only md:text-xs md:font-medium md:text-muted-foreground">
+                        Actions
+                      </span>
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -248,164 +258,163 @@ export function AdminsManager({
                       !isPrimary || admin.id === currentUserId;
                     const manageLockedHint = PRIMARY_GUIDANCE_MANAGE_ERROR;
                     const isSelf = admin.id === currentUserId;
+                    const cannotDeactivateSelf = isSelf && admin.is_active;
+                    const cannotDeleteSelf = isSelf && !isPrimary;
 
                     return (
-                    <TableRow key={admin.id}>
-                      <TableCell>
-                        <div className="flex items-start gap-2.5">
-                          <Avatar className="size-8 shrink-0">
-                            {admin.profile_picture ? (
-                              <AvatarImage
-                                src={admin.profile_picture}
-                                alt={admin.full_name}
-                              />
-                            ) : null}
-                            <AvatarFallback className="text-xs">
-                              {nameInitials(admin.first_name, admin.last_name)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="min-w-0">
-                            <p className="font-medium">
-                              {admin.full_name}
-                              {isSelf ? (
-                                <span className="ml-1.5 text-xs text-muted-foreground">
-                                  (you)
-                                </span>
-                              ) : null}
-                              {isPrimary ? (
-                                <span className="ml-1.5 text-xs font-medium text-emerald-700">
-                                  Primary
-                                </span>
-                              ) : null}
-                            </p>
-                            {admin.email ? (
-                              <p className="truncate text-xs text-muted-foreground">
-                                {admin.email}
-                              </p>
-                            ) : null}
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>{admin.employee_no || "—"}</TableCell>
-                      <TableCell>{admin.designation || "—"}</TableCell>
-                      <TableCell>
-                        <span
-                          className={
-                            admin.is_active
-                              ? "text-emerald-700"
-                              : "text-muted-foreground"
-                          }
-                        >
-                          {admin.is_active ? "Active" : "Inactive"}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap justify-end gap-1">
-                          <Tooltip>
-                            <TooltipTrigger
-                              render={
-                                <Button
-                                  type="button"
-                                  size="icon-sm"
-                                  variant="ghost"
-                                  aria-label="Edit"
-                                  disabled={!canManage}
-                                  onClick={() => setEditingId(admin.id)}
-                                >
-                                  <PencilIcon />
-                                </Button>
-                              }
-                            />
-                            <TooltipContent>
-                              {canManage ? "Edit" : manageLockedHint}
-                            </TooltipContent>
-                          </Tooltip>
-                          <Tooltip>
-                            <TooltipTrigger
-                              render={
-                                <Button
-                                  type="button"
-                                  size="icon-sm"
-                                  variant="ghost"
-                                  disabled={
-                                    !canManage ||
-                                    togglePending ||
-                                    (isSelf && admin.is_active)
-                                  }
-                                  aria-label={
-                                    admin.is_active
-                                      ? "Deactivate"
-                                      : "Activate"
-                                  }
-                                  onClick={() => setTogglingId(admin.id)}
-                                >
-                                  {admin.is_active ? (
-                                    <UserRoundXIcon />
-                                  ) : (
-                                    <UserRoundCheckIcon />
+                      <TableRow key={admin.id}>
+                        <TableCell>
+                          <div className="flex min-w-0 items-start gap-2.5">
+                            <div className="relative shrink-0">
+                              <Avatar className="size-8">
+                                {admin.profile_picture ? (
+                                  <AvatarImage
+                                    src={admin.profile_picture}
+                                    alt={admin.full_name}
+                                  />
+                                ) : null}
+                                <AvatarFallback className="text-xs">
+                                  {nameInitials(
+                                    admin.first_name,
+                                    admin.last_name
                                   )}
-                                </Button>
-                              }
-                            />
-                            <TooltipContent>
-                              {!canManage
-                                ? manageLockedHint
-                                : isSelf && admin.is_active
-                                  ? "You cannot deactivate your own account"
-                                  : admin.is_active
-                                    ? "Deactivate"
-                                    : "Activate"}
-                            </TooltipContent>
-                          </Tooltip>
-                          <Tooltip>
-                            <TooltipTrigger
+                                </AvatarFallback>
+                              </Avatar>
+                              <span
+                                className={
+                                  admin.is_active
+                                    ? "absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full border-2 border-background bg-emerald-500"
+                                    : "absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full border-2 border-background bg-muted-foreground/50"
+                                }
+                                title={
+                                  admin.is_active ? "Active" : "Inactive"
+                                }
+                                aria-label={
+                                  admin.is_active ? "Active" : "Inactive"
+                                }
+                              />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium wrap-break-word">
+                                {admin.full_name}
+                                {isSelf ? (
+                                  <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                                    (you)
+                                  </span>
+                                ) : null}
+                                {isPrimary ? (
+                                  <span className="ml-1.5 text-xs font-medium text-emerald-700">
+                                    Primary
+                                  </span>
+                                ) : null}
+                              </p>
+                              {admin.email ? (
+                                <p className="truncate text-xs text-muted-foreground">
+                                  {admin.email}
+                                </p>
+                              ) : null}
+                              <p className="mt-0.5 truncate text-xs text-muted-foreground md:hidden">
+                                {[
+                                  admin.employee_no || "—",
+                                  admin.designation || null,
+                                ]
+                                  .filter(Boolean)
+                                  .join(" | ")}
+                              </p>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell">
+                          {admin.employee_no || "—"}
+                        </TableCell>
+                        <TableCell className="hidden lg:table-cell">
+                          {admin.designation || "—"}
+                        </TableCell>
+                        <TableCell className="w-10 text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger
                               render={
                                 <Button
                                   type="button"
                                   size="icon-sm"
                                   variant="ghost"
-                                  aria-label="Reset password"
-                                  disabled={!canManage}
-                                  onClick={() => setResetId(admin.id)}
+                                  className="shrink-0"
+                                  aria-label={`Actions for ${admin.full_name}`}
                                 >
-                                  <KeyRoundIcon />
+                                  <MoreHorizontalIcon className="size-4" />
                                 </Button>
                               }
                             />
-                            <TooltipContent>
-                              {canManage ? "Reset password" : manageLockedHint}
-                            </TooltipContent>
-                          </Tooltip>
-                          <Tooltip>
-                            <TooltipTrigger
-                              render={
-                                <Button
-                                  type="button"
-                                  size="icon-sm"
-                                  variant="ghost"
-                                  aria-label="Delete admin"
-                                  disabled={
-                                    deletePending ||
-                                    !canManage ||
-                                    (isSelf && !isPrimary)
-                                  }
-                                  onClick={() => setDeletingId(admin.id)}
-                                >
-                                  <Trash2Icon />
-                                </Button>
-                              }
-                            />
-                            <TooltipContent>
-                              {!canManage
-                                ? manageLockedHint
-                                : isSelf && !isPrimary
-                                  ? "You cannot delete your own account"
-                                  : "Delete"}
-                            </TooltipContent>
-                          </Tooltip>
-                        </div>
-                      </TableCell>
-                    </TableRow>
+                            <DropdownMenuContent
+                              align="end"
+                              className="min-w-44"
+                            >
+                              <DropdownMenuItem
+                                disabled={!canManage}
+                                title={
+                                  canManage ? undefined : manageLockedHint
+                                }
+                                onClick={() => setEditingId(admin.id)}
+                              >
+                                <PencilIcon />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                disabled={
+                                  !canManage ||
+                                  togglePending ||
+                                  cannotDeactivateSelf
+                                }
+                                title={
+                                  !canManage
+                                    ? manageLockedHint
+                                    : cannotDeactivateSelf
+                                      ? "You cannot deactivate your own account"
+                                      : undefined
+                                }
+                                onClick={() => setTogglingId(admin.id)}
+                              >
+                                {admin.is_active ? (
+                                  <UserRoundXIcon />
+                                ) : (
+                                  <UserRoundCheckIcon />
+                                )}
+                                {admin.is_active ? "Deactivate" : "Activate"}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                disabled={!canManage}
+                                title={
+                                  canManage ? undefined : manageLockedHint
+                                }
+                                onClick={() => setResetId(admin.id)}
+                              >
+                                <KeyRoundIcon />
+                                Reset password
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                variant="destructive"
+                                disabled={
+                                  deletePending ||
+                                  !canManage ||
+                                  cannotDeleteSelf
+                                }
+                                title={
+                                  !canManage
+                                    ? manageLockedHint
+                                    : cannotDeleteSelf
+                                      ? "You cannot delete your own account"
+                                      : undefined
+                                }
+                                onClick={() => setDeletingId(admin.id)}
+                              >
+                                <Trash2Icon />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
                     );
                   })}
                 </TableBody>

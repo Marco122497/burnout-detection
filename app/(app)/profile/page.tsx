@@ -1,4 +1,3 @@
-import { UserRoundIcon } from "lucide-react";
 
 import { ProfileForm } from "@/components/profile/profile-form";
 import { PageHeading } from "@/components/layout/page-heading";
@@ -18,7 +17,6 @@ export default async function ProfilePage() {
       <PageHeading
         title="Profile"
         description="View and update your personal information."
-        icon={UserRoundIcon}
       />
       <ProfileForm
         profile={profile}

@@ -684,6 +684,63 @@ export function classifyFactorScore(normalized: number | null | undefined): Burn
   return classifyMfbiScore(normalized);
 }
 
+const FACTOR_WARNING_LABELS: Record<FactorKey, string> = {
+  stress: "stress",
+  workload: "academic workload",
+  studyTime: "study time",
+  sleep: "sleep",
+};
+
+function formatFactorList(labels: string[]) {
+  if (labels.length === 0) return "";
+  if (labels.length === 1) return labels[0];
+  if (labels.length === 2) return `${labels[0]} and ${labels[1]}`;
+  return `${labels.slice(0, -1).join(", ")}, and ${labels[labels.length - 1]}`;
+}
+
+/**
+ * Simple, professional early-warning copy grounded in elevated MFBI factors.
+ */
+export function buildMfbiEarlyWarningMessage(options: {
+  factors: StudentFactors | null | undefined;
+  trend?: string | null;
+  burnoutLevel?: string | null;
+}): string | null {
+  const { factors, trend, burnoutLevel } = options;
+  if (!factors) return null;
+
+  const elevated = FACTOR_ORDER.filter((key) =>
+    isElevated(classifyFactorScore(factors[key].normalized))
+  ).map((key) => FACTOR_WARNING_LABELS[key]);
+
+  const overallElevated = isElevated(
+    (burnoutLevel as BurnoutLevel | null) ?? "Low"
+  );
+
+  if (elevated.length === 0 && !overallElevated) return null;
+
+  const factorPhrase =
+    elevated.length > 0
+      ? formatFactorList(elevated)
+      : "monitoring scores";
+
+  const trendPhrase =
+    trend === "increasing"
+      ? "indicate increasing burnout risk"
+      : trend === "decreasing"
+        ? "remain elevated, though the overall trend is improving"
+        : trend === "stable"
+          ? "suggest steady pressure that still needs attention"
+          : "suggest areas that may need attention";
+
+  const actionFocus =
+    elevated.length > 0
+      ? formatFactorList(elevated)
+      : "workload, study habits, and sleep";
+
+  return `Your recent ${factorPhrase} patterns ${trendPhrase}. Consider reviewing your ${actionFocus}. This is an early-warning indicator, not a medical diagnosis.`;
+}
+
 export function getOverallRecommendation(
   level: BurnoutLevel | null | undefined,
   options?: {

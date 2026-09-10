@@ -8,12 +8,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import {
-  AlertTriangleIcon,
-  ClipboardCheckIcon,
-  LayoutDashboardIcon,
-  Loader2,
-} from "lucide-react";
+import { AlertTriangleIcon, ClipboardCheckIcon, Loader2 } from "lucide-react";
 
 import { useNavigationPending } from "@/components/layout/navigation-pending";
 import { PageHeading } from "@/components/layout/page-heading";
@@ -265,7 +260,7 @@ export function InstructorDashboard({
       <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="min-w-0 space-y-2">
           <span className="student-chum-pill w-fit">Instructor dashboard</span>
-          <PageHeading title="Instructor Dashboard" icon={LayoutDashboardIcon} />
+          <PageHeading title="Instructor Dashboard" />
           {data.departmentName ? (
             <p className="mt-1 break-words text-base font-medium text-foreground">
               {data.departmentName}

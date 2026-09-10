@@ -2,12 +2,7 @@
 
 import * as React from "react";
 import { Cell, Pie, PieChart } from "recharts";
-import {
-  AlertTriangleIcon,
-  ClipboardCheckIcon,
-  LayoutDashboardIcon,
-  Loader2,
-} from "lucide-react";
+import { AlertTriangleIcon, ClipboardCheckIcon, Loader2 } from "lucide-react";
 
 import { useNavigationPending } from "@/components/layout/navigation-pending";
 import { PageHeading } from "@/components/layout/page-heading";
@@ -263,7 +258,6 @@ export function GuidanceDashboard({
           <PageHeading
             title={`Welcome, ${firstName}`}
             description="Administrator overview for the current monitoring week — student burnout risk, submissions, and early-warning alerts."
-            icon={LayoutDashboardIcon}
           />
         </div>
 

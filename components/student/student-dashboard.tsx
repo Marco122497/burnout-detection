@@ -70,37 +70,11 @@ export function StudentDashboard({
         mfbiScore={data.mfbiScore}
         weekLabel={data.latestWeek != null ? `Week ${data.latestWeek}` : null}
       >
-        <div className="space-y-1 pt-1 text-xs text-muted-foreground">
-          {data.decisionTreePrediction != null ||
-          data.randomForestPrediction != null ? (
-            <p>
-              DT: {data.decisionTreePrediction ?? "—"}
-              {data.decisionTreeConfidence != null
-                ? ` (${data.decisionTreeConfidence}%)`
-                : ""}
-              {data.selectedModel === "Decision Tree" ? " · selected" : ""}{" "}
-              RF: {data.randomForestPrediction ?? "—"}
-              {data.randomForestConfidence != null
-                ? ` (${data.randomForestConfidence}%)`
-                : ""}
-              {data.selectedModel === "Random Forest" ? " · selected" : ""}
-            </p>
-          ) : data.modelConfidence != null ? (
-            <p>
-              Prediction confidence: {data.modelConfidence}%
-              {data.selectedModel === "Decision Tree"
-                ? " · DT"
-                : data.selectedModel === "Random Forest"
-                  ? " · RF"
-                  : data.selectedModel
-                    ? ` · ${data.selectedModel}`
-                    : ""}
-            </p>
-          ) : null}
-          {data.predictionDate ? (
+        {data.predictionDate ? (
+          <div className="space-y-1 pt-1 text-xs text-muted-foreground">
             <p>Submitted: {formatDateTime(data.predictionDate)}</p>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
         {data.monitoringStatus === "Pending" ? (
           <Link
             href="/student/monitoring"
@@ -122,6 +96,13 @@ export function StudentDashboard({
         )}
       </BurnoutHero>
 
+      <EarlyWarningOutlookCard
+        earlyWarning={data.earlyWarning}
+        mfbiScore={data.mfbiScore}
+        burnoutLevel={data.burnoutLevel}
+        factors={data.factors}
+      />
+
       <BurnoutFactorSection
         factors={data.factors}
         stressLevel={data.stressLevel}
@@ -129,184 +110,175 @@ export function StudentDashboard({
         subheading="Your burnout index combines these four factors from your latest weekly monitoring."
       />
 
-      <EarlyWarningOutlookCard
+      <BurnoutRiskTrendChart
+        data={data.weeklyTrend}
         earlyWarning={data.earlyWarning}
-        mfbiScore={data.mfbiScore}
-        burnoutLevel={data.burnoutLevel}
+        emptyMessage="No burnout trend yet. Submit weekly monitoring to start tracking."
       />
 
-      <div className="grid gap-4 lg:grid-cols-5">
-        <BurnoutRiskTrendChart
-          className="lg:col-span-3"
-          data={data.weeklyTrend}
-          earlyWarning={data.earlyWarning}
-          emptyMessage="No burnout trend yet. Submit weekly monitoring to start tracking."
-        />
-
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <LightbulbIcon className="size-4" />
-              Counseling Recommendation
-            </CardTitle>
-            <CardDescription>
-              Next-week early warning outlook, plus what to do this week for
-              stress, schoolwork, study time, and sleep.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {data.recommendation ? (
-              <>
-                <div className="space-y-2">
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    {data.recommendation.trend === "decreasing"
-                      ? "From improving trend"
-                      : data.recommendation.trend === "increasing"
-                        ? "From next-week early warning · rising"
-                        : data.recommendation.basis === "next_week"
-                          ? "From next-week early warning"
-                          : "From your burnout score"}
-                    {data.recommendation.burnout_level
-                      ? ` · ${data.recommendation.burnout_level}`
-                      : ""}
-                  </p>
-                  <p className="text-base font-medium leading-snug">
-                    {data.recommendation.title}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {data.recommendation.description}
-                  </p>
-                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                    {data.recommendation.currentMfbi != null ? (
-                      <span>
-                        MFBI:{" "}
-                        <span className="font-medium text-foreground">
-                          {Number(data.recommendation.currentMfbi).toFixed(2)}
-                        </span>
-                        {data.recommendation.previousMfbi != null ? (
-                          <>
-                            {" "}
-                            (was{" "}
-                            {Number(data.recommendation.previousMfbi).toFixed(2)}
-                            )
-                          </>
-                        ) : null}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <LightbulbIcon className="size-4" />
+            Counseling Recommendation
+          </CardTitle>
+          <CardDescription>
+            Next-week early warning outlook, plus what to do this week for
+            stress, schoolwork, study time, and sleep.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {data.recommendation ? (
+            <>
+              <div className="space-y-2">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {data.recommendation.trend === "decreasing"
+                    ? "From improving trend"
+                    : data.recommendation.trend === "increasing"
+                      ? "From next-week early warning · rising"
+                      : data.recommendation.basis === "next_week"
+                        ? "From next-week early warning"
+                        : "From your burnout score"}
+                  {data.recommendation.burnout_level
+                    ? ` · ${data.recommendation.burnout_level}`
+                    : ""}
+                </p>
+                <p className="text-base font-medium leading-snug">
+                  {data.recommendation.title}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {data.recommendation.description}
+                </p>
+                <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                  {data.recommendation.currentMfbi != null ? (
+                    <span>
+                      MFBI:{" "}
+                      <span className="font-medium text-foreground">
+                        {Number(data.recommendation.currentMfbi).toFixed(2)}
                       </span>
-                    ) : null}
-                    {trendArrow(data.recommendation.trend) ? (
-                      <span>
-                        Trend:{" "}
-                        <span className="font-medium text-foreground">
-                          {trendArrow(data.recommendation.trend)}
-                        </span>
+                      {data.recommendation.previousMfbi != null ? (
+                        <>
+                          {" "}
+                          (was{" "}
+                          {Number(data.recommendation.previousMfbi).toFixed(2)}
+                          )
+                        </>
+                      ) : null}
+                    </span>
+                  ) : null}
+                  {trendArrow(data.recommendation.trend) ? (
+                    <span>
+                      Trend:{" "}
+                      <span className="font-medium text-foreground">
+                        {trendArrow(data.recommendation.trend)}
                       </span>
-                    ) : null}
-                    {data.recommendation.nextWeekRisk ? (
-                      <span>
-                        Next week:{" "}
-                        <span
-                          className={cn(
-                            "font-medium",
-                            riskTone(data.recommendation.nextWeekRisk)
-                          )}
-                        >
-                          {data.recommendation.nextWeekRisk}
-                        </span>
+                    </span>
+                  ) : null}
+                  {data.recommendation.nextWeekRisk ? (
+                    <span>
+                      Next week:{" "}
+                      <span
+                        className={cn(
+                          "font-medium",
+                          riskTone(data.recommendation.nextWeekRisk)
+                        )}
+                      >
+                        {data.recommendation.nextWeekRisk}
                       </span>
-                    ) : null}
-                  </div>
-                  {data.recommendation.recommended_action ? (
-                    <p className="student-chum-tip px-3 py-2.5 text-sm">
-                      <span className="font-bold">Action: </span>
-                      {data.recommendation.recommended_action}
-                    </p>
+                    </span>
                   ) : null}
                 </div>
-
-                {data.factorRecommendations.length ? (
-                  <div className="space-y-2 border-t pt-3">
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      What to do this week
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Based on your latest monitoring scores for stress,
-                      schoolwork, study time, and sleep.
-                    </p>
-                    <ul className="space-y-2">
-                      {data.factorRecommendations.map((item) => (
-                        <li
-                          key={item.key}
-                          className="student-chum-choice rounded-2xl px-3.5 py-3"
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0 space-y-0.5">
-                              <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                                {item.category}
-                              </p>
-                              <p className="text-sm font-medium leading-snug">
-                                {item.title}
-                              </p>
-                            </div>
-                            <div className="flex shrink-0 flex-col items-end gap-0.5 text-right">
-                              <span
-                                className={cn(
-                                  "text-[11px] font-medium",
-                                  riskTone(item.level)
-                                )}
-                              >
-                                {formatFactorRiskLabel(item.level)}
-                                {item.factorTrend
-                                  ? ` · ${trendArrow(item.factorTrend)}`
-                                  : ""}
-                              </span>
-                            </div>
-                          </div>
-                          <p className="mt-1.5 text-xs text-muted-foreground">
-                            <span className="font-medium text-foreground">
-                              Action:{" "}
-                            </span>
-                            {item.recommended_action}
-                          </p>
-                          {item.tips.length ? (
-                            <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-muted-foreground">
-                              {item.tips
-                                .filter(
-                                  (tip) =>
-                                    !/guidance office for counseling support/i.test(
-                                      tip
-                                    )
-                                )
-                                .slice(0, 3)
-                                .map((tip) => (
-                                  <li key={tip}>{tip}</li>
-                                ))}
-                            </ul>
-                          ) : null}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+                {data.recommendation.recommended_action ? (
+                  <p className="student-chum-tip px-3 py-2.5 text-sm">
+                    <span className="font-bold">Action: </span>
+                    {data.recommendation.recommended_action}
+                  </p>
                 ) : null}
+              </div>
 
-                <Link
-                  href="/student/recommendations"
-                  className={cn(
-                    buttonVariants({ size: "default" }),
-                    "rounded-full px-4 font-bold"
-                  )}
-                >
-                  View full counseling recommendation →
-                </Link>
-              </>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Your personalized counseling recommendation appears after you
-                submit weekly monitoring.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+              {data.factorRecommendations.length ? (
+                <div className="space-y-2 border-t pt-3">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    What to do this week
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Based on your latest monitoring scores for stress,
+                    schoolwork, study time, and sleep.
+                  </p>
+                  <ul className="grid gap-2 sm:grid-cols-2">
+                    {data.factorRecommendations.map((item) => (
+                      <li
+                        key={item.key}
+                        className="student-chum-choice h-full rounded-2xl px-3.5 py-3"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 space-y-0.5">
+                            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                              {item.category}
+                            </p>
+                            <p className="text-sm font-medium leading-snug">
+                              {item.title}
+                            </p>
+                          </div>
+                          <div className="flex shrink-0 flex-col items-end gap-0.5 text-right">
+                            <span
+                              className={cn(
+                                "text-[11px] font-medium",
+                                riskTone(item.level)
+                              )}
+                            >
+                              {formatFactorRiskLabel(item.level)}
+                              {item.factorTrend
+                                ? ` · ${trendArrow(item.factorTrend)}`
+                                : ""}
+                            </span>
+                          </div>
+                        </div>
+                        <p className="mt-1.5 text-xs text-muted-foreground">
+                          <span className="font-medium text-foreground">
+                            Action:{" "}
+                          </span>
+                          {item.recommended_action}
+                        </p>
+                        {item.tips.length ? (
+                          <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-muted-foreground">
+                            {item.tips
+                              .filter(
+                                (tip) =>
+                                  !/guidance office for counseling support/i.test(
+                                    tip
+                                  )
+                              )
+                              .slice(0, 3)
+                              .map((tip) => (
+                                <li key={tip}>{tip}</li>
+                              ))}
+                          </ul>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+
+              <Link
+                href="/student/recommendations"
+                className={cn(
+                  buttonVariants({ size: "default" }),
+                  "rounded-full px-4 font-bold"
+                )}
+              >
+                View full counseling recommendation →
+              </Link>
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Your personalized counseling recommendation appears after you
+              submit weekly monitoring.
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

@@ -85,7 +85,9 @@ export function buildFullName(parts: {
   last_name: string;
   suffix?: string | null;
 }): string {
-  return [parts.first_name, parts.middle_name, parts.last_name, parts.suffix]
+  const middle = parts.middle_name?.trim();
+  const middleInitial = middle ? `${middle.charAt(0).toUpperCase()}.` : null;
+  return [parts.first_name, middleInitial, parts.last_name, parts.suffix]
     .filter(Boolean)
     .join(" ")
     .replace(/\s+/g, " ")
@@ -99,13 +101,7 @@ export function buildFormalName(parts: {
   last_name: string;
   suffix?: string | null;
 }): string {
-  const middle = parts.middle_name?.trim();
-  const middleInitial = middle ? `${middle.charAt(0).toUpperCase()}.` : null;
-  return [parts.first_name, middleInitial, parts.last_name, parts.suffix]
-    .filter(Boolean)
-    .join(" ")
-    .replace(/\s+/g, " ")
-    .trim();
+  return buildFullName(parts);
 }
 
 export function toProfile(row: ProfileRow | Record<string, unknown>): Profile {

@@ -1,4 +1,3 @@
-import { ChartPieIcon } from "lucide-react";
 
 import { GuidanceAnalyticsView } from "@/components/guidance/guidance-analytics";
 import { PageHeading } from "@/components/layout/page-heading";
@@ -33,7 +32,6 @@ export default async function GuidanceAnalyticsPage() {
       <PageHeading
         title="Burnout Analytics Dashboard"
         description="College-wide burnout overview, AI early warnings, trends, and students needing attention."
-        icon={ChartPieIcon}
       />
       <GuidanceAnalyticsView
         data={data}

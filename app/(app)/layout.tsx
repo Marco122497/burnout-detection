@@ -17,21 +17,31 @@ export default async function AppLayout({
   const { data: rows } = await supabase
     .from("notifications")
     .select(
-      "notification_id, title, message, notification_type, is_read, created_at"
+      "notification_id, title, message, notification_type, priority, is_read, created_at"
     )
     .eq("user_id", user.id)
     .eq("is_read", false)
     .order("created_at", { ascending: false })
     .limit(40);
 
-  const notifications: NavNotification[] = (rows ?? []).map((row) => ({
-    id: row.notification_id,
-    title: row.title,
-    content: row.message,
-    type: row.notification_type,
-    date: row.created_at,
-    isRead: Boolean(row.is_read),
-  }));
+  const notifications: NavNotification[] = (rows ?? [])
+    .slice()
+    .sort((a, b) => {
+      const aHigh = a.priority === "High" ? 0 : 1;
+      const bHigh = b.priority === "High" ? 0 : 1;
+      if (aHigh !== bHigh) return aHigh - bHigh;
+      return (
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+    })
+    .map((row) => ({
+      id: row.notification_id,
+      title: row.title,
+      content: row.message,
+      type: row.notification_type,
+      date: row.created_at,
+      isRead: Boolean(row.is_read),
+    }));
 
   const isStudent = profile.role === "Student";
   const needsConsent =

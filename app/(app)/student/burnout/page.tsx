@@ -1,4 +1,3 @@
-import { HistoryIcon } from "lucide-react";
 
 import { BurnoutHistoryView } from "@/components/student/burnout-history-view";
 import { PageHeading } from "@/components/layout/page-heading";
@@ -25,7 +24,6 @@ export default async function StudentBurnoutPage() {
       <PageHeading
         title="Assessment History"
         description="Review previous assessments, weekly MFBI scores, burnout risk trends, and submission history."
-        icon={HistoryIcon}
       />
       <BurnoutHistoryView
         stressLevel={snapshot.stress?.stress_level ?? null}

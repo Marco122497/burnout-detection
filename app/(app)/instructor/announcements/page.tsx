@@ -1,4 +1,3 @@
-import { MegaphoneIcon } from "lucide-react";
 
 import { AnnouncementsManager } from "@/components/instructor/announcements-manager";
 import { PageHeading } from "@/components/layout/page-heading";
@@ -29,7 +28,6 @@ export default async function InstructorAnnouncementsPage() {
       <PageHeading
         title="Announcements"
         description="Create, edit, and delete announcements for your assigned department or a specific year level."
-        icon={MegaphoneIcon}
       />
       <AnnouncementsManager
         announcements={(data ?? []) as AnnouncementRow[]}

@@ -1,4 +1,3 @@
-import { UsersIcon } from "lucide-react";
 
 import { StudentsManager } from "@/components/guidance/students-manager";
 import { PageHeading } from "@/components/layout/page-heading";
@@ -28,9 +27,8 @@ export default async function GuidanceStudentsPage() {
   return (
     <div className="space-y-6">
       <PageHeading
-        title="Student Management"
+        title="Students"
         description="Create student accounts, update course details, and reset passwords."
-        icon={UsersIcon}
       />
       <StudentsManager students={students} departments={departments} />
     </div>

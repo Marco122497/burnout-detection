@@ -346,7 +346,7 @@
 .student-chum a[class*="bg-primary"] {
   border-radius: 999px;
   font-weight: 700;
-  box-shadow: 0 4px 12px -8px rgb(45 190 120 / 55%);
+  box-shadow: none;
 }
 
 .student-chum [data-slot="input"],

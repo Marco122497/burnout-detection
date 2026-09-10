@@ -4,6 +4,7 @@ import { useActionState, useEffect, useState } from "react";
 import {
   KeyRoundIcon,
   Loader2,
+  MoreHorizontalIcon,
   PencilIcon,
   PlusIcon,
   Trash2Icon,
@@ -50,6 +51,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -61,11 +69,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 
 const initialState: GuidanceActionState = {};
 const selectClassName =
@@ -195,141 +198,141 @@ export function InstructorsManager({
             <p className="text-sm text-muted-foreground">No instructors yet.</p>
           ) : (
             <>
-              <Table>
+              <Table containerClassName="overflow-x-hidden">
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Employee no.</TableHead>
-                    <TableHead>Designation</TableHead>
-                    <TableHead>Department</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead>Instructor</TableHead>
+                    <TableHead className="hidden md:table-cell">
+                      Employee no.
+                    </TableHead>
+                    <TableHead className="hidden lg:table-cell">
+                      Designation
+                    </TableHead>
+                    <TableHead className="hidden lg:table-cell">
+                      Department
+                    </TableHead>
+                    <TableHead className="w-10 text-right">
+                      <span className="sr-only md:not-sr-only md:text-xs md:font-medium md:text-muted-foreground">
+                        Actions
+                      </span>
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {pageItems.map((instructor) => (
                     <TableRow key={instructor.id}>
                       <TableCell>
-                        <div className="flex items-start gap-2.5">
-                          <Avatar className="size-8 shrink-0">
-                            {instructor.profile_picture ? (
-                              <AvatarImage
-                                src={instructor.profile_picture}
-                                alt={instructor.full_name}
-                              />
-                            ) : null}
-                            <AvatarFallback className="text-xs">
-                              {nameInitials(
-                                instructor.first_name,
-                                instructor.last_name
-                              )}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="min-w-0">
-                            <p className="font-medium">{instructor.full_name}</p>
+                        <div className="flex min-w-0 items-start gap-2.5">
+                          <div className="relative shrink-0">
+                            <Avatar className="size-8">
+                              {instructor.profile_picture ? (
+                                <AvatarImage
+                                  src={instructor.profile_picture}
+                                  alt={instructor.full_name}
+                                />
+                              ) : null}
+                              <AvatarFallback className="text-xs">
+                                {nameInitials(
+                                  instructor.first_name,
+                                  instructor.last_name
+                                )}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span
+                              className={
+                                instructor.is_active
+                                  ? "absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full border-2 border-background bg-emerald-500"
+                                  : "absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full border-2 border-background bg-muted-foreground/50"
+                              }
+                              title={
+                                instructor.is_active ? "Active" : "Inactive"
+                              }
+                              aria-label={
+                                instructor.is_active ? "Active" : "Inactive"
+                              }
+                            />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium wrap-break-word">
+                              {instructor.full_name}
+                            </p>
                             {instructor.email ? (
                               <p className="truncate text-xs text-muted-foreground">
                                 {instructor.email}
                               </p>
                             ) : null}
+                            <p className="mt-0.5 truncate text-xs text-muted-foreground md:hidden">
+                              {[
+                                instructor.employee_no || "—",
+                                instructor.department_code || null,
+                              ]
+                                .filter(Boolean)
+                                .join(" | ")}
+                            </p>
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell>{instructor.employee_no || "—"}</TableCell>
-                      <TableCell>{instructor.designation || "—"}</TableCell>
-                      <TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        {instructor.employee_no || "—"}
+                      </TableCell>
+                      <TableCell className="hidden lg:table-cell">
+                        {instructor.designation || "—"}
+                      </TableCell>
+                      <TableCell className="hidden lg:table-cell">
                         {instructor.department_name || "—"}
                       </TableCell>
-                      <TableCell>
-                        <span
-                          className={
-                            instructor.is_active
-                              ? "text-emerald-700"
-                              : "text-muted-foreground"
-                          }
-                        >
-                          {instructor.is_active ? "Active" : "Inactive"}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap justify-end gap-1">
-                          <Tooltip>
-                            <TooltipTrigger
-                              render={
-                                <Button
-                                  type="button"
-                                  size="icon-sm"
-                                  variant="ghost"
-                                  aria-label="Edit"
-                                  onClick={() => setEditingId(instructor.id)}
-                                >
-                                  <PencilIcon />
-                                </Button>
-                              }
-                            />
-                            <TooltipContent>Edit</TooltipContent>
-                          </Tooltip>
-                          <Tooltip>
-                            <TooltipTrigger
-                              render={
-                                <Button
-                                  type="button"
-                                  size="icon-sm"
-                                  variant="ghost"
-                                  disabled={togglePending}
-                                  aria-label={
-                                    instructor.is_active
-                                      ? "Deactivate"
-                                      : "Activate"
-                                  }
-                                  onClick={() => setTogglingId(instructor.id)}
-                                >
-                                  {instructor.is_active ? (
-                                    <UserRoundXIcon />
-                                  ) : (
-                                    <UserRoundCheckIcon />
-                                  )}
-                                </Button>
-                              }
-                            />
-                            <TooltipContent>
-                              {instructor.is_active ? "Deactivate" : "Activate"}
-                            </TooltipContent>
-                          </Tooltip>
-                          <Tooltip>
-                            <TooltipTrigger
-                              render={
-                                <Button
-                                  type="button"
-                                  size="icon-sm"
-                                  variant="ghost"
-                                  aria-label="Reset password"
-                                  onClick={() => setResetId(instructor.id)}
-                                >
-                                  <KeyRoundIcon />
-                                </Button>
-                              }
-                            />
-                            <TooltipContent>Reset password</TooltipContent>
-                          </Tooltip>
-                          <Tooltip>
-                            <TooltipTrigger
-                              render={
-                                <Button
-                                  type="button"
-                                  size="icon-sm"
-                                  variant="ghost"
-                                  aria-label="Delete instructor"
-                                  disabled={deletePending}
-                                  onClick={() => setDeletingId(instructor.id)}
-                                >
-                                  <Trash2Icon />
-                                </Button>
-                              }
-                            />
-                            <TooltipContent>Delete</TooltipContent>
-                          </Tooltip>
-                        </div>
+                      <TableCell className="w-10 text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger
+                            render={
+                              <Button
+                                type="button"
+                                size="icon-sm"
+                                variant="ghost"
+                                className="shrink-0"
+                                aria-label={`Actions for ${instructor.full_name}`}
+                              >
+                                <MoreHorizontalIcon className="size-4" />
+                              </Button>
+                            }
+                          />
+                          <DropdownMenuContent align="end" className="min-w-44">
+                            <DropdownMenuItem
+                              onClick={() => setEditingId(instructor.id)}
+                            >
+                              <PencilIcon />
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              disabled={togglePending}
+                              onClick={() => setTogglingId(instructor.id)}
+                            >
+                              {instructor.is_active ? (
+                                <UserRoundXIcon />
+                              ) : (
+                                <UserRoundCheckIcon />
+                              )}
+                              {instructor.is_active
+                                ? "Deactivate"
+                                : "Activate"}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => setResetId(instructor.id)}
+                            >
+                              <KeyRoundIcon />
+                              Reset password
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              variant="destructive"
+                              disabled={deletePending}
+                              onClick={() => setDeletingId(instructor.id)}
+                            >
+                              <Trash2Icon />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))}

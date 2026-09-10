@@ -1,4 +1,3 @@
-import { FileBarChartIcon } from "lucide-react";
 
 import { GuidanceReportsPanel } from "@/components/guidance/guidance-reports";
 import { PageHeading } from "@/components/layout/page-heading";
@@ -46,7 +45,6 @@ export default async function GuidanceReportsPage({
         <PageHeading
           title="Guidance reports"
           description="Filter by date range, then print or export formal reports with burnout breakdown by year level."
-          icon={FileBarChartIcon}
         />
       </div>
       <GuidanceReportsPanel

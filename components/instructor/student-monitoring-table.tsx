@@ -81,7 +81,7 @@ export function StudentMonitoringTable({
       return true;
     });
 
-    // Submitted first (earliest submission at top), then pending by name.
+    // Submitted first (earliest submission at top), then pending by last name.
     return [...matched].sort((a, b) => {
       if (a.submittedThisWeek !== b.submittedThisWeek) {
         return a.submittedThisWeek ? -1 : 1;
@@ -95,6 +95,16 @@ export function StudentMonitoringTable({
           : Number.POSITIVE_INFINITY;
         if (aTime !== bTime) return aTime - bTime;
       }
+      const byLast = (a.last_name || "").localeCompare(b.last_name || "", undefined, {
+        sensitivity: "base",
+      });
+      if (byLast !== 0) return byLast;
+      const byFirst = (a.first_name || "").localeCompare(
+        b.first_name || "",
+        undefined,
+        { sensitivity: "base" }
+      );
+      if (byFirst !== 0) return byFirst;
       return a.full_name.localeCompare(b.full_name);
     });
   }, [rows, q, yearLevel, risk, submission]);

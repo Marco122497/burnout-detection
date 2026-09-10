@@ -8,12 +8,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import {
-  AlertTriangleIcon,
-  ChartPieIcon,
-  ClipboardCheckIcon,
-  Loader2,
-} from "lucide-react";
+import { AlertTriangleIcon, ClipboardCheckIcon, Loader2 } from "lucide-react";
 
 import { useNavigationPending } from "@/components/layout/navigation-pending";
 import { PageHeading } from "@/components/layout/page-heading";
@@ -257,7 +252,7 @@ export function InstructorAnalyticsView({
     <div className="min-w-0 max-w-full space-y-8 overflow-x-hidden">
       <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="min-w-0">
-          <PageHeading title="Burnout Analytics" icon={ChartPieIcon} />
+          <PageHeading title="Burnout Analytics" />
           {departmentLabel ? (
             <p className="mt-1 break-words text-base font-medium text-foreground">
               {departmentLabel}

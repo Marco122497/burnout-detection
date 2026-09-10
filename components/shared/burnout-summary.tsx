@@ -87,6 +87,8 @@ export function BurnoutHero({
   mfbiScore,
   weekLabel,
   description,
+  title = "Current burnout risk",
+  scoreLabel = "Burnout index (MFBI)",
   children,
 }: {
   level: string | null;
@@ -94,6 +96,10 @@ export function BurnoutHero({
   weekLabel?: string | null;
   /** Overrides the default student-facing message. */
   description?: string | null;
+  /** Left-column eyebrow, e.g. "Current burnout risk". */
+  title?: string;
+  /** Right-column score label, e.g. "Burnout index (MFBI)". */
+  scoreLabel?: string;
   /** Rendered under the MFBI bar (e.g. CTA button or status text). */
   children?: React.ReactNode;
 }) {
@@ -113,9 +119,7 @@ export function BurnoutHero({
             <FlameIcon />
           </span>
           <div>
-            <p className="text-sm text-muted-foreground">
-              Current burnout risk
-            </p>
+            <p className="text-sm text-muted-foreground">{title}</p>
             <div className="mt-0.5 flex flex-wrap items-center gap-2">
               <span
                 className={cn(
@@ -144,7 +148,7 @@ export function BurnoutHero({
 
         <div className="w-full max-w-sm space-y-2">
           <div className="flex items-baseline justify-between text-sm">
-            <span className="text-muted-foreground">Burnout index (MFBI)</span>
+            <span className="text-muted-foreground">{scoreLabel}</span>
             <span className={cn("font-medium tabular-nums", theme.mfbi)}>
               {mfbiScore != null
                 ? `${mfbiScore.toFixed(2)} (${mfbiPercent}%)`

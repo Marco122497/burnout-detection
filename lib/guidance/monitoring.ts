@@ -219,6 +219,8 @@ export async function getGuidanceStudentRows(
     return {
       id: student.id,
       full_name: buildFullName(student),
+      first_name: student.first_name ?? null,
+      last_name: student.last_name ?? null,
       student_number: student.student_number,
       profile_picture: student.profile_picture ?? null,
       sex:

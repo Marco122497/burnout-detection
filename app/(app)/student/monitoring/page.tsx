@@ -1,4 +1,3 @@
-import { ClipboardCheckIcon } from "lucide-react";
 
 import { WeeklyMonitoringForm } from "@/components/student/weekly-monitoring-form";
 import { PageHeading } from "@/components/layout/page-heading";
@@ -35,7 +34,6 @@ export default async function StudentMonitoringPage() {
         <PageHeading
           title="Weekly Monitoring"
           description="Informed consent is required before you can complete the weekly monitoring form."
-          icon={ClipboardCheckIcon}
         />
         <Card>
           <CardHeader>
@@ -64,9 +62,7 @@ export default async function StudentMonitoringPage() {
       <PageHeading
         title="Weekly Monitoring"
         description="One consolidated form: Stress, Academic Workload, Study Time, and Sleep Hours. Results are scored, normalized, and predicted automatically."
-        icon={ClipboardCheckIcon}
       />
-
       <WeeklyMonitoringForm
         term={snapshot.term}
         currentWeek={snapshot.currentWeek}

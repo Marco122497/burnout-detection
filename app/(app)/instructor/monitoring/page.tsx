@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import { ActivityIcon } from "lucide-react";
 
 import { StudentMonitoringTable } from "@/components/instructor/student-monitoring-table";
 import { PageHeading } from "@/components/layout/page-heading";
@@ -31,7 +30,6 @@ export default async function InstructorMonitoringPage() {
       <PageHeading
         title="Student Monitoring"
         description={`Monitor students in your assigned department${departmentName ? ` (${departmentName})` : ""} only.`}
-        icon={ActivityIcon}
       />
       <Suspense
         fallback={

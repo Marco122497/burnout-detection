@@ -1,4 +1,3 @@
-import { GraduationCapIcon } from "lucide-react";
 
 import { DepartmentsManager } from "@/components/guidance/departments-manager";
 import { PageHeading } from "@/components/layout/page-heading";
@@ -16,9 +15,8 @@ export default async function GuidanceDepartmentsPage() {
   return (
     <div className="space-y-6">
       <PageHeading
-        title="Department Management"
+        title="Departments"
         description="Add, edit, activate/deactivate departments and view membership counts."
-        icon={GraduationCapIcon}
       />
       <DepartmentsManager departments={departments} />
     </div>

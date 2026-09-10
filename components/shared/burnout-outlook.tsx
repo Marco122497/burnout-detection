@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   ActivityIcon,
-  AlertTriangleIcon,
   BrainCircuitIcon,
   TrendingUpIcon,
 } from "lucide-react";
@@ -44,6 +43,10 @@ import {
   resolveMfbiBurnoutLevel,
   type BurnoutLevel,
 } from "@/lib/student/mfbi";
+import {
+  buildMfbiEarlyWarningMessage,
+  type StudentFactors,
+} from "@/lib/student/tips";
 import { cn } from "@/lib/utils";
 
 const trendChartConfig = {
@@ -262,16 +265,18 @@ type OutlookStep = {
   score: number | null;
   level: string | null;
   hint: string;
+  /** Larger icon only — no label/score card (used for Next week AI). */
+  iconOnly?: boolean;
 };
 
 export function EarlyWarningOutlookStepper({ steps }: { steps: OutlookStep[] }) {
   return (
-    <div className="relative px-2 pt-1 sm:px-8">
+    <div className="relative px-0.5 pt-2 sm:px-2">
       <div
         aria-hidden
-        className="absolute top-6 right-[16.5%] left-[16.5%] h-px bg-border sm:top-7"
+        className="absolute top-[calc(0.5rem+2rem)] right-[18%] left-[18%] h-px -translate-y-1/2 bg-border sm:top-[calc(0.5rem+2.25rem)]"
       />
-      <ol className="relative grid grid-cols-3 gap-3">
+      <ol className="relative grid grid-cols-3 items-start gap-2 sm:gap-3">
         {steps.map((step) => {
           const Icon = step.icon;
           const hasLevel =
@@ -283,21 +288,33 @@ export function EarlyWarningOutlookStepper({ steps }: { steps: OutlookStep[] }) 
             ? step.level
             : (step.level ?? step.hint);
           const detail = [scoreLabel, statusLabel].filter(Boolean).join(" · ");
+          const iconOnly = Boolean(step.iconOnly);
 
           return (
-            <li key={step.label} className="flex flex-col items-center text-center">
-              <span
-                className={cn(
-                  "relative z-10 flex size-12 shrink-0 items-center justify-center rounded-full shadow-sm sm:size-14 [&_svg]:size-5 sm:[&_svg]:size-6",
-                  outlookNodeTone(hasLevel ? step.level : null)
-                )}
-              >
-                <Icon />
-              </span>
+            <li
+              key={step.label}
+              className="flex flex-col items-center px-1 text-center sm:px-2"
+            >
+              <div className="relative z-10 flex h-16 w-full items-center justify-center sm:h-[4.5rem]">
+                <span
+                  className={cn(
+                    "flex shrink-0 items-center justify-center rounded-full text-white",
+                    iconOnly
+                      ? "size-16 bg-amber-400 sm:size-[4.5rem] [&_svg]:size-7 sm:[&_svg]:size-8"
+                      : cn(
+                          "size-10 sm:size-12 [&_svg]:size-4 sm:[&_svg]:size-5",
+                          outlookNodeTone(hasLevel ? step.level : null)
+                        )
+                  )}
+                  aria-label={iconOnly ? step.label : undefined}
+                >
+                  <Icon />
+                </span>
+              </div>
               <p className="mt-3 text-sm font-semibold tracking-tight text-foreground">
                 {step.label}
               </p>
-              <p className="mt-1 max-w-[10rem] text-xs leading-snug text-muted-foreground">
+              <p className="mt-1 max-w-[12rem] text-xs leading-snug text-muted-foreground">
                 <span
                   className={cn(
                     "font-medium tabular-nums",
@@ -306,8 +323,8 @@ export function EarlyWarningOutlookStepper({ steps }: { steps: OutlookStep[] }) 
                 >
                   {detail}
                 </span>
-                {hasLevel ? (
-                  <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                {hasLevel || step.hint ? (
+                  <span className="mt-1 block text-[11px] text-muted-foreground">
                     {step.hint}
                   </span>
                 ) : null}
@@ -324,10 +341,12 @@ export function EarlyWarningOutlookCard({
   earlyWarning,
   mfbiScore,
   burnoutLevel,
+  factors,
 }: {
   earlyWarning: EarlyWarningPayload | null;
   mfbiScore: number | null;
   burnoutLevel: string | null;
+  factors?: StudentFactors | null;
 }) {
   if (!earlyWarning && mfbiScore == null && !burnoutLevel) return null;
 
@@ -335,22 +354,25 @@ export function EarlyWarningOutlookCard({
   const week2 = resolveWeek2Display(earlyWarning);
   const hasMlNextWeek = Boolean(earlyWarning?.has_ml_next_week);
   const currentLevel = resolveMfbiBurnoutLevel(mfbiScore, burnoutLevel);
+  const warningMessage =
+    buildMfbiEarlyWarningMessage({
+      factors,
+      trend: earlyWarning?.trend ?? null,
+      burnoutLevel: currentLevel,
+    }) ?? earlyWarning?.warning_message ?? null;
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <AlertTriangleIcon className="size-4" />
-          Early warning outlook
-        </CardTitle>
+        <div className="mb-1">
+          <span className="student-chum-pill">AI Early Detection</span>
+        </div>
+        <CardTitle className="text-lg">Outlook timeline</CardTitle>
         <CardDescription>
-          Current risk is from your MFBI score (Low ≤0.39 · Moderate ≤0.69 ·
-          High ≥0.70). Next-week uses the trained model; the number and label
-          use the same MFBI bands. Week-2 is a trend-based projection, not a
-          guaranteed forecast.
+          Current MFBI, AI next-week forecast, and week-2 trend projection.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-6">
         <EarlyWarningOutlookStepper
           steps={[
             {
@@ -362,16 +384,15 @@ export function EarlyWarningOutlookCard({
             },
             {
               icon: BrainCircuitIcon,
-              label: "Next week",
+              label: "Next week (AI)",
               score: nextWeek.score,
               level:
                 nextWeek.level ??
                 (hasMlNextWeek ? null : "Unavailable"),
               hint: hasMlNextWeek
-                ? nextWeek.fromScore
-                  ? "ML score · MFBI bands"
-                  : "ML early detection"
+                ? "AI early detection"
                 : "Submit monitoring to unlock",
+              iconOnly: true,
             },
             {
               icon: TrendingUpIcon,
@@ -382,21 +403,14 @@ export function EarlyWarningOutlookCard({
             },
           ]}
         />
-        {earlyWarning ? (
-          <p className="text-sm text-muted-foreground">
-            Risk trend:{" "}
-            <span className="font-medium text-foreground">
-              {earlyWarning.trend.replaceAll("_", " ")}
-            </span>
-          </p>
-        ) : null}
-        {earlyWarning?.warning_message ? (
+
+        {warningMessage ? (
           <p className="rounded-lg bg-amber-500/10 p-3 text-sm text-amber-950 dark:text-amber-100">
-            {earlyWarning.warning_message}
+            {warningMessage}
           </p>
         ) : null}
         <p className="text-xs text-muted-foreground">
-          This system provides educational early-warning support and is not a
+          AI early detection supports school wellness planning and is not a
           medical diagnosis.
         </p>
       </CardContent>

@@ -1,4 +1,3 @@
-import { SettingsIcon } from "lucide-react";
 
 import { ReportSignatorySettings } from "@/components/guidance/report-signatory-settings";
 import { PageHeading } from "@/components/layout/page-heading";
@@ -18,7 +17,6 @@ export default async function GuidanceSettingsPage() {
       <PageHeading
         title="Settings"
         description="Configure report signatories and other Guidance preferences."
-        icon={SettingsIcon}
       />
       <ReportSignatorySettings schoolAdministrator={schoolAdministrator} />
     </div>

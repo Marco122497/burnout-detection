@@ -1,4 +1,3 @@
-import { ShieldIcon } from "lucide-react";
 
 import { AdminsManager } from "@/components/guidance/admins-manager";
 import { PageHeading } from "@/components/layout/page-heading";
@@ -23,9 +22,8 @@ export default async function GuidanceAdminsPage() {
   return (
     <div className="space-y-6">
       <PageHeading
-        title="Admin Management"
+        title="Admins"
         description="Manage guidance counselor accounts with admin access to the system."
-        icon={ShieldIcon}
       />
       <AdminsManager admins={admins} currentUserId={user.id} />
     </div>

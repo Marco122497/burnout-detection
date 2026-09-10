@@ -1,4 +1,3 @@
-import { BellIcon } from "lucide-react";
 
 import { NotificationsList } from "@/components/student/notifications-list";
 import { PageHeading } from "@/components/layout/page-heading";
@@ -18,7 +17,6 @@ export default async function GuidanceNotificationsPage() {
       <PageHeading
         title="Notifications"
         description="System alerts, high-risk student updates, and monitoring reminders for guidance staff."
-        icon={BellIcon}
       />
       <NotificationsList
         notifications={notifications}

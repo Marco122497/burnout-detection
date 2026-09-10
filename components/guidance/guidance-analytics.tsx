@@ -792,106 +792,111 @@ export function GuidanceAnalyticsView({
         />
       </section>
 
-      {/* 9. Prediction Accuracy */}
-      <section className="grid gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Burnout Prediction Accuracy</CardTitle>
-            <CardDescription>
-              Hold-out evaluation for {modelEvaluation.modelVersion} Decision
-              Tree and Random Forest predictors
-              {modelEvaluation.source === "unavailable"
-                ? " (run npm run train to populate)"
-                : " from burnout-ai training"}.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {[
-                { short: "DT", block: modelEvaluation.decisionTree },
-                { short: "RF", block: modelEvaluation.randomForest },
-              ].map(({ short, block }) => (
-                <div
-                  key={short}
-                  className="rounded-xl ring-1 ring-foreground/10"
-                >
-                  <div className="border-b px-4 py-3">
-                    <p className="font-medium">
-                      {short}
-                      <span className="ml-1.5 text-sm font-normal text-muted-foreground">
-                        {block.label}
-                      </span>
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3 p-4">
-                    {(
-                      [
-                        ["Accuracy", block.accuracy],
-                        ["Precision", block.precision],
-                        ["Recall", block.recall],
-                        ["F1-Score", block.f1],
-                      ] as const
-                    ).map(([label, value]) => (
-                      <div key={label}>
-                        <p className="text-xs text-muted-foreground">{label}</p>
-                        <p className="font-[family-name:var(--font-display)] text-xl font-semibold tabular-nums">
-                          {(value * 100).toFixed(1)}%
+      {/* 9. Prediction Accuracy — primary guidance only */}
+      {showAiModelStatus ? (
+        <section className="grid gap-4 lg:grid-cols-3">
+          <div className="lg:col-span-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">
+                  Burnout Prediction Accuracy
+                </CardTitle>
+                <CardDescription>
+                  Hold-out evaluation for {modelEvaluation.modelVersion}{" "}
+                  Decision Tree and Random Forest predictors
+                  {modelEvaluation.source === "unavailable"
+                    ? " (run npm run train to populate)"
+                    : " from burnout-ai training"}
+                  .
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {[
+                    { short: "DT", block: modelEvaluation.decisionTree },
+                    { short: "RF", block: modelEvaluation.randomForest },
+                  ].map(({ short, block }) => (
+                    <div
+                      key={short}
+                      className="rounded-xl ring-1 ring-foreground/10"
+                    >
+                      <div className="border-b px-4 py-3">
+                        <p className="font-medium">
+                          {short}
+                          <span className="ml-1.5 text-sm font-normal text-muted-foreground">
+                            {block.label}
+                          </span>
                         </p>
                       </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="mt-4 overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead className="border-b text-muted-foreground">
-                  <tr>
-                    <th className="px-2 py-1.5 font-medium">Model</th>
-                    <th className="px-2 py-1.5 font-medium">Accuracy</th>
-                    <th className="px-2 py-1.5 font-medium">Precision</th>
-                    <th className="px-2 py-1.5 font-medium">Recall</th>
-                    <th className="px-2 py-1.5 font-medium">F1-Score</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(
-                    [
-                      ["DT", modelEvaluation.decisionTree],
-                      ["RF", modelEvaluation.randomForest],
-                    ] as const
-                  ).map(([short, block]) => (
-                    <tr key={short} className="border-b last:border-0">
-                      <td className="px-2 py-1.5">{short}</td>
-                      <td className="px-2 py-1.5 tabular-nums">
-                        {(block.accuracy * 100).toFixed(1)}%
-                      </td>
-                      <td className="px-2 py-1.5 tabular-nums">
-                        {(block.precision * 100).toFixed(1)}%
-                      </td>
-                      <td className="px-2 py-1.5 tabular-nums">
-                        {(block.recall * 100).toFixed(1)}%
-                      </td>
-                      <td className="px-2 py-1.5 tabular-nums">
-                        {(block.f1 * 100).toFixed(1)}%
-                      </td>
-                    </tr>
+                      <div className="grid grid-cols-2 gap-3 p-4">
+                        {(
+                          [
+                            ["Accuracy", block.accuracy],
+                            ["Precision", block.precision],
+                            ["Recall", block.recall],
+                            ["F1-Score", block.f1],
+                          ] as const
+                        ).map(([label, value]) => (
+                          <div key={label}>
+                            <p className="text-xs text-muted-foreground">
+                              {label}
+                            </p>
+                            <p className="font-[family-name:var(--font-display)] text-xl font-semibold tabular-nums">
+                              {(value * 100).toFixed(1)}%
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-        </div>
-        {showAiModelStatus ? (
+                </div>
+                <div className="mt-4 overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead className="border-b text-muted-foreground">
+                      <tr>
+                        <th className="px-2 py-1.5 font-medium">Model</th>
+                        <th className="px-2 py-1.5 font-medium">Accuracy</th>
+                        <th className="px-2 py-1.5 font-medium">Precision</th>
+                        <th className="px-2 py-1.5 font-medium">Recall</th>
+                        <th className="px-2 py-1.5 font-medium">F1-Score</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(
+                        [
+                          ["DT", modelEvaluation.decisionTree],
+                          ["RF", modelEvaluation.randomForest],
+                        ] as const
+                      ).map(([short, block]) => (
+                        <tr key={short} className="border-b last:border-0">
+                          <td className="px-2 py-1.5">{short}</td>
+                          <td className="px-2 py-1.5 tabular-nums">
+                            {(block.accuracy * 100).toFixed(1)}%
+                          </td>
+                          <td className="px-2 py-1.5 tabular-nums">
+                            {(block.precision * 100).toFixed(1)}%
+                          </td>
+                          <td className="px-2 py-1.5 tabular-nums">
+                            {(block.recall * 100).toFixed(1)}%
+                          </td>
+                          <td className="px-2 py-1.5 tabular-nums">
+                            {(block.f1 * 100).toFixed(1)}%
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
           <AiModelStatusCard
             modelEvaluation={modelEvaluation}
             aiHealthy={aiHealthy}
             metricsSource={metricsSource}
           />
-        ) : null}
-      </section>
+        </section>
+      ) : null}
 
       {/* 11. Heatmap */}
       <section>

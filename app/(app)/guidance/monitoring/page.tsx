@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import { ActivityIcon } from "lucide-react";
 
 import { GuidanceStudentMonitoring } from "@/components/guidance/guidance-student-monitoring";
 import { MonitoringWeekControls } from "@/components/guidance/monitoring-week-controls";
@@ -31,7 +30,6 @@ export default async function GuidanceMonitoringPage() {
       <PageHeading
         title="Student Monitoring"
         description="Open weekly monitoring for students and review results across all departments."
-        icon={ActivityIcon}
       />
       <MonitoringWeekControls term={term} />
       <Suspense fallback={<p className="text-sm text-muted-foreground">Loading…</p>}>

@@ -1,4 +1,3 @@
-import { LightbulbIcon } from "lucide-react";
 
 import { RecommendationsView } from "@/components/student/recommendations-view";
 import { PageHeading } from "@/components/layout/page-heading";
@@ -73,7 +72,6 @@ export default async function StudentRecommendationsPage() {
       <PageHeading
         title="Counseling Recommendation"
         description="Next-week early warning outlook, plus what to do this week for stress, schoolwork, study time, and sleep — based on your latest and previous weekly monitoring."
-        icon={LightbulbIcon}
       />
       <RecommendationsView
         burnoutLevel={counseling?.burnout_level ?? null}

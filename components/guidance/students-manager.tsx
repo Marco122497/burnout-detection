@@ -4,6 +4,7 @@ import { useActionState, useEffect, useMemo, useState } from "react";
 import {
   KeyRoundIcon,
   Loader2,
+  MoreHorizontalIcon,
   PencilIcon,
   PlusIcon,
   SearchIcon,
@@ -54,6 +55,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -65,11 +73,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { formatYearLevel } from "@/lib/utils";
 
 const initialState: GuidanceActionState = {};
@@ -362,7 +365,7 @@ export function StudentsManager({
             </p>
           ) : (
             <>
-              <Table>
+              <Table containerClassName="overflow-x-hidden">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-10">
@@ -382,163 +385,173 @@ export function StudentsManager({
                         }
                       />
                     </TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Student no.</TableHead>
-                    <TableHead>Course</TableHead>
-                    <TableHead>Year & Section</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead>Student</TableHead>
+                    <TableHead className="hidden md:table-cell">
+                      Student no.
+                    </TableHead>
+                    <TableHead className="hidden lg:table-cell">
+                      Course
+                    </TableHead>
+                    <TableHead className="hidden lg:table-cell">
+                      Year & Section
+                    </TableHead>
+                    <TableHead className="w-10 text-right">
+                      <span className="sr-only md:not-sr-only md:text-xs md:font-medium md:text-muted-foreground">
+                        Actions
+                      </span>
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {pageItems.map((student) => (
-                    <TableRow key={student.id}>
-                      <TableCell>
-                        <input
-                          type="checkbox"
-                          aria-label={`Select ${student.full_name}`}
-                          checked={selectedIds.has(student.id)}
-                          onChange={(event) =>
-                            toggleStudentSelection(
-                              student.id,
-                              event.target.checked
-                            )
-                          }
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-start gap-2.5">
-                          <Avatar className="size-8 shrink-0">
-                            {student.profile_picture ? (
-                              <AvatarImage
-                                src={student.profile_picture}
-                                alt={student.full_name}
-                              />
-                            ) : null}
-                            <AvatarFallback className="text-xs">
-                              {nameInitials(
-                                student.first_name,
-                                student.last_name
-                              )}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="min-w-0">
-                            <p className="font-medium">{student.full_name}</p>
-                            {student.email ? (
-                              <p className="truncate text-xs text-muted-foreground">
-                                {student.email}
-                              </p>
-                            ) : null}
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>{student.student_number || "—"}</TableCell>
-                      <TableCell>
-                        {student.department_name || "—"}
-                      </TableCell>
-                      <TableCell>
-                        {[
-                          student.year_level
-                            ? formatYearLevel(student.year_level)
-                            : null,
-                          student.section || null,
-                        ]
-                          .filter(Boolean)
-                          .join(" · ") || "—"}
-                      </TableCell>
-                      <TableCell>
-                        <span
-                          className={
-                            student.is_active
-                              ? "text-emerald-700"
-                              : "text-muted-foreground"
-                          }
-                        >
-                          {student.is_active ? "Active" : "Inactive"}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap justify-end gap-1">
-                          <Tooltip>
-                            <TooltipTrigger
-                              render={
-                                <Button
-                                  type="button"
-                                  size="icon-sm"
-                                  variant="ghost"
-                                  aria-label="Edit"
-                                  onClick={() => setEditingId(student.id)}
-                                >
-                                  <PencilIcon />
-                                </Button>
-                              }
-                            />
-                            <TooltipContent>Edit</TooltipContent>
-                          </Tooltip>
-                          <Tooltip>
-                            <TooltipTrigger
-                              render={
-                                <Button
-                                  type="button"
-                                  size="icon-sm"
-                                  variant="ghost"
-                                  disabled={togglePending}
-                                  aria-label={
-                                    student.is_active
-                                      ? "Deactivate"
-                                      : "Activate"
-                                  }
-                                  onClick={() => setTogglingId(student.id)}
-                                >
-                                  {student.is_active ? (
-                                    <UserRoundXIcon />
-                                  ) : (
-                                    <UserRoundCheckIcon />
+                  {pageItems.map((student) => {
+                    const yearSection =
+                      [
+                        student.year_level
+                          ? formatYearLevel(student.year_level)
+                          : null,
+                        student.section || null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ") || null;
+
+                    return (
+                      <TableRow key={student.id}>
+                        <TableCell>
+                          <input
+                            type="checkbox"
+                            aria-label={`Select ${student.full_name}`}
+                            checked={selectedIds.has(student.id)}
+                            onChange={(event) =>
+                              toggleStudentSelection(
+                                student.id,
+                                event.target.checked
+                              )
+                            }
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex min-w-0 items-start gap-2.5">
+                            <div className="relative shrink-0">
+                              <Avatar className="size-8">
+                                {student.profile_picture ? (
+                                  <AvatarImage
+                                    src={student.profile_picture}
+                                    alt={student.full_name}
+                                  />
+                                ) : null}
+                                <AvatarFallback className="text-xs">
+                                  {nameInitials(
+                                    student.first_name,
+                                    student.last_name
                                   )}
-                                </Button>
-                              }
-                            />
-                            <TooltipContent>
-                              {student.is_active ? "Deactivate" : "Activate"}
-                            </TooltipContent>
-                          </Tooltip>
-                          <Tooltip>
-                            <TooltipTrigger
+                                </AvatarFallback>
+                              </Avatar>
+                              <span
+                                className={
+                                  student.is_active
+                                    ? "absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full border-2 border-background bg-emerald-500"
+                                    : "absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full border-2 border-background bg-muted-foreground/50"
+                                }
+                                title={
+                                  student.is_active ? "Active" : "Inactive"
+                                }
+                                aria-label={
+                                  student.is_active ? "Active" : "Inactive"
+                                }
+                              />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium wrap-break-word">
+                                {student.full_name}
+                              </p>
+                              {student.email ? (
+                                <p className="truncate text-xs text-muted-foreground">
+                                  {student.email}
+                                </p>
+                              ) : null}
+                              <p className="mt-0.5 truncate text-xs text-muted-foreground md:hidden">
+                                {[
+                                  student.student_number || "—",
+                                  [
+                                    student.department_code || null,
+                                    student.year_level
+                                      ? formatYearLevel(student.year_level)
+                                      : null,
+                                  ]
+                                    .filter(Boolean)
+                                    .join(" - ") || null,
+                                ]
+                                  .filter(Boolean)
+                                  .join(" | ")}
+                              </p>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell">
+                          {student.student_number || "—"}
+                        </TableCell>
+                        <TableCell className="hidden lg:table-cell">
+                          {student.department_name || "—"}
+                        </TableCell>
+                        <TableCell className="hidden lg:table-cell">
+                          {yearSection || "—"}
+                        </TableCell>
+                        <TableCell className="w-10 text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger
                               render={
                                 <Button
                                   type="button"
                                   size="icon-sm"
                                   variant="ghost"
-                                  aria-label="Reset password"
-                                  onClick={() => setResetId(student.id)}
+                                  className="shrink-0"
+                                  aria-label={`Actions for ${student.full_name}`}
                                 >
-                                  <KeyRoundIcon />
+                                  <MoreHorizontalIcon className="size-4" />
                                 </Button>
                               }
                             />
-                            <TooltipContent>Reset password</TooltipContent>
-                          </Tooltip>
-                          <Tooltip>
-                            <TooltipTrigger
-                              render={
-                                <Button
-                                  type="button"
-                                  size="icon-sm"
-                                  variant="ghost"
-                                  aria-label="Delete student"
-                                  disabled={deletePending}
-                                  onClick={() => setDeletingId(student.id)}
-                                >
-                                  <Trash2Icon />
-                                </Button>
-                              }
-                            />
-                            <TooltipContent>Delete</TooltipContent>
-                          </Tooltip>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                            <DropdownMenuContent align="end" className="min-w-44">
+                              <DropdownMenuItem
+                                onClick={() => setEditingId(student.id)}
+                              >
+                                <PencilIcon />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                disabled={togglePending}
+                                onClick={() => setTogglingId(student.id)}
+                              >
+                                {student.is_active ? (
+                                  <UserRoundXIcon />
+                                ) : (
+                                  <UserRoundCheckIcon />
+                                )}
+                                {student.is_active
+                                  ? "Deactivate"
+                                  : "Activate"}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => setResetId(student.id)}
+                              >
+                                <KeyRoundIcon />
+                                Reset password
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                variant="destructive"
+                                disabled={deletePending}
+                                onClick={() => setDeletingId(student.id)}
+                              >
+                                <Trash2Icon />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
               <TablePagination

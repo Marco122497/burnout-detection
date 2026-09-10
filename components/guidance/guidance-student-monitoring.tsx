@@ -121,7 +121,7 @@ export function GuidanceStudentMonitoring({
       return true;
     });
 
-    // Submitted first (earliest submission at top), then pending by name.
+    // Submitted first (earliest submission at top), then pending by last name.
     return [...matched].sort((a, b) => {
       if (a.submittedThisWeek !== b.submittedThisWeek) {
         return a.submittedThisWeek ? -1 : 1;
@@ -135,6 +135,16 @@ export function GuidanceStudentMonitoring({
           : Number.POSITIVE_INFINITY;
         if (aTime !== bTime) return aTime - bTime;
       }
+      const byLast = (a.last_name || "").localeCompare(b.last_name || "", undefined, {
+        sensitivity: "base",
+      });
+      if (byLast !== 0) return byLast;
+      const byFirst = (a.first_name || "").localeCompare(
+        b.first_name || "",
+        undefined,
+        { sensitivity: "base" }
+      );
+      if (byFirst !== 0) return byFirst;
       return a.full_name.localeCompare(b.full_name);
     });
   }, [rows, q, departmentId, course, yearLevel, section, risk, submission]);
@@ -146,6 +156,18 @@ export function GuidanceStudentMonitoring({
     if (!departmentId) return [];
     return rows
       .filter((row) => String(row.department_id) === departmentId)
+      .slice()
+      .sort((a, b) => {
+        const byLast = (a.last_name || "").localeCompare(
+          b.last_name || "",
+          undefined,
+          { sensitivity: "base" }
+        );
+        if (byLast !== 0) return byLast;
+        return (a.first_name || "").localeCompare(b.first_name || "", undefined, {
+          sensitivity: "base",
+        });
+      })
       .map((row) => ({
         id: row.id,
         full_name: row.full_name,

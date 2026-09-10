@@ -1,4 +1,3 @@
-import { ClipboardListIcon } from "lucide-react";
 
 import { QuestionnairesList } from "@/components/guidance/questionnaires-manager";
 import { PageHeading } from "@/components/layout/page-heading";
@@ -18,7 +17,6 @@ export default async function GuidanceQuestionnairesPage() {
       <PageHeading
         title="Questionnaires"
         description="Configure Stress Level, Academic Workload, Study Time, and Sleep Hours forms."
-        icon={ClipboardListIcon}
       />
       <QuestionnairesList questionnaires={questionnaires} />
     </div>

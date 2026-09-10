@@ -24,6 +24,9 @@ import {
 } from "@/lib/student/scale-options";
 import { QuestionScaleOptionsEditor } from "@/components/guidance/question-scale-options-editor";
 import { useNavigationPending } from "@/components/layout/navigation-pending";
+import { ScaleChoice } from "@/components/shared/scale-choice";
+import type { QuestionnaireKey } from "@/lib/student/questionnaires";
+import { resolveScaleOptions } from "@/lib/student/scale-options";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -59,6 +62,28 @@ function displayQuestionnaireName(name: string) {
   if (/perceived stress|pss/i.test(name)) return "Stress Level";
   return name;
 }
+
+function questionnaireSectionKey(name: string): QuestionnaireKey {
+  if (/perceived stress|pss/i.test(name)) return "pss";
+  if (/academic workload/i.test(name)) return "workload";
+  if (/study time/i.test(name)) return "study";
+  if (/sleep/i.test(name)) return "sleep";
+  return "pss";
+}
+
+const sectionTitles: Record<QuestionnaireKey, string> = {
+  pss: "Section 1 — Stress Level",
+  workload: "Section 2 — Academic Workload",
+  study: "Section 3 — Study Time",
+  sleep: "Section 4 — Sleep Hours",
+};
+
+const sectionPurposes: Record<QuestionnaireKey, string> = {
+  pss: "Rate how stressed you felt this past week.",
+  workload: "Rate how heavy your schoolwork felt this past week.",
+  study: "Report how much time you spent studying outside class this past week.",
+  sleep: "Rate how well you slept this past week.",
+};
 
 function displayQuestionnaireDescription(name: string, description: string | null) {
   if (/academic workload/i.test(name)) {
@@ -393,18 +418,6 @@ export function QuestionnaireDetailManager({
   const activeQuestions = questions.filter((q) => q.is_active);
   const editDialogOpen = editingId != null;
   const deleteDialogOpen = deletingId != null;
-  const isSleepHoursQuestionnaire = /sleep/i.test(
-    questionnaire.questionnaire_name
-  );
-  const isPssQuestionnaire = /perceived stress|pss/i.test(
-    questionnaire.questionnaire_name
-  );
-  const isWorkloadQuestionnaire = /academic workload/i.test(
-    questionnaire.questionnaire_name
-  );
-  const isStudyTimeQuestionnaire = /study time/i.test(
-    questionnaire.questionnaire_name
-  );
 
   useEffect(() => {
     if (updateState.success) {
@@ -452,9 +465,6 @@ export function QuestionnaireDetailManager({
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm font-medium text-primary">
-            Questionnaire management
-          </p>
           <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
             {displayQuestionnaireName(questionnaire.questionnaire_name)}
           </h1>
@@ -493,138 +503,72 @@ export function QuestionnaireDetailManager({
       {preview ? (
         <Card>
           <CardHeader>
-            <CardTitle>Preview</CardTitle>
+            <div className="mb-1">
+              <span className="student-chum-pill">Student preview</span>
+            </div>
+            <CardTitle className="text-lg font-bold">
+              {sectionTitles[questionnaireSectionKey(questionnaire.questionnaire_name)] ??
+                displayQuestionnaireName(questionnaire.questionnaire_name)}
+            </CardTitle>
             <CardDescription>
-              Active questions in student-facing order.
+              {sectionPurposes[
+                questionnaireSectionKey(questionnaire.questionnaire_name)
+              ] ??
+                displayQuestionnaireDescription(
+                  questionnaire.questionnaire_name,
+                  questionnaire.description
+                ) ??
+                "Answer every item using the response scale shown for each question."}
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {isPssQuestionnaire ? (
-              <div className="space-y-3 rounded-lg border bg-muted/30 p-3 text-sm">
-                <div>
-                  <p className="font-medium">Stress Level</p>
-                  <p className="mt-1 text-muted-foreground">
-                    The questions ask about your feelings and thoughts during
-                    the last month. Indicate how often you felt or thought a
-                    certain way. Answer fairly quickly — choose a reasonable
-                    estimate for each item.
-                  </p>
-                </div>
-                <div>
-                  <p className="font-medium">Response scale</p>
-                  <ul className="mt-1 space-y-0.5 text-muted-foreground">
-                    <li>0 = Never</li>
-                    <li>1 = Almost Never</li>
-                    <li>2 = Sometimes</li>
-                    <li>3 = Fairly Often</li>
-                    <li>4 = Very Often</li>
-                  </ul>
-                </div>
-                <div>
-                  <p className="font-medium">Scoring</p>
-                  <p className="mt-1 text-muted-foreground">
-                    Normal items: use the response score as-is (0–4).
-                  </p>
-                  <p className="text-muted-foreground">
-                    Reverse-scored items (questions 4, 5, 7, and 8): 0↔4, 1↔3,
-                    2 stays 2, 3↔1, 4↔0.
-                  </p>
-                  <p className="mt-1 text-muted-foreground">
-                    Total score = sum of all 10 items after reverse scoring
-                    (0–40). Higher scores mean higher perceived stress.
-                  </p>
-                  <p className="text-muted-foreground">
-                    0–13 Low · 14–26 Moderate · 27–40 High perceived stress
-                  </p>
-                </div>
-              </div>
-            ) : null}
-            {isWorkloadQuestionnaire ? (
-              <div className="space-y-2 rounded-lg border bg-muted/30 p-3 text-sm">
-                <p className="font-medium">Likert scale (Academic Workload)</p>
-                <p className="text-muted-foreground">
-                  5-point Likert scale: 1 = Definitely Disagree · 2 = Disagree
-                  · 3 = Neutral · 4 = Agree · 5 = Definitely Agree
-                </p>
-              </div>
-            ) : null}
-            {isStudyTimeQuestionnaire ? (
-              <div className="space-y-2 rounded-lg border bg-muted/30 p-3 text-sm">
-                <p className="font-medium">Likert scale (Study Time)</p>
-                <p className="text-muted-foreground">
-                  Question 1 (weekly hours): 1 = Less than 5 hours · 2 = 5–10
-                  hours · 3 = 11–15 hours · 4 = 16–20 hours · 5 = More than 20
-                  hours. Question 2 (how often): 1 = Never · 2 = Sometimes · 3 =
-                  Often · 4 = Very Often. Order 1 is scored for MFBI.
-                </p>
-              </div>
-            ) : null}
-            {isSleepHoursQuestionnaire ? (
-              <div className="space-y-2 rounded-lg border bg-muted/30 p-3 text-sm">
-                <p className="font-medium">Likert scale (Sleep Hours)</p>
-                <p className="text-muted-foreground">
-                  Normal: 1 = Strongly Disagree · 2 = Disagree · 3 = Neutral ·
-                  4 = Agree · 5 = Strongly Agree
-                </p>
-                <p className="text-muted-foreground">
-                  Reverse scored: 1 = Strongly Agree · 2 = Agree · 3 = Neutral ·
-                  4 = Disagree · 5 = Strongly Disagree
-                </p>
-              </div>
-            ) : null}
+          <CardContent className="space-y-5">
             {activeQuestions.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 No active questions to preview.
               </p>
             ) : (
-              activeQuestions.map((q, index) => (
-                <div key={q.question_id} className="rounded-lg border p-3">
-                  <p className="text-sm font-medium">
-                    {index + 1}. {q.question_text}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {q.response_type}
-                    {q.reverse_scored ? " · Reverse scored" : ""}
-                    {q.is_required ? " · Required" : ""}
-                  </p>
-                  {isPssQuestionnaire && q.response_type === "Likert Scale" ? (
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      {q.reverse_scored
-                        ? "Reverse scoring: Never (0) → 4, Almost Never (1) → 3, Sometimes (2) → 2, Fairly Often (3) → 1, Very Often (4) → 0"
-                        : "Normal scoring: Never = 0 · Almost Never = 1 · Sometimes = 2 · Fairly Often = 3 · Very Often = 4"}
-                    </p>
-                  ) : null}
-                  {isWorkloadQuestionnaire &&
-                  q.response_type === "Likert Scale" ? (
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      {q.reverse_scored
-                        ? "Scale: 1 = Definitely Agree · 2 = Agree · 3 = Neutral · 4 = Disagree · 5 = Definitely Disagree"
-                        : "Scale: 1 = Definitely Disagree · 2 = Disagree · 3 = Neutral · 4 = Agree · 5 = Definitely Agree"}
-                    </p>
-                  ) : null}
-                  {isStudyTimeQuestionnaire &&
-                  q.response_type === "Likert Scale" ? (
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      {q.question_order === 1
-                        ? "Primary MFBI item: weekly hours → estimated daily hours for normalization."
-                        : "Supporting item: stored with submission, not used in MFBI study time score."}
-                    </p>
-                  ) : null}
-                  {isStudyTimeQuestionnaire && q.response_type === "Hours" ? (
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      Score 1–5 using the hours-per-day response scale above.
-                    </p>
-                  ) : null}
-                  {isSleepHoursQuestionnaire &&
-                  q.response_type === "Likert Scale" ? (
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      {q.reverse_scored
-                        ? "Scale: 1 = Strongly Agree · 2 = Agree · 3 = Neutral · 4 = Disagree · 5 = Strongly Disagree"
-                        : "Scale: 1 = Strongly Disagree · 2 = Disagree · 3 = Neutral · 4 = Agree · 5 = Strongly Agree"}
-                    </p>
-                  ) : null}
-                </div>
-              ))
+              activeQuestions.map((q, index) => {
+                const sectionKey = questionnaireSectionKey(
+                  questionnaire.questionnaire_name
+                );
+                const options = resolveScaleOptions(
+                  sectionKey,
+                  q,
+                  questionnaire.questionnaire_name
+                );
+                return (
+                  <fieldset
+                    key={q.question_id}
+                    className="space-y-3 rounded-2xl border border-[color:var(--border)] bg-[color:var(--muted)]/35 p-3.5"
+                  >
+                    <legend className="px-1 text-sm font-bold">
+                      {index + 1}. {q.question_text}
+                      {q.reverse_scored ? (
+                        <span className="ml-2 text-xs font-normal text-muted-foreground">
+                          (reverse scored)
+                        </span>
+                      ) : null}
+                    </legend>
+                    <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-[repeat(auto-fit,minmax(9rem,1fr))]">
+                      {options.map((option) => {
+                        const displayScore =
+                          sectionKey === "pss"
+                            ? option.value - 1
+                            : option.value;
+                        return (
+                          <ScaleChoice
+                            key={`${q.question_id}-${option.value}`}
+                            name={`preview_q_${q.question_id}`}
+                            value={option.value}
+                            displayScore={displayScore}
+                            label={option.label}
+                          />
+                        );
+                      })}
+                    </div>
+                  </fieldset>
+                );
+              })
             )}
           </CardContent>
         </Card>
