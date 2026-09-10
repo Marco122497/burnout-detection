@@ -134,8 +134,17 @@ export function calculateAge(birthDate: string | null | undefined): number | nul
 
 export function formatDateTime(value: string | null | undefined): string {
   if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  // Pin locale + timezone so SSR (often UTC) matches the client and avoids
+  // React hydration error #418 (text mismatch).
   return new Intl.DateTimeFormat("en-PH", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
+    timeZone: "Asia/Manila",
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(date);
 }

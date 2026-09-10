@@ -83,7 +83,8 @@ export function FormalReportDocument({
   compact?: boolean;
   emptyMessage?: string;
 }) {
-  const preparedDate = generatedAt.toLocaleDateString(undefined, {
+  const preparedDate = generatedAt.toLocaleDateString("en-PH", {
+    timeZone: "Asia/Manila",
     year: "numeric",
     month: "long",
     day: "numeric",
