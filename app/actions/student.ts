@@ -30,7 +30,7 @@ import {
 } from "@/lib/student/scoring";
 import { getActiveTerm, getCurrentWeekNumber } from "@/lib/student/terms";
 import {
-  hasAgreedResearchConsent,
+  resolveStudentResearchConsent,
   RESEARCH_CONSENT_VERSION,
 } from "@/lib/student/research-consent";
 import { formatYearLevel } from "@/lib/utils";
@@ -116,10 +116,14 @@ async function submitWeeklyMonitoringInner(
   const { supabase, user, profile } = await requireRole(["Student"]);
 
   if (
-    !hasAgreedResearchConsent(
-      profile.research_consent_status,
-      profile.research_consent_version
-    )
+    !(
+      await resolveStudentResearchConsent(
+        supabase,
+        user.id,
+        profile.research_consent_status,
+        profile.research_consent_version
+      )
+    ).hasAgreed
   ) {
     return {
       error:

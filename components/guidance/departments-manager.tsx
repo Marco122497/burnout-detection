@@ -1,7 +1,15 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
-import { Building2Icon, Loader2, PencilIcon, PlusIcon, PowerIcon, Trash2Icon } from "lucide-react";
+import {
+  Building2Icon,
+  Loader2,
+  MoreHorizontalIcon,
+  PencilIcon,
+  PlusIcon,
+  PowerIcon,
+  Trash2Icon,
+} from "lucide-react";
 
 import {
   createDepartment,
@@ -32,15 +40,17 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TablePagination } from "@/components/shared/table-pagination";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-
+import { cn } from "@/lib/utils";
 const initialState: GuidanceActionState = {};
 const selectClassName =
   "h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
@@ -123,6 +133,7 @@ export function DepartmentsManager({
 }) {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [togglingId, setTogglingId] = useState<number | null>(null);
   const [addOpen, setAddOpen] = useState(false);
 
   const [createState, createAction, createPending] = useActionState(
@@ -151,8 +162,12 @@ export function DepartmentsManager({
     departments.find((d) => d.department_id === editingId) ?? null;
   const deleting =
     departments.find((d) => d.department_id === deletingId) ?? null;
+  const toggling =
+    departments.find((d) => d.department_id === togglingId) ?? null;
   const editDialogOpen = editingId != null;
   const deleteDialogOpen = deletingId != null;
+  const toggleDialogOpen = togglingId != null;
+  const toggleFormId = "toggle-department-form";
 
   const {
     page,
@@ -181,6 +196,12 @@ export function DepartmentsManager({
     }
   }, [deleteState.success]);
 
+  useEffect(() => {
+    if (toggleState.success) {
+      setTogglingId(null);
+    }
+  }, [toggleState.success]);
+
   function openAddDepartment() {
     setAddOpen(true);
   }
@@ -203,6 +224,10 @@ export function DepartmentsManager({
 
   function closeDeleteDepartment(open: boolean) {
     if (!open) setDeletingId(null);
+  }
+
+  function closeToggleDepartment(open: boolean) {
+    if (!open) setTogglingId(null);
   }
 
   return (
@@ -235,7 +260,9 @@ export function DepartmentsManager({
                       <th className="px-2 py-1.5 font-medium">Students</th>
                       <th className="px-2 py-1.5 font-medium">Instructors</th>
                       <th className="px-2 py-1.5 font-medium">Status</th>
-                      <th className="px-2 py-1.5 font-medium">Actions</th>
+                      <th className="w-10 px-2 py-1.5 text-right font-medium">
+                        <span className="sr-only">Actions</span>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -251,81 +278,63 @@ export function DepartmentsManager({
                         <td className="px-2 py-1.5">{dept.student_count}</td>
                         <td className="px-2 py-1.5">{dept.instructor_count}</td>
                         <td className="px-2 py-1.5">
-                          {dept.is_active ? "Active" : "Inactive"}
+                          <span
+                            className={cn(
+                              "text-xs font-medium",
+                              dept.is_active
+                                ? "text-emerald-700 dark:text-emerald-400"
+                                : "text-muted-foreground"
+                            )}
+                          >
+                            {dept.is_active ? "Active" : "Inactive"}
+                          </span>
                         </td>
-                        <td className="px-2 py-1.5">
-                          <div className="flex flex-wrap justify-end gap-1">
-                            <Tooltip>
-                              <TooltipTrigger
-                                render={
-                                  <Button
-                                    type="button"
-                                    size="icon-sm"
-                                    variant="ghost"
-                                    aria-label="Edit department"
-                                    onClick={() =>
-                                      openEditDepartment(dept.department_id)
-                                    }
-                                  >
-                                    <PencilIcon />
-                                  </Button>
+                        <td className="w-10 px-2 py-1.5 text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger
+                              render={
+                                <Button
+                                  type="button"
+                                  size="icon-sm"
+                                  variant="ghost"
+                                  className="shrink-0"
+                                  aria-label={`Actions for ${dept.department_name}`}
+                                >
+                                  <MoreHorizontalIcon className="size-4" />
+                                </Button>
+                              }
+                            />
+                            <DropdownMenuContent align="end" className="min-w-44">
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  openEditDepartment(dept.department_id)
                                 }
-                              />
-                              <TooltipContent>Edit</TooltipContent>
-                            </Tooltip>
-                            <form action={toggleAction}>
-                              <input
-                                type="hidden"
-                                name="department_id"
-                                value={dept.department_id}
-                              />
-                              <input
-                                type="hidden"
-                                name="is_active"
-                                value={dept.is_active ? "0" : "1"}
-                              />
-                              <Tooltip>
-                                <TooltipTrigger
-                                  render={
-                                    <Button
-                                      type="submit"
-                                      size="icon-sm"
-                                      variant="ghost"
-                                      disabled={togglePending}
-                                      aria-label={
-                                        dept.is_active
-                                          ? "Deactivate department"
-                                          : "Activate department"
-                                      }
-                                    >
-                                      <PowerIcon />
-                                    </Button>
-                                  }
-                                />
-                                <TooltipContent>
-                                  {dept.is_active ? "Deactivate" : "Activate"}
-                                </TooltipContent>
-                              </Tooltip>
-                            </form>
-                            <Tooltip>
-                              <TooltipTrigger
-                                render={
-                                  <Button
-                                    type="button"
-                                    size="icon-sm"
-                                    variant="ghost"
-                                    aria-label="Delete department"
-                                    onClick={() =>
-                                      openDeleteDepartment(dept.department_id)
-                                    }
-                                  >
-                                    <Trash2Icon />
-                                  </Button>
+                              >
+                                <PencilIcon />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                disabled={togglePending}
+                                onClick={() =>
+                                  setTogglingId(dept.department_id)
                                 }
-                              />
-                              <TooltipContent>Delete</TooltipContent>
-                            </Tooltip>
-                          </div>
+                              >
+                                <PowerIcon />
+                                {dept.is_active ? "Deactivate" : "Activate"}
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                variant="destructive"
+                                disabled={deletePending}
+                                onClick={() =>
+                                  openDeleteDepartment(dept.department_id)
+                                }
+                              >
+                                <Trash2Icon />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </td>
                       </tr>
                     ))}
@@ -434,6 +443,74 @@ export function DepartmentsManager({
                 <Loader2 className="size-4 animate-spin" />
               ) : (
                 "Save changes"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={toggleDialogOpen}
+        onOpenChange={(next) => {
+          if (togglePending) return;
+          closeToggleDepartment(next);
+        }}
+      >
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogMedia
+              className={
+                toggling?.is_active
+                  ? "bg-destructive/10 text-destructive"
+                  : undefined
+              }
+            >
+              <PowerIcon />
+            </AlertDialogMedia>
+            <AlertDialogTitle>
+              {toggling?.is_active
+                ? "Deactivate department?"
+                : "Activate department?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {toggling
+                ? toggling.is_active
+                  ? `This will deactivate “${toggling.department_name}” (${toggling.department_code}). It can be activated again later.`
+                  : `This will activate “${toggling.department_name}” (${toggling.department_code}).`
+                : "Update this department’s status."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {toggling ? (
+            <form id={toggleFormId} action={toggleAction}>
+              <input
+                type="hidden"
+                name="department_id"
+                value={toggling.department_id}
+              />
+              <input
+                type="hidden"
+                name="is_active"
+                value={toggling.is_active ? "0" : "1"}
+              />
+            </form>
+          ) : null}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={togglePending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              type="submit"
+              form={toggleFormId}
+              variant={toggling?.is_active ? "destructive" : "default"}
+              disabled={togglePending || !toggling}
+            >
+              {togglePending ? (
+                <>
+                  <Loader2 className="animate-spin" />
+                  Saving…
+                </>
+              ) : toggling?.is_active ? (
+                "Deactivate"
+              ) : (
+                "Activate"
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

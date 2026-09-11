@@ -710,102 +710,116 @@ export async function createStudent(
   _prev: GuidanceActionState,
   formData: FormData
 ): Promise<GuidanceActionState> {
-  const { supabase, user, profile } = await requireRole([
-    "Guidance Counselor",
-  ]);
-
-  const email = String(formData.get("email") || "").trim();
-  const password = DEFAULT_INITIAL_PASSWORD;
-  const first_name = String(formData.get("first_name") || "").trim();
-  const middle_name = String(formData.get("middle_name") || "").trim() || null;
-  const last_name = String(formData.get("last_name") || "").trim();
-  const suffix = String(formData.get("suffix") || "").trim() || null;
-  const sexRaw = String(formData.get("sex") || "").trim();
-  const sex = sexRaw === "Male" || sexRaw === "Female" ? sexRaw : null;
-  const student_number =
-    String(formData.get("student_number") || "").trim() || null;
-  const department_id = Number(formData.get("department_id"));
-  const yearLevelRaw = String(formData.get("year_level") || "").trim();
-  const year_level = yearLevelRaw ? Number(yearLevelRaw) : NaN;
-
-  if (
-    !email ||
-    !first_name ||
-    !last_name ||
-    !student_number ||
-    !department_id
-  ) {
-    return {
-      error: "Email, name, student number, and course are required.",
-    };
-  }
-
-  if (!sex) {
-    return { error: "Gender is required." };
-  }
-
-  if (Number.isNaN(year_level) || year_level < 1 || year_level > 4) {
-    return { error: "Year level must be between 1 and 4." };
-  }
-
-  let admin;
   try {
-    admin = createAdminClient();
-  } catch {
+    const { supabase, user, profile } = await requireRole([
+      "Guidance Counselor",
+    ]);
+
+    const email = String(formData.get("email") || "").trim();
+    const first_name = String(formData.get("first_name") || "").trim();
+    const middle_name = String(formData.get("middle_name") || "").trim() || null;
+    const last_name = String(formData.get("last_name") || "").trim();
+    const suffix = String(formData.get("suffix") || "").trim() || null;
+    const sexRaw = String(formData.get("sex") || "").trim();
+    const sex = sexRaw === "Male" || sexRaw === "Female" ? sexRaw : null;
+    const student_number =
+      String(formData.get("student_number") || "").trim() || null;
+    const department_id = Number(formData.get("department_id"));
+    const yearLevelRaw = String(formData.get("year_level") || "").trim();
+    const year_level = yearLevelRaw ? Number(yearLevelRaw) : NaN;
+
+    if (
+      !email ||
+      !first_name ||
+      !last_name ||
+      !student_number ||
+      !department_id
+    ) {
+      return {
+        error: "Email, name, student number, and course are required.",
+      };
+    }
+
+    if (!sex) {
+      return { error: "Gender is required." };
+    }
+
+    if (Number.isNaN(year_level) || year_level < 1 || year_level > 4) {
+      return { error: "Year level must be between 1 and 4." };
+    }
+
+    let admin;
+    try {
+      admin = createAdminClient();
+    } catch {
+      return {
+        error:
+          "Missing SUPABASE_SERVICE_ROLE_KEY. Add it to .env.local to create students.",
+      };
+    }
+
+    const { data: department, error: departmentError } = await admin
+      .from("departments")
+      .select("department_id, department_name, description")
+      .eq("department_id", department_id)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (departmentError || !department) {
+      return { error: "Please select a valid course." };
+    }
+
+    const course =
+      department.description?.trim() || department.department_name || null;
+
+    const result = await provisionStudentAccount(admin, {
+      email,
+      first_name,
+      middle_name,
+      last_name,
+      suffix,
+      sex,
+      student_number,
+      department_id,
+      year_level,
+      course,
+    });
+
+    if ("error" in result) {
+      return { error: result.error };
+    }
+
+    try {
+      await supabase.from("audit_logs").insert(
+        toAuditLogRow({
+          user_id: user.id,
+          user_role: profile.role,
+          action: "CREATE_STUDENT",
+          action_type: "CREATE",
+          table_name: "profiles",
+          record_id: result.userId,
+          description: `Created student ${first_name} ${last_name}`,
+          ip_address: await getIp(),
+        })
+      );
+    } catch {
+      // Account was created; audit failure should not block success.
+    }
+
+    // Do not revalidatePath("/guidance/students") here — revalidating the
+    // current route while returning useActionState can hang the HTTP/2
+    // response (ERR_HTTP2_PING_FAILED / empty {}). Client calls router.refresh().
+    revalidatePath("/guidance/monitoring");
+    revalidatePath("/guidance/departments");
+    return { success: "Student account created." };
+  } catch (error) {
     return {
       error:
-        "Missing SUPABASE_SERVICE_ROLE_KEY. Add it to .env.local to create students.",
+        error instanceof Error
+          ? error.message
+          : "Failed to create student. Please try again.",
     };
   }
-
-  const { data: department, error: departmentError } = await admin
-    .from("departments")
-    .select("department_id, department_name, description")
-    .eq("department_id", department_id)
-    .eq("is_active", true)
-    .maybeSingle();
-
-  if (departmentError || !department) {
-    return { error: "Please select a valid course." };
-  }
-
-  const course =
-    department.description?.trim() || department.department_name || null;
-
-  const result = await provisionStudentAccount(admin, {
-    email,
-    first_name,
-    middle_name,
-    last_name,
-    suffix,
-    sex,
-    student_number,
-    department_id,
-    year_level,
-    course,
-  });
-
-  if ("error" in result) {
-    return { error: result.error };
-  }
-
-  await supabase.from("audit_logs").insert(
-    toAuditLogRow({
-      user_id: user.id,
-      user_role: profile.role,
-      action: "CREATE_STUDENT",
-      action_type: "CREATE",
-      table_name: "profiles",
-      record_id: result.userId,
-      description: `Created student ${first_name} ${last_name}`,
-      ip_address: await getIp(),
-    })
-  );
-
-  revalidatePath("/guidance/students");
-  revalidatePath("/guidance/monitoring");
-  revalidatePath("/guidance/departments");
-  return { success: "Student account created." };
 }
 
 export async function bulkCreateStudents(
@@ -917,7 +931,7 @@ export async function bulkCreateStudents(
     );
   }
 
-  revalidatePath("/guidance/students");
+  // Avoid revalidatePath("/guidance/students") + return state hang on HTTP/2.
   revalidatePath("/guidance/monitoring");
   revalidatePath("/guidance/departments");
 

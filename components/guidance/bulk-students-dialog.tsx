@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Loader2, Trash2Icon, UploadIcon } from "lucide-react";
 
 import {
@@ -73,6 +74,7 @@ export function BulkStudentsDialog({
   existingEmails?: string[];
   existingStudentNumbers?: string[];
 }) {
+  const router = useRouter();
   const activeDepartments = departments.filter((dept) => dept.is_active);
   const defaultDepartment = findEnglishStudiesDepartment(activeDepartments);
   const [departmentId, setDepartmentId] = useState(
@@ -100,8 +102,9 @@ export function BulkStudentsDialog({
       setPasteText("");
       setRemovedRowNumbers(new Set());
       setSelectedRowNumbers(new Set());
+      router.refresh();
     }
-  }, [bulkState.success, onOpenChange]);
+  }, [bulkState.success, onOpenChange, router]);
 
   useEffect(() => {
     if (open && defaultDepartment && !departmentId) {

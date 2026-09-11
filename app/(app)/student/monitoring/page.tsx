@@ -5,7 +5,7 @@ import { requireRole } from "@/lib/auth/session";
 import { getWeeklyMonitoringSections } from "@/lib/student/questionnaires";
 import { getLatestBurnoutSnapshot } from "@/lib/student/queries";
 import {
-  hasAgreedResearchConsent,
+  resolveStudentResearchConsent,
   RESEARCH_CONSENT_VERSION,
 } from "@/lib/student/research-consent";
 import {
@@ -23,12 +23,14 @@ export const metadata = {
 export default async function StudentMonitoringPage() {
   const { supabase, user, profile } = await requireRole(["Student"]);
 
-  if (
-    !hasAgreedResearchConsent(
-      profile.research_consent_status,
-      profile.research_consent_version
-    )
-  ) {
+  const consent = await resolveStudentResearchConsent(
+    supabase,
+    user.id,
+    profile.research_consent_status,
+    profile.research_consent_version
+  );
+
+  if (!consent.hasAgreed) {
     return (
       <div className="space-y-6">
         <PageHeading

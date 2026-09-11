@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   KeyRoundIcon,
   Loader2,
@@ -91,6 +92,7 @@ export function StudentsManager({
   students: UserListItem[];
   departments: Department[];
 }) {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("");
   const [addOpen, setAddOpen] = useState(false);
@@ -135,8 +137,11 @@ export function StudentsManager({
   useActionToast(bulkDeleteState);
 
   useEffect(() => {
-    if (createState.success) setAddOpen(false);
-  }, [createState]);
+    if (createState.success) {
+      setAddOpen(false);
+      router.refresh();
+    }
+  }, [createState.success, router]);
 
   useEffect(() => {
     if (updateState.success) setEditingId(null);
@@ -258,6 +263,8 @@ export function StudentsManager({
   }
 
   function closeAdd(open: boolean) {
+    // Don't unmount the form mid-submit — that aborts the server action.
+    if (!open && createPending) return;
     setAddOpen(open);
   }
 

@@ -3,7 +3,7 @@ import type { NavNotification } from "@/components/layout/nav-notifications";
 import { StudentGenderDialog } from "@/components/student/student-gender-dialog";
 import { StudentResearchConsentGate } from "@/components/student/student-research-consent-gate";
 import { requireUser } from "@/lib/auth/session";
-import { needsResearchConsent } from "@/lib/student/research-consent";
+import { resolveStudentResearchConsent } from "@/lib/student/research-consent";
 
 export const dynamic = "force-dynamic";
 
@@ -44,12 +44,15 @@ export default async function AppLayout({
     }));
 
   const isStudent = profile.role === "Student";
-  const needsConsent =
-    isStudent &&
-    needsResearchConsent(
-      profile.research_consent_status,
-      profile.research_consent_version
-    );
+  const consent = isStudent
+    ? await resolveStudentResearchConsent(
+        supabase,
+        user.id,
+        profile.research_consent_status,
+        profile.research_consent_version
+      )
+    : null;
+  const needsConsent = Boolean(consent?.needsConsent);
   const needsGender =
     isStudent &&
     !needsConsent &&
@@ -69,7 +72,7 @@ export default async function AppLayout({
       {needsConsent ? (
         <StudentResearchConsentGate
           studentNumber={profile.student_number}
-          declined={profile.research_consent_status === "Declined"}
+          declined={consent?.declined}
         />
       ) : null}
       {needsGender ? <StudentGenderDialog /> : null}
