@@ -1,6 +1,10 @@
 import type { BurnoutLevel } from "@/lib/student/mfbi";
 import { classifyMfbiScore } from "@/lib/student/mfbi";
 import type { PredictionResult } from "@/lib/student/predict";
+import {
+  parseRecommendationResponse,
+  type RagRecommendationResult,
+} from "@/lib/student/rag";
 
 export type AiFeaturePayload = {
   stress_score: number;
@@ -114,6 +118,18 @@ function aiBaseUrl() {
     process.env.BURNOUT_AI_URL?.replace(/\/$/, "") ||
     DEFAULT_AI_API_URL
   );
+}
+
+function recommendationBaseUrls() {
+  const configured = aiBaseUrl();
+  const local = "http://127.0.0.1:8000";
+  const urls: string[] = [];
+  // Production Render does not serve /api/burnout/recommendation yet.
+  if (configured && !configured.includes("onrender.com")) {
+    urls.push(configured);
+  }
+  if (!urls.includes(local)) urls.push(local);
+  return urls;
 }
 
 export async function checkBurnoutAiHealth(): Promise<boolean> {
@@ -235,4 +251,60 @@ export async function callBurnoutAiEarlyWarning(
   } finally {
     clearTimeout(timeout);
   }
+}
+
+/**
+ * RAG + LLM recommendation layer. Does not replace MFBI or ML risk.
+ */
+export async function callBurnoutAiRecommendation(input: {
+  studentId?: string;
+  monitoringId?: number;
+  mfbiId?: number | null;
+  predictionId?: number | null;
+  stressScore: number;
+  academicWorkloadScore: number;
+  studyTimeScore: number;
+  sleepHoursScore: number;
+  mfbiScore: number;
+  riskLevel: string;
+  predictionModel?: string | null;
+}): Promise<RagRecommendationResult | null> {
+  const payload = {
+    student_id: input.studentId,
+    monitoring_id: input.monitoringId,
+    mfbi_id: input.mfbiId,
+    prediction_id: input.predictionId,
+    stress_score: input.stressScore,
+    academic_workload_score: input.academicWorkloadScore,
+    study_time_score: input.studyTimeScore,
+    sleep_hours_score: input.sleepHoursScore,
+    mfbi_score: input.mfbiScore,
+    risk_level: input.riskLevel,
+    prediction_model: input.predictionModel,
+  };
+
+  for (const baseUrl of recommendationBaseUrls()) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 45000);
+    try {
+      const response = await fetch(`${baseUrl}/api/burnout/recommendation`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+        cache: "no-store",
+      });
+      if (!response.ok) continue;
+      const data = await response.json();
+      if (!data?.success) continue;
+      const parsed = parseRecommendationResponse(data);
+      if (parsed) return parsed;
+    } catch {
+      // Local AI may be offline; keep the template recommendation.
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  return null;
 }

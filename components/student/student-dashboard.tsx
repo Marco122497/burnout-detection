@@ -12,6 +12,7 @@ import type { Profile } from "@/lib/auth/roles";
 import { formatDateTime } from "@/lib/auth/roles";
 import type { StudentDashboardData } from "@/lib/student/dashboard";
 import { formatFactorRiskLabel } from "@/lib/student/tips";
+import { RagRecommendationPanel } from "@/components/student/rag-recommendation-panel";
 import {
   BurnoutFactorSection,
   BurnoutHero,
@@ -120,83 +121,93 @@ export function StudentDashboard({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <LightbulbIcon className="size-4" />
-            Counseling Recommendation
+            Advice for this week
           </CardTitle>
           <CardDescription>
-            Next-week early warning outlook, plus what to do this week for
-            stress, schoolwork, study time, and sleep.
+            A plain-language look at this week, based on your scores and school
+            well-being guidance.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {data.recommendation ? (
-            <>
-              <div className="space-y-2">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  {data.recommendation.trend === "decreasing"
-                    ? "From improving trend"
-                    : data.recommendation.trend === "increasing"
-                      ? "From next-week early warning · rising"
-                      : data.recommendation.basis === "next_week"
-                        ? "From next-week early warning"
-                        : "From your burnout score"}
-                  {data.recommendation.burnout_level
-                    ? ` · ${data.recommendation.burnout_level}`
-                    : ""}
-                </p>
-                <p className="text-base font-medium leading-snug">
-                  {data.recommendation.title}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {data.recommendation.description}
-                </p>
-                <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                  {data.recommendation.currentMfbi != null ? (
-                    <span>
-                      MFBI:{" "}
-                      <span className="font-medium text-foreground">
-                        {Number(data.recommendation.currentMfbi).toFixed(2)}
-                      </span>
-                      {data.recommendation.previousMfbi != null ? (
-                        <>
-                          {" "}
-                          (was{" "}
-                          {Number(data.recommendation.previousMfbi).toFixed(2)}
-                          )
-                        </>
-                      ) : null}
+          {data.ragRecommendation ? (
+            <RagRecommendationPanel
+              recommendation={data.ragRecommendation}
+              compact
+            />
+          ) : data.recommendation ? (
+            <div className="space-y-2">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {data.recommendation.trend === "decreasing"
+                  ? "From improving trend"
+                  : data.recommendation.trend === "increasing"
+                    ? "From next-week early warning · rising"
+                    : data.recommendation.basis === "next_week"
+                      ? "From next-week early warning"
+                      : "From your burnout score"}
+                {data.recommendation.burnout_level
+                  ? ` · ${data.recommendation.burnout_level}`
+                  : ""}
+              </p>
+              <p className="text-base font-medium leading-snug">
+                {data.recommendation.title}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {data.recommendation.description}
+              </p>
+              <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                {data.recommendation.currentMfbi != null ? (
+                  <span>
+                    MFBI:{" "}
+                    <span className="font-medium text-foreground">
+                      {Number(data.recommendation.currentMfbi).toFixed(2)}
                     </span>
-                  ) : null}
-                  {trendArrow(data.recommendation.trend) ? (
-                    <span>
-                      Trend:{" "}
-                      <span className="font-medium text-foreground">
-                        {trendArrow(data.recommendation.trend)}
-                      </span>
+                    {data.recommendation.previousMfbi != null ? (
+                      <>
+                        {" "}
+                        (was {Number(data.recommendation.previousMfbi).toFixed(2)})
+                      </>
+                    ) : null}
+                  </span>
+                ) : null}
+                {trendArrow(data.recommendation.trend) ? (
+                  <span>
+                    Trend:{" "}
+                    <span className="font-medium text-foreground">
+                      {trendArrow(data.recommendation.trend)}
                     </span>
-                  ) : null}
-                  {data.recommendation.nextWeekRisk ? (
-                    <span>
-                      Next week:{" "}
-                      <span
-                        className={cn(
-                          "font-medium",
-                          riskTone(data.recommendation.nextWeekRisk)
-                        )}
-                      >
-                        {data.recommendation.nextWeekRisk}
-                      </span>
+                  </span>
+                ) : null}
+                {data.recommendation.nextWeekRisk ? (
+                  <span>
+                    Next week:{" "}
+                    <span
+                      className={cn(
+                        "font-medium",
+                        riskTone(data.recommendation.nextWeekRisk)
+                      )}
+                    >
+                      {data.recommendation.nextWeekRisk}
                     </span>
-                  ) : null}
-                </div>
-                {data.recommendation.recommended_action ? (
-                  <p className="student-chum-tip px-3 py-2.5 text-sm">
-                    <span className="font-bold">Action: </span>
-                    {data.recommendation.recommended_action}
-                  </p>
+                  </span>
                 ) : null}
               </div>
+              {data.recommendation.recommended_action ? (
+                <p className="student-chum-tip px-3 py-2.5 text-sm">
+                  <span className="font-bold">Action: </span>
+                  {data.recommendation.recommended_action}
+                </p>
+              ) : null}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Your personalized counseling recommendation appears after you
+              submit weekly monitoring.
+            </p>
+          )}
 
-              {data.factorRecommendations.length ? (
+          {data.ragRecommendation || data.recommendation ? (
+            <>
+              {data.factorRecommendations.length && !data.ragRecommendation ? (
                 <div className="space-y-2 border-t pt-3">
                   <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                     What to do this week
@@ -271,12 +282,7 @@ export function StudentDashboard({
                 View full counseling recommendation →
               </Link>
             </>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Your personalized counseling recommendation appears after you
-              submit weekly monitoring.
-            </p>
-          )}
+          ) : null}
         </CardContent>
       </Card>
 

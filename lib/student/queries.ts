@@ -23,6 +23,7 @@ export type MonitoringRow = {
   status: string | null;
   mfbi_results:
     | {
+        mfbi_id?: number;
         mfbi_score: number;
         burnout_level: string;
         normalized_stress: number;
@@ -31,6 +32,7 @@ export type MonitoringRow = {
         normalized_sleep: number;
       }
     | {
+        mfbi_id?: number;
         mfbi_score: number;
         burnout_level: string;
         normalized_stress: number;
@@ -149,6 +151,7 @@ export async function getWeeklyMonitoringHistory(
       status: row.status,
       mfbi_results: mfbi
         ? {
+            mfbi_id: Number(mfbi.mfbi_id),
             mfbi_score: Number(mfbi.mfbi_score),
             burnout_level: mfbi.burnout_risk_level,
             normalized_stress: Number(mfbi.normalized_stress),
@@ -356,3 +359,32 @@ export async function ensureWeeklyMonitoringReminder(
 }
 
 export { unwrapMfbi };
+
+export async function getLatestRagRecommendation(
+  supabase: SupabaseClient,
+  studentId: string,
+  monitoringId?: number | null
+) {
+  const { mapStoredRagRecommendation } = await import("@/lib/student/rag");
+  const columns =
+    "id, monitoring_id, mfbi_score, risk_level, prediction_model, llm_model, used_fallback, assessment_summary, contributing_factors, recommended_actions, human_support, sources, retrieved_categories, created_at";
+
+  let query = supabase
+    .from("rag_recommendations")
+    .select(columns)
+    .eq("student_id", studentId);
+
+  if (monitoringId) {
+    query = query.eq("monitoring_id", monitoringId);
+  }
+
+  const { data, error } = await query
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    console.error("getLatestRagRecommendation:", error.message);
+    return null;
+  }
+  return mapStoredRagRecommendation(data);
+}

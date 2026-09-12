@@ -6,6 +6,7 @@
     "dev": "next dev",
     "dev:with-ai": "concurrently -k -n next,ai -c cyan,magenta \"next dev\" \"npm run ai\"",
     "ai": "node scripts/run-ai.mjs",
+    "rag:ingest": "node scripts/run-rag-ingest.mjs",
     "train": "node scripts/run-train.mjs",
     "train:merge": "py burnout-ai/training/merge_real_data.py",
     "train:export": "py burnout-ai/training/export_real_data.py",

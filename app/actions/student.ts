@@ -342,6 +342,35 @@ async function submitWeeklyMonitoringInner(
     };
   }
 
+  try {
+    const { callBurnoutAiRecommendation } = await import("@/lib/student/ai-client");
+    const { saveRagRecommendation } = await import("@/lib/student/rag");
+    const ragResult = await callBurnoutAiRecommendation({
+      studentId: user.id,
+      monitoringId: monitoring.monitoring_id,
+      mfbiId: mfbiRow.mfbi_id,
+      predictionId: predictionRow?.prediction_id ?? null,
+      stressScore: scores.stress_score,
+      academicWorkloadScore: scores.academic_workload_score,
+      studyTimeScore: scores.study_time_score,
+      sleepHoursScore: scores.sleep_hours_score,
+      mfbiScore: Number(mfbiRow.mfbi_score),
+      riskLevel: prediction.final_prediction,
+      predictionModel: prediction.selected_model,
+    });
+    if (ragResult) {
+      await saveRagRecommendation(supabase, {
+        studentId: user.id,
+        monitoringId: monitoring.monitoring_id,
+        mfbiId: mfbiRow.mfbi_id,
+        predictionId: predictionRow?.prediction_id ?? null,
+        result: ragResult,
+      });
+    }
+  } catch (error) {
+    console.error("RAG recommendation save skipped:", error);
+  }
+
   await saveBurnoutTrend(supabase, {
     studentId: user.id,
     termId: term.term_id,

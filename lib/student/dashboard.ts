@@ -6,12 +6,14 @@ import {
 } from "@/lib/student/ai-client";
 import { getStudentAnnouncements } from "@/lib/student/announcements";
 import { getStudentBurnoutTrends, backfillBurnoutTrendsFromHistory } from "@/lib/student/burnout-trends";
+import { ensureRagRecommendation } from "@/lib/student/ensure-rag";
 import {
   ensureWeeklyMonitoringReminder,
   getWeeklyMonitoringHistory,
 } from "@/lib/student/queries";
 import { getActiveTerm, getCurrentWeekNumber } from "@/lib/student/terms";
 import { resolveMfbiBurnoutLevel } from "@/lib/student/mfbi";
+import type { StoredRagRecommendation } from "@/lib/student/rag";
 import {
   buildPersonalizedCounselingRecommendation,
   buildStudentFactors,
@@ -71,6 +73,7 @@ export type StudentDashboardData = {
     previousMfbi: number | null;
   } | null;
   factorRecommendations: FactorRecommendation[];
+  ragRecommendation: StoredRagRecommendation | null;
   announcements: {
     announcement_id: number;
     title: string;
@@ -118,6 +121,11 @@ export async function getStudentDashboardData(
   );
 
   const latest = history[0] ?? null;
+  const ragRecommendation = await ensureRagRecommendation(
+    supabase,
+    studentId,
+    latest
+  );
   const mfbi = latest?.mfbi_results
     ? Array.isArray(latest.mfbi_results)
       ? latest.mfbi_results[0]
@@ -308,6 +316,7 @@ export async function getStudentDashboardData(
     weeklyTrend,
     recommendation,
     factorRecommendations,
+    ragRecommendation,
     announcements,
     courseLabel,
   };

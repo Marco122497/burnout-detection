@@ -3,6 +3,7 @@ import { RecommendationsView } from "@/components/student/recommendations-view";
 import { PageHeading } from "@/components/layout/page-heading";
 import { requireRole } from "@/lib/auth/session";
 import { parseEarlyWarningRemarks } from "@/lib/student/ai-client";
+import { ensureRagRecommendation } from "@/lib/student/ensure-rag";
 import { resolveMfbiBurnoutLevel } from "@/lib/student/mfbi";
 import { getLatestBurnoutSnapshot } from "@/lib/student/queries";
 import {
@@ -17,6 +18,11 @@ export const metadata = {
 export default async function StudentRecommendationsPage() {
   const { supabase, user } = await requireRole(["Student"]);
   const snapshot = await getLatestBurnoutSnapshot(supabase, user.id);
+  const ragRecommendation = await ensureRagRecommendation(
+    supabase,
+    user.id,
+    snapshot.latest
+  );
   const earlyWarning = parseEarlyWarningRemarks(
     snapshot.latest?.prediction?.remarks ?? null
   );
@@ -70,8 +76,8 @@ export default async function StudentRecommendationsPage() {
   return (
     <div className="space-y-6">
       <PageHeading
-        title="Counseling Recommendation"
-        description="Next-week early warning outlook, plus what to do this week for stress, schoolwork, study time, and sleep — based on your latest and previous weekly monitoring."
+        title="Advice for this week"
+        description="A plain-language look at this week, based on your scores and school well-being guidance."
       />
       <RecommendationsView
         burnoutLevel={counseling?.burnout_level ?? null}
@@ -83,6 +89,7 @@ export default async function StudentRecommendationsPage() {
         nextWeekRisk={earlyWarning?.next_week_risk ?? null}
         currentMfbi={mfbi?.mfbi_score ?? null}
         previousMfbi={previousMfbi?.mfbi_score ?? null}
+        ragRecommendation={ragRecommendation}
       />
     </div>
   );

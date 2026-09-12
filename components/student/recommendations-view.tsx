@@ -8,6 +8,8 @@ import {
 import type { BurnoutLevel } from "@/lib/student/mfbi";
 import type { FactorRecommendation } from "@/lib/student/tips";
 import { formatFactorRiskLabel, getTipsForLevel } from "@/lib/student/tips";
+import type { StoredRagRecommendation } from "@/lib/student/rag";
+import { RagRecommendationPanel } from "@/components/student/rag-recommendation-panel";
 import { cn } from "@/lib/utils";
 
 function riskTone(level: string | null | undefined) {
@@ -36,6 +38,7 @@ export function RecommendationsView({
   nextWeekRisk = null,
   currentMfbi = null,
   previousMfbi = null,
+  ragRecommendation = null,
 }: {
   burnoutLevel: BurnoutLevel | null;
   guidance: {
@@ -51,6 +54,7 @@ export function RecommendationsView({
   nextWeekRisk?: BurnoutLevel | null;
   currentMfbi?: number | null;
   previousMfbi?: number | null;
+  ragRecommendation?: StoredRagRecommendation | null;
 }) {
   const tips = factorRecommendations.length
     ? [...factorRecommendations]
@@ -116,81 +120,98 @@ export function RecommendationsView({
         </Card>
       ) : null}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Counseling recommendation</CardTitle>
-          <CardDescription>
-            Next-week early warning outlook, plus what to do this week for
-            stress, schoolwork, study time, and sleep.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {guidance ? (
-            <div className="space-y-3">
-              <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                {outlookLabel}
-                {burnoutLevel ? ` · ${burnoutLevel}` : ""}
-              </p>
-              <p className="text-lg font-medium">{guidance.title}</p>
-              <p className="text-sm text-muted-foreground whitespace-pre-line">
-                {guidance.description}
-              </p>
-              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                {currentMfbi != null ? (
-                  <span>
-                    MFBI:{" "}
-                    <span className="font-medium text-foreground">
-                      {Number(currentMfbi).toFixed(2)}
+      {ragRecommendation ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Advice for this week</CardTitle>
+            <CardDescription>
+              A plain-language look at this week, based on your scores and
+              school well-being guidance. This does not change your burnout-risk
+              result.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <RagRecommendationPanel recommendation={ragRecommendation} />
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>Advice for this week</CardTitle>
+            <CardDescription>
+              A plain-language look at this week, based on your scores and
+              school well-being guidance.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {guidance ? (
+              <div className="space-y-3">
+                <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                  {outlookLabel}
+                  {burnoutLevel ? ` · ${burnoutLevel}` : ""}
+                </p>
+                <p className="text-lg font-medium">{guidance.title}</p>
+                <p className="text-sm text-muted-foreground whitespace-pre-line">
+                  {guidance.description}
+                </p>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                  {currentMfbi != null ? (
+                    <span>
+                      MFBI:{" "}
+                      <span className="font-medium text-foreground">
+                        {Number(currentMfbi).toFixed(2)}
+                      </span>
+                      {previousMfbi != null ? (
+                        <>
+                          {" "}
+                          (was {Number(previousMfbi).toFixed(2)})
+                        </>
+                      ) : null}
                     </span>
-                    {previousMfbi != null ? (
-                      <>
-                        {" "}
-                        (was {Number(previousMfbi).toFixed(2)})
-                      </>
-                    ) : null}
-                  </span>
-                ) : null}
-                {trendText ? (
-                  <span>
-                    Trend:{" "}
-                    <span className="font-medium text-foreground">
-                      {trendText}
+                  ) : null}
+                  {trendText ? (
+                    <span>
+                      Trend:{" "}
+                      <span className="font-medium text-foreground">
+                        {trendText}
+                      </span>
                     </span>
-                  </span>
-                ) : null}
-                {currentLevel ? (
-                  <span>
-                    Current week:{" "}
-                    <span className={cn("font-medium", riskTone(currentLevel))}>
-                      {currentLevel}
+                  ) : null}
+                  {currentLevel ? (
+                    <span>
+                      Current week:{" "}
+                      <span className={cn("font-medium", riskTone(currentLevel))}>
+                        {currentLevel}
+                      </span>
                     </span>
-                  </span>
-                ) : null}
-                {nextWeekRisk ? (
-                  <span>
-                    Next week:{" "}
-                    <span className={cn("font-medium", riskTone(nextWeekRisk))}>
-                      {nextWeekRisk}
+                  ) : null}
+                  {nextWeekRisk ? (
+                    <span>
+                      Next week:{" "}
+                      <span className={cn("font-medium", riskTone(nextWeekRisk))}>
+                        {nextWeekRisk}
+                      </span>
                     </span>
-                  </span>
+                  ) : null}
+                </div>
+                {guidance.recommended_action ? (
+                  <p className="rounded-lg border bg-muted/40 px-3 py-2 text-sm text-foreground">
+                    <span className="font-medium">Action: </span>
+                    {guidance.recommended_action}
+                  </p>
                 ) : null}
               </div>
-              {guidance.recommended_action ? (
-                <p className="rounded-lg border bg-muted/40 px-3 py-2 text-sm text-foreground">
-                  <span className="font-medium">Action: </span>
-                  {guidance.recommended_action}
-                </p>
-              ) : null}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Complete weekly monitoring to see your personalized counseling
-              recommendation.
-            </p>
-          )}
-        </CardContent>
-      </Card>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Complete weekly monitoring to see your personalized counseling
+                recommendation.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
+      {ragRecommendation ? null : (
       <div className="space-y-3">
         <div>
           <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight">
@@ -260,6 +281,7 @@ export function RecommendationsView({
           ))}
         </div>
       </div>
+      )}
     </div>
   );
 }
