@@ -34,7 +34,7 @@ When available, the generation layer may receive:
 4. RETRIEVAL STRATEGY
 Retrieval should prioritize knowledge that matches the weekly monitoring questions the student answered.
 
-Stress (PSS-10): unexpected upset, feeling unable to control important things, nervous and stressed, low confidence handling problems, things not going their way, could not cope with all they had to do, irritations, not on top of things, angered by what they cannot control, difficulties piling up.
+Stress (PSS-10, psychological): perceived stress, appraisal of demands vs control, coping, confidence, unexpected upset, feeling unable to control important things, nervous and stressed, low confidence handling problems, things not going their way, could not cope, irritations, not on top of things, angered by what they cannot control, difficulties piling up. Do not retrieve only workload or study-time tips for a High stress score.
 
 Workload: how heavy this week’s load is, overlapping deadlines, assignments taking more time than expected, pressure from the volume of requirements, difficulty keeping up with quizzes, projects, and readings.
 
@@ -49,7 +49,8 @@ The LLM should:
 - Use retrieved information as the primary factual basis.
 - Clearly distinguish system results from general guidance.
 - Write like a caring adviser talking to one student. Use "you."
-- Keep language everyday: tired, overloaded, tense, behind on rest.
+- Keep language everyday: tired, overloaded, tense, behind on rest, hard to feel in control.
+- Treat Stress as psychological (how the week feels in mind and body). Treat workload, study time, and sleep as separate factors.
 - contributing_factors must be full sentences about how the week feels, never labels such as "Academic workload" or "Sleep/rest".
 - Avoid robotic phrases such as "classified as," "consider reaching out," "feelings of being overwhelmed," or "official school channels."
 - Avoid excessive medical or psychological terminology.
@@ -98,12 +99,12 @@ Expected response structure:
 "This week looks quite hard to carry (MFBI 0.78). School has felt tense, the load looks overcrowded, and rest may not be resetting you. This is school well-being guidance, not a medical diagnosis."
 
 "What's weighing on you:
-- This week has felt tense and crowded in your head, like it is hard to catch up.
+- This week has felt tense in your thoughts and body, like it is hard to feel in control.
 - Quizzes, projects, and readings are stacking up, and the week feels overcrowded.
 - Long study hours are eating into rest, and more sitting may not be what you need."
 
 "Things you can try this week:
-1. Name the one class or deadline sitting heaviest on you.
+1. Name the feeling and the one event sitting heaviest, so the worry is not only looping in your head.
 2. Write this week's due dates on one page, then spend the next hour on the soonest one only.
 3. Protect about 7 hours of sleep, even if one assignment is still unfinished.
 4. Sit for 40 to 50 minutes with one written goal, then take a real break.

@@ -14,6 +14,7 @@ SYSTEM_PROMPT = """You are a caring college adviser sitting with one tired stude
 Write the way a kind person talks: short, warm, specific. Use "you."
 Keep the MFBI score and machine-learning risk exactly as given.
 Ground every tip in retrieved STUDENT-FACING GUIDANCE / HOW THIS MAY FEEL.
+Stress tips should come from psychological stress knowledge (how the week feels in mind and body, control, coping), not a second homework list.
 Do not diagnose. Do not invent contacts, medicines, or sources.
 
 Focus tips on Moderate and High factors only.
@@ -57,9 +58,9 @@ Return JSON only with this shape:
 
 def contributing_factor_phrases(labels: dict[str, str]) -> list[str]:
     stories = {
-        ("stress", "Moderate"): "School has felt a bit heavier than usual, like you are bracing for the next thing.",
-        ("stress", "High"): "This week has felt tense and crowded in your head, like it is hard to catch up.",
-        ("stress", "Severe"): "The pressure feels very heavy right now, and it may be hard to catch your breath.",
+        ("stress", "Moderate"): "Your mind has been treating this week as a bit heavier than usual, like you are bracing for the next thing.",
+        ("stress", "High"): "This week has felt tense in your thoughts and body, like it is hard to feel in control or catch up.",
+        ("stress", "Severe"): "The inner pressure feels very heavy right now, and it may be hard to catch your breath.",
         ("workload", "Moderate"): "Your classwork is starting to pile up, with more due than feels comfortable.",
         ("workload", "High"): "Quizzes, projects, and readings are stacking up, and the week feels overcrowded.",
         ("workload", "Severe"): "The amount of schoolwork this week looks very hard to carry on your own.",
@@ -83,9 +84,9 @@ def contributing_factor_phrases(labels: dict[str, str]) -> list[str]:
 
 STUDENT_ACTIONS_BY_CATEGORY = {
     "Stress": [
-        "Name the one class or deadline sitting heaviest on you, so it is not just looping in your head.",
-        "Give that task one honest hour — a small next step — instead of trying to finish the whole week tonight.",
-        "Take a real break between classes: a meal, a short walk, or a few slow breaths before you open another file.",
+        "Name the feeling and the one event sitting heaviest, so the worry is not only looping in your head.",
+        "Ask what you can still choose today — one deadline, one class, or one message — then give that an honest hour.",
+        "Pause for two slow breaths, a meal, or a short walk before you open another file. Settle the body, then take one small next step.",
     ],
     "Academic Workload": [
         "Write this week's quizzes, projects, and readings on one page with due dates, then circle what is due first.",
@@ -177,7 +178,7 @@ FACTOR_TO_CATEGORY = {
     "study": "Study Time",
 }
 LOW_FACTOR_SENTENCES = {
-    "stress": "Stress looks manageable this week.",
+    "stress": "The inner pressure of the week looks manageable.",
     "workload": "Your classwork load looks manageable this week.",
     "sleep": "Your sleep looks all right this week.",
     "study": "Your study time looks manageable this week.",
@@ -383,7 +384,7 @@ def _as_string_list(value: Any) -> list[str]:
 
 PRIORITY_ACTION_HINTS = {
     "Sleep": r"sleep|bedtime|7 hours|wake time|\brest\b",
-    "Stress": r"stress|tense|deadline|pressure|break",
+    "Stress": r"stress|tense|feeling|control|cope|breath|deadline|pressure|break",
     "Academic Workload": r"due date|assignment|workload|task|list",
     "Study Time": r"study|break|reread|focused",
 }
