@@ -37,7 +37,7 @@ export function NavNotifications({
   notifications: NavNotification[];
   viewAllHref?: string | null;
 }) {
-  const { navigate, isPending, pendingHref } = useNavigationPending();
+  const { navigate, isPending, isBusy, pendingHref } = useNavigationPending();
   const [items, setItems] = useState(notifications);
   const [pendingId, setPendingId] = useState<number | null>(null);
   const [markPending, startMarkTransition] = useTransition();
@@ -81,8 +81,14 @@ export function NavNotifications({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
+        disabled={isBusy}
         render={
-          <Button variant="ghost" size="icon-sm" className="relative" />
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="relative"
+            disabled={isBusy}
+          />
         }
       >
         <BellIcon className="size-4" />

@@ -44,7 +44,7 @@ export function AppSidebar({
   const pathname = usePathname();
   const router = useRouter();
   const { isMobile, setOpenMobile } = useSidebar();
-  const { isPending, pendingHref, navigate } = useNavigationPending();
+  const { isPending, isBusy, pendingHref, navigate } = useNavigationPending();
   const home = getDashboardPath(profile.role);
   const navItems = getNavItems(profile.role, home);
   const isStudent = profile.role === "Student";
@@ -60,6 +60,7 @@ export function AppSidebar({
   }, [home, profile.role, router]);
 
   function onNavigate(url: string) {
+    if (isBusy) return;
     if (isItemActive(pathname, url, home) && pathname === url) return;
 
     if (isMobile) {
@@ -76,7 +77,11 @@ export function AppSidebar({
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" onClick={() => onNavigate(home)}>
+            <SidebarMenuButton
+              size="lg"
+              disabled={isBusy}
+              onClick={() => onNavigate(home)}
+            >
               <div className="flex aspect-square size-10 items-center justify-center overflow-hidden rounded-lg">
                 <img
                   src="/logo.png"
@@ -117,6 +122,7 @@ export function AppSidebar({
                 <SidebarMenuItem key={item.url}>
                   <SidebarMenuButton
                     isActive={isActive}
+                    disabled={isBusy}
                     onMouseEnter={() => router.prefetch(item.url)}
                     onFocus={() => router.prefetch(item.url)}
                     onClick={() => onNavigate(item.url)}
@@ -139,7 +145,7 @@ export function AppSidebar({
         <SidebarSeparator />
         <SidebarAppFooter />
       </SidebarFooter>
-      <SidebarRail />
+      <SidebarRail className={isBusy ? "pointer-events-none" : undefined} />
     </Sidebar>
   );
 }

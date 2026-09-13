@@ -13,8 +13,10 @@ import { usePathname, useRouter } from "next/navigation";
 
 type NavigationPendingContextValue = {
   isPending: boolean;
+  isBusy: boolean;
   pendingHref: string | null;
   navigate: (url: string) => void;
+  setLockChrome: (locked: boolean) => void;
 };
 
 const NavigationPendingContext =
@@ -48,6 +50,7 @@ export function NavigationPendingProvider({
   const pathname = usePathname();
   const [isPending, startTransition] = useTransition();
   const [pendingHref, setPendingHref] = useState<string | null>(null);
+  const [lockChrome, setLockChrome] = useState(false);
 
   useEffect(() => {
     if (!pendingHref) return;
@@ -69,13 +72,16 @@ export function NavigationPendingProvider({
     [pathname, router]
   );
 
+  const navigating = isPending || pendingHref !== null;
   const value = useMemo(
     () => ({
-      isPending: isPending || pendingHref !== null,
+      isPending: navigating,
+      isBusy: navigating || lockChrome,
       pendingHref,
       navigate,
+      setLockChrome,
     }),
-    [isPending, pendingHref, navigate]
+    [navigating, lockChrome, pendingHref, navigate]
   );
 
   return (
@@ -95,14 +101,17 @@ export function useNavigationPending() {
     },
     [router]
   );
+  const setLockChrome = useCallback((_locked: boolean) => {}, []);
 
   return useMemo(
     () =>
       context ?? {
         isPending: false,
+        isBusy: false,
         pendingHref: null,
         navigate,
+        setLockChrome,
       },
-    [context, navigate]
+    [context, navigate, setLockChrome]
   );
 }

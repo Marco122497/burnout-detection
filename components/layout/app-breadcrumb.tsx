@@ -39,7 +39,7 @@ const dashboardLabels: Record<string, string> = {
 
 export function AppBreadcrumb({ dashboardHref }: { dashboardHref: string }) {
   const pathname = usePathname();
-  const { navigate } = useNavigationPending();
+  const { navigate, isBusy } = useNavigationPending();
   const segments = pathname.split("/").filter(Boolean);
   const root = segments[0] ?? "";
   const leaf = segments[segments.length - 1] ?? "";
@@ -94,8 +94,11 @@ export function AppBreadcrumb({ dashboardHref }: { dashboardHref: string }) {
         <BreadcrumbItem className="hidden md:block">
           <BreadcrumbLink
             href={dashboardHref}
+            aria-disabled={isBusy}
+            className={isBusy ? "pointer-events-none opacity-50" : undefined}
             onClick={(event) => {
               event.preventDefault();
+              if (isBusy) return;
               navigate(dashboardHref);
             }}
           >

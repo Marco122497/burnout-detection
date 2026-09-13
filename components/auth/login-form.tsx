@@ -6,6 +6,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { login, type AuthActionState } from "@/app/actions/auth";
+import { useAuthBusy } from "@/components/auth/auth-busy";
 import { useActionRedirect } from "@/hooks/use-action-redirect";
 import { useActionToast } from "@/hooks/use-action-toast";
 import { Button } from "@/components/ui/button";
@@ -20,17 +21,25 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
+import { TopProgressBar } from "@/components/layout/top-progress-bar";
 
 const initialState: AuthActionState = {};
 
 export function LoginForm() {
   const searchParams = useSearchParams();
   const [state, formAction, pending] = useActionState(login, initialState);
+  const authBusy = useAuthBusy();
+  const setAuthBusy = authBusy?.setBusy;
   useActionToast(state);
   useActionRedirect(state);
 
   const redirecting = Boolean(state.redirectTo);
   const busy = pending || redirecting;
+
+  useEffect(() => {
+    setAuthBusy?.(busy);
+    return () => setAuthBusy?.(false);
+  }, [busy, setAuthBusy]);
 
   const queryError = searchParams.get("error");
   const resetSuccess = searchParams.get("reset") === "success";
@@ -62,14 +71,7 @@ export function LoginForm() {
 
   return (
     <>
-      {busy ? (
-        <div
-          className="pointer-events-none fixed inset-x-0 top-0 z-50 h-0.5 overflow-hidden bg-primary/10"
-          aria-hidden
-        >
-          <div className="login-top-progress h-full w-1/4 bg-primary" />
-        </div>
-      ) : null}
+      <TopProgressBar show={busy} />
 
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">

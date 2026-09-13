@@ -59,7 +59,7 @@ export function NavUser({
   email: string | null;
 }) {
   const pathname = usePathname();
-  const { navigate, isPending, pendingHref } = useNavigationPending();
+  const { navigate, isPending, isBusy, pendingHref } = useNavigationPending();
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const name = displayName(profile);
@@ -86,7 +86,10 @@ export function NavUser({
   return (
     <>
       <DropdownMenu>
-        <DropdownMenuTrigger className="flex items-center gap-2 rounded-md outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring/50 data-popup-open:opacity-90">
+        <DropdownMenuTrigger
+          disabled={isBusy}
+          className="flex items-center gap-2 rounded-md outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring/50 data-popup-open:opacity-90 disabled:pointer-events-none disabled:opacity-50"
+        >
           <div className="hidden max-w-36 text-right sm:grid">
             <span className="truncate text-sm font-medium leading-none">
               {name}

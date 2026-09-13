@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { CheckCircle2Icon, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -13,6 +12,7 @@ import { useActionToast } from "@/hooks/use-action-toast";
 import type { QuestionnaireSection } from "@/lib/student/questionnaires";
 import { resolveScaleOptions } from "@/lib/student/scale-options";
 import type { AcademicTerm } from "@/lib/student/terms";
+import { useNavigationPending } from "@/components/layout/navigation-pending";
 import { ScaleChoice } from "@/components/shared/scale-choice";
 import { Button } from "@/components/ui/button";
 import {
@@ -85,7 +85,7 @@ export function WeeklyMonitoringForm({
   monitoringEnabled: boolean;
   sections: QuestionnaireSection[];
 }) {
-  const router = useRouter();
+  const { navigate, setLockChrome } = useNavigationPending();
   const formRef = useRef<HTMLFormElement>(null);
   const [state, formAction, pending] = useActionState(
     submitWeeklyMonitoring,
@@ -96,22 +96,29 @@ export function WeeklyMonitoringForm({
   const lastHandledSuccess = useRef<string | undefined>(undefined);
   useActionToast(state);
 
+  const redirecting = Boolean(state.success);
+  const busy = pending || redirecting;
   const alreadySubmitted = submittedThisWeek || Boolean(state.success);
   const ready = sections.every((section) => section.questions.length > 0);
   const disabled =
-    pending ||
+    busy ||
     alreadySubmitted ||
     !ready ||
     !term ||
     !monitoringEnabled;
 
   useEffect(() => {
+    setLockChrome(busy);
+    return () => setLockChrome(false);
+  }, [busy, setLockChrome]);
+
+  useEffect(() => {
     if (!state.success || state.success === lastHandledSuccess.current) {
       return;
     }
     lastHandledSuccess.current = state.success;
-    router.push("/student");
-  }, [state.success, router]);
+    navigate("/student");
+  }, [state.success, navigate]);
 
   function clearAnswers() {
     if (disabled) return;
@@ -217,6 +224,7 @@ export function WeeklyMonitoringForm({
         action={formAction}
         onSubmit={handleSubmit}
         noValidate
+        aria-busy={busy}
         className="space-y-6"
       >
         <input type="hidden" name="week_number" value={currentWeek ?? 1} />
@@ -321,7 +329,12 @@ export function WeeklyMonitoringForm({
             className="rounded-full px-6 text-base"
             disabled={disabled}
           >
-            {pending ? (
+            {redirecting ? (
+              <>
+                <Loader2 className="animate-spin" />
+                Redirecting…
+              </>
+            ) : pending ? (
               <>
                 <Loader2 className="animate-spin" />
                 Processing assessment…

@@ -11,14 +11,20 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-export function ModeToggle() {
+export function ModeToggle({ disabled = false }: { disabled?: boolean }) {
   const { setTheme } = useTheme();
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
+        disabled={disabled}
         render={
-          <Button variant="ghost" size="icon-sm" className="relative" />
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="relative"
+            disabled={disabled}
+          />
         }
       >
         <SunIcon className="size-4 scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90" />
