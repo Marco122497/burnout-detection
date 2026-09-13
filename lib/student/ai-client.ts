@@ -120,16 +120,8 @@ function aiBaseUrl() {
   );
 }
 
-function recommendationBaseUrls() {
-  const configured = aiBaseUrl();
-  const local = "http://127.0.0.1:8000";
-  const urls: string[] = [];
-  // Production Render does not serve /api/burnout/recommendation yet.
-  if (configured && !configured.includes("onrender.com")) {
-    urls.push(configured);
-  }
-  if (!urls.includes(local)) urls.push(local);
-  return urls;
+function recommendationUrl() {
+  return aiBaseUrl();
 }
 
 export async function checkBurnoutAiHealth(): Promise<boolean> {
@@ -283,28 +275,26 @@ export async function callBurnoutAiRecommendation(input: {
     prediction_model: input.predictionModel,
   };
 
-  for (const baseUrl of recommendationBaseUrls()) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 45000);
-    try {
-      const response = await fetch(`${baseUrl}/api/burnout/recommendation`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-        cache: "no-store",
-      });
-      if (!response.ok) continue;
-      const data = await response.json();
-      if (!data?.success) continue;
-      const parsed = parseRecommendationResponse(data);
-      if (parsed) return parsed;
-    } catch {
-      // Local AI may be offline; keep the template recommendation.
-    } finally {
-      clearTimeout(timeout);
-    }
-  }
+  const baseUrl = recommendationUrl();
+  if (!baseUrl) return null;
 
-  return null;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 60000);
+  try {
+    const response = await fetch(`${baseUrl}/api/burnout/recommendation`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+      cache: "no-store",
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    if (!data?.success) return null;
+    return parseRecommendationResponse(data);
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
