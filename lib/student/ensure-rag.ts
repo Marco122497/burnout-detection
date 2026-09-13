@@ -1,3 +1,4 @@
+import { getOpenaiLlmEnabled } from "@/lib/app-settings";
 import { callBurnoutAiRecommendation } from "@/lib/student/ai-client";
 import type { createClient } from "@/lib/supabase/server";
 import {
@@ -42,16 +43,29 @@ function isStaleRagRecommendation(existing: StoredRagRecommendation): boolean {
     actions.length > 0 &&
     !/sleep|bedtime|7 hours/i.test(actions[0] ?? "");
 
+  const flowchartTips = actions.filter((item) =>
+    /^if you\b/i.test(item.trim())
+  ).length;
+
+  const labelFactors = (existing.contributing_factors ?? []).filter((item) =>
+    /^(academic workload|sleep\/rest|study time|stress|workload|sleep)$/i.test(
+      item.trim()
+    )
+  ).length;
+
   return (
     existing.assessment_summary.includes("classified as") ||
     existing.human_support.includes("verified student support directory") ||
+    existing.human_support.toLowerCase().includes("consider reaching out") ||
     existing.contributing_factors.some((item) =>
       /sleep-related risk|Moderate stress|High study time/i.test(item)
     ) ||
     deadlineDupes >= 2 ||
     (mentionsSleepNeed && !actionCoversSleep) ||
     extraUnfocusedTips ||
-    sleepNotFirst
+    sleepNotFirst ||
+    labelFactors >= 1 ||
+    flowchartTips >= 2
   );
 }
 
@@ -72,7 +86,18 @@ export async function ensureRagRecommendation(
     latest.monitoring_id
   );
   const stale = existing ? isStaleRagRecommendation(existing) : false;
-  if (existing && existing.llm_model && !existing.used_fallback && !stale) {
+  const llmEnabled = await getOpenaiLlmEnabled(supabase);
+  const matchesLlmMode = existing
+    ? llmEnabled
+      ? Boolean(existing.llm_model)
+      : !existing.llm_model
+    : false;
+  if (
+    existing &&
+    matchesLlmMode &&
+    !existing.used_fallback &&
+    !stale
+  ) {
     return existing;
   }
 
