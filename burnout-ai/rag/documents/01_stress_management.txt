@@ -11,7 +11,7 @@ The system treats the PSS total as one MFBI factor, not as a diagnosis of anxiet
 
 Score bands used by the system: 0–13 Low · 14–26 Moderate · 27–40 High.
 
-Recommendations should answer the PSS themes they rated — perceived control, coping, confidence, and emotional load — not generic “manage stress” slogans and not a second copy of the workload list.
+Recommendations should answer the PSS themes they rated — control, worry, confidence, and how heavy the week feels — not generic “manage stress” slogans and not a second copy of the workload list.
 
 2. PSYCHOLOGICAL BASIS
 Perceived stress (Cohen): stress is how overloaded, unpredictable, and uncontrollable life feels, not an objective count of assignments.
@@ -88,26 +88,28 @@ Hathaisaard et al. (2022), Mindfulness-based interventions reducing and preventi
 Source: https://pubmed.ncbi.nlm.nih.gov/34995839/
 
 7. STUDENT-FACING GUIDANCE
-Write like a caring adviser sitting with the student. Use "you." Stress is how the week feels in your mind and body. Do not diagnose. Do not start every tip with "If you." Do not turn stress advice into only a homework list.
+Write like a caring adviser. Use "you." Use simple, basic words. Short sentences. Do not diagnose.
+Do not start every tip with "If you." Do not turn stress advice into only a homework list.
+Do not use hard words such as overwhelmed, appraisal, coping resources, or self-efficacy.
 
 HOW THIS MAY FEEL
-- Stress is the pressure in your thoughts and body, not just the number of assignments.
-- Unexpected surprises — a quiz, a changed deadline, a group delay — can leave you rattled even when you are trying.
-- Important things may feel out of your hands, as if the week is running you instead of the other way around.
-- Nervousness can sit in your body: tight chest, restless thoughts, a sense that you cannot catch up.
-- When confidence is thin, even ordinary tasks look bigger than they are.
-- Difficulties can feel piled so high that starting anywhere seems pointless.
+- Stress is the worry in your thoughts and body, not just how many homework items you have.
+- A surprise quiz, a changed due date, or a group delay can leave you upset even when you are trying.
+- Important things may feel out of your hands, as if the week is running you.
+- You may feel tense: tight chest, restless thoughts, a sense that you cannot catch up.
+- When you do not feel sure of yourself, even small tasks look bigger than they are.
+- Problems can feel piled so high that starting anywhere seems pointless.
 
 THINGS YOU CAN TRY THIS WEEK
-- Name the feeling and the one event sitting heaviest — surprise, pressure, or a sense that nothing is in your control — so it is not only looping in your head.
-- Ask what you can still choose today: one deadline, one class, or one message. Park the rest on paper.
-- Pause for two slow breaths, eat or take a short walk, then give one task an honest hour. Settle the body before you try to think the week through.
-- Finish one small required piece today so you have proof you can handle something, not a pep talk.
-- Pick the item due soonest so one thing can go your way before you add more.
-- Drop optional extras and break "everything" into named steps you can finish in under an hour. Coping gets easier when the demand is smaller.
-- Set a stop time for schoolwork and take a real break between classes so irritations do not pile into the next task.
-- Write due dates on one page and open only one file for the next hour — that is enough to feel a little more on top of things.
-- If the pile still feels impossible, tell a teacher you trust, your adviser, or someone in Guidance. You do not have to sort a heavy inner week alone.
+- Name the one worry sitting heaviest, so it is not going round and round in your head.
+- Pick one thing you can still do today: one deadline, one class, or one message. Write the rest on paper.
+- Take two slow breaths, eat or take a short walk, then give one task one honest hour. Calm down a little before you try to plan the whole week.
+- Finish one small required piece today so you have proof you can handle something.
+- Pick the item due first so one thing can go your way before you add more.
+- Drop extra work you do not have to do. Break the rest into small steps you can finish in under an hour.
+- Set a stop time for schoolwork and take a real break between classes so small annoyances do not pile into the next task.
+- Write due dates on one page and open only one file for the next hour. That is enough to feel a little more on top of things.
+- If the pile still feels too big, tell a teacher you trust, your adviser, or someone in Guidance. You do not have to sort a hard week alone.
 
 8. RETRIEVAL KEYWORDS
 PSS, PSS-10, perceived stress, psychological stress, cognitive appraisal, coping, perceived control, self-efficacy, rumination, nervous and stressed, upset unexpectedly, unable to control, confident handling problems, things going your way, could not cope, control irritations, on top of things, angered, difficulties piling up, high stress, moderate stress, Never Almost Never Sometimes Fairly Often Very Often

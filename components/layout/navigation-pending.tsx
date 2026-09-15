@@ -51,13 +51,13 @@ export function NavigationPendingProvider({
   const [isPending, startTransition] = useTransition();
   const [pendingHref, setPendingHref] = useState<string | null>(null);
   const [lockChrome, setLockChrome] = useState(false);
+  /** Stays true until the destination route has committed and painted. */
+  const [loadingVisible, setLoadingVisible] = useState(false);
 
-  useEffect(() => {
-    if (!pendingHref) return;
-    if (pathsMatch(pathname, pendingHref)) {
-      setPendingHref(null);
-    }
-  }, [pathname, pendingHref]);
+  const clearLoading = useCallback(() => {
+    setPendingHref(null);
+    setLoadingVisible(false);
+  }, []);
 
   const navigate = useCallback(
     (url: string) => {
@@ -65,6 +65,7 @@ export function NavigationPendingProvider({
       if (pathsMatch(pathname, url) && !url.includes("?")) return;
 
       setPendingHref(url);
+      setLoadingVisible(true);
       startTransition(() => {
         router.push(url);
       });
@@ -72,7 +73,44 @@ export function NavigationPendingProvider({
     [pathname, router]
   );
 
-  const navigating = isPending || pendingHref !== null;
+  // Keep loading until URL matches + React transition finishes + page can paint.
+  useEffect(() => {
+    if (!loadingVisible || !pendingHref) return;
+    if (!pathsMatch(pathname, pendingHref)) return;
+    if (isPending) return;
+
+    let cancelled = false;
+    let raf1 = 0;
+    let raf2 = 0;
+    let timeoutId = 0;
+
+    raf1 = window.requestAnimationFrame(() => {
+      raf2 = window.requestAnimationFrame(() => {
+        // Extra beat so streamed page content can appear before we hide loading.
+        timeoutId = window.setTimeout(() => {
+          if (!cancelled) clearLoading();
+        }, 200);
+      });
+    });
+
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(raf1);
+      window.cancelAnimationFrame(raf2);
+      window.clearTimeout(timeoutId);
+    };
+  }, [pathname, pendingHref, isPending, loadingVisible, clearLoading]);
+
+  // Safety net if a navigation stalls.
+  useEffect(() => {
+    if (!loadingVisible) return;
+    const timeout = window.setTimeout(() => {
+      clearLoading();
+    }, 20_000);
+    return () => window.clearTimeout(timeout);
+  }, [loadingVisible, pendingHref, clearLoading]);
+
+  const navigating = loadingVisible || isPending || pendingHref !== null;
   const value = useMemo(
     () => ({
       isPending: navigating,

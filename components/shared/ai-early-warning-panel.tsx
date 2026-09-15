@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect } from "react";
 import { AlertTriangleIcon, BrainCircuitIcon } from "lucide-react";
 
+import { TablePagination } from "@/components/shared/table-pagination";
 import {
   Card,
   CardContent,
@@ -9,6 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { useTablePagination } from "@/hooks/use-table-pagination";
 import type { AiModelStatus, ModelEvaluationSnapshot } from "@/lib/guidance/model-metrics";
 import { cn, formatYearLevel } from "@/lib/utils";
 
@@ -158,6 +161,19 @@ export function AiEarlyWarningStudentsCard({
   students: AiEarlyWarningRow[];
   title?: string;
 }) {
+  const {
+    page,
+    pageSize,
+    totalItems,
+    pageItems,
+    setPage,
+    setPageSize,
+  } = useTablePagination(students, 10);
+
+  useEffect(() => {
+    setPage(1);
+  }, [students, setPage]);
+
   return (
     <Card>
       <CardHeader>
@@ -170,63 +186,90 @@ export function AiEarlyWarningStudentsCard({
           MFBI trend. Not a medical diagnosis.
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
         {students.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             No AI early-warning flags in the latest monitoring window.
           </p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-left text-sm">
-              <thead className="border-b text-muted-foreground">
-                <tr>
-                  <th className="px-2 py-1.5 font-medium">Student</th>
-                  <th className="px-2 py-1.5 font-medium">Current</th>
-                  <th className="px-2 py-1.5 font-medium">Next week</th>
-                  <th className="px-2 py-1.5 font-medium">Week 2</th>
-                  <th className="px-2 py-1.5 font-medium">Trend</th>
-                  <th className="px-2 py-1.5 font-medium">MFBI</th>
-                </tr>
-              </thead>
-              <tbody>
-                {students.map((student) => (
-                  <tr key={student.id} className="border-b last:border-0">
-                    <td className="px-2 py-2">
-                      <p className="font-medium">{student.full_name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {student.student_number ?? "—"}
-                        {student.classLabel
-                          ? ` · ${student.classLabel}`
-                          : student.course
-                            ? ` · ${student.course}`
-                            : ""}
-                        {student.year_level != null
-                          ? ` · ${formatYearLevel(student.year_level)}`
-                          : ""}
-                      </p>
-                    </td>
-                    <td className={cn("px-2 py-2 font-medium", riskTone(student.current_risk))}>
-                      {student.current_risk}
-                    </td>
-                    <td className={cn("px-2 py-2 font-medium", riskTone(student.next_week_risk))}>
-                      {student.next_week_risk ?? "—"}
-                    </td>
-                    <td className={cn("px-2 py-2 font-medium", riskTone(student.week2_risk))}>
-                      {student.week2_risk ?? "—"}
-                    </td>
-                    <td className="px-2 py-2 text-muted-foreground">
-                      {(student.trend ?? "—").replaceAll("_", " ")}
-                    </td>
-                    <td className="px-2 py-2 tabular-nums">
-                      {student.mfbi_score != null
-                        ? student.mfbi_score.toFixed(2)
-                        : "—"}
-                    </td>
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[640px] text-left text-sm">
+                <thead className="border-b text-muted-foreground">
+                  <tr>
+                    <th className="px-2 py-1.5 font-medium">Student</th>
+                    <th className="px-2 py-1.5 font-medium">Current</th>
+                    <th className="px-2 py-1.5 font-medium">Next week</th>
+                    <th className="px-2 py-1.5 font-medium">Week 2</th>
+                    <th className="px-2 py-1.5 font-medium">Trend</th>
+                    <th className="px-2 py-1.5 font-medium">MFBI</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {pageItems.map((student) => (
+                    <tr key={student.id} className="border-b last:border-0">
+                      <td className="px-2 py-2">
+                        <p className="font-medium">{student.full_name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {student.student_number ?? "—"}
+                          {student.classLabel
+                            ? ` · ${student.classLabel}`
+                            : student.course
+                              ? ` · ${student.course}`
+                              : ""}
+                          {student.year_level != null
+                            ? ` · ${formatYearLevel(student.year_level)}`
+                            : ""}
+                        </p>
+                      </td>
+                      <td
+                        className={cn(
+                          "px-2 py-2 font-medium",
+                          riskTone(student.current_risk)
+                        )}
+                      >
+                        {student.current_risk}
+                      </td>
+                      <td
+                        className={cn(
+                          "px-2 py-2 font-medium",
+                          riskTone(student.next_week_risk)
+                        )}
+                      >
+                        {student.next_week_risk ?? "—"}
+                      </td>
+                      <td
+                        className={cn(
+                          "px-2 py-2 font-medium",
+                          riskTone(student.week2_risk)
+                        )}
+                      >
+                        {student.week2_risk ?? "—"}
+                      </td>
+                      <td className="px-2 py-2 text-muted-foreground">
+                        {(student.trend ?? "—").replaceAll("_", " ")}
+                      </td>
+                      <td className="px-2 py-2 tabular-nums">
+                        {student.mfbi_score != null
+                          ? student.mfbi_score.toFixed(2)
+                          : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <TablePagination
+              page={page}
+              pageSize={pageSize}
+              totalItems={totalItems}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+              pageSizeOptions={[10]}
+              id="ai-early-warning-rows"
+              className="justify-end"
+            />
+          </>
         )}
       </CardContent>
     </Card>

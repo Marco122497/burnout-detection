@@ -1,7 +1,16 @@
 "use client";
 
 import * as React from "react";
-import { Cell, Pie, PieChart } from "recharts";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { AlertTriangleIcon, ClipboardCheckIcon, Loader2 } from "lucide-react";
 
 import { useNavigationPending } from "@/components/layout/navigation-pending";
@@ -11,7 +20,7 @@ import {
   AiEarlyWarningStudentsCard,
   AiModelStatusCard,
 } from "@/components/shared/ai-early-warning-panel";
-import { WeeklyBurnoutRiskTrendChart } from "@/components/shared/weekly-burnout-risk-trend-chart";
+import { TablePagination } from "@/components/shared/table-pagination";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -35,6 +44,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useTablePagination } from "@/hooks/use-table-pagination";
 import { formatDateTime } from "@/lib/auth/roles";
 import type {
   AiModelStatus,
@@ -56,6 +66,11 @@ const riskConfig = {
   low: { label: "Low Risk", color: "oklch(0.72 0.15 160)" },
   moderate: { label: "Moderate Risk", color: "oklch(0.8 0.15 85)" },
   high: { label: "High Risk", color: "oklch(0.68 0.19 40)" },
+} satisfies ChartConfig;
+
+const courseRiskConfig = {
+  moderate: { label: "Moderate", color: "oklch(0.8 0.15 85)" },
+  high: { label: "High", color: "oklch(0.68 0.19 40)" },
 } satisfies ChartConfig;
 
 function OverviewCard({
@@ -210,12 +225,26 @@ export function GuidanceDashboard({
   }));
   const dominantRisk = [...pieData].sort((a, b) => b.count - a.count)[0];
 
-  const trendData = data.weeklyTrends.map((item) => ({
-    weekLabel: `Week ${item.week}`,
-    low: item.lowCount ?? 0,
-    moderate: item.moderateCount ?? 0,
-    high: item.highCount ?? 0,
-  }));
+  const courseChartData = data.byCourse
+    .map((item) => ({
+      ...item,
+      code: item.code || item.label,
+      moderate: item.moderate,
+      high: item.high,
+      attention: item.moderate + item.high,
+    }))
+    .sort((a, b) => b.attention - a.attention || a.code.localeCompare(b.code));
+
+  const highestCourse =
+    courseChartData.find((item) => item.attention > 0) ?? null;
+
+  const highestCourseSummary = highestCourse
+    ? `Most attention: ${highestCourse.code}${
+        highestCourse.label !== highestCourse.code
+          ? ` · ${highestCourse.label}`
+          : ""
+      } · ${highestCourse.high} High · ${highestCourse.moderate} Moderate`
+    : null;
 
   const filteredHighRisk =
     yearFilter === "all"
@@ -231,6 +260,18 @@ export function GuidanceDashboard({
           (s) => s.year_level === Number(yearFilter)
         );
 
+  const {
+    page: highRiskPage,
+    pageSize: highRiskPageSize,
+    totalItems: highRiskTotal,
+    pageItems: highRiskPageItems,
+    setPage: setHighRiskPage,
+    setPageSize: setHighRiskPageSize,
+  } = useTablePagination(filteredHighRisk, 10);
+
+  React.useEffect(() => {
+    setHighRiskPage(1);
+  }, [yearFilter, setHighRiskPage]);
   const recentActivity = [
     {
       text: `${scoped.submittedCount} students completed weekly monitoring`,
@@ -245,7 +286,7 @@ export function GuidanceDashboard({
       meta: "This week",
     },
     {
-      text: `Weekly risk trend covers ${data.weeklyTrends.length} monitoring week${data.weeklyTrends.length === 1 ? "" : "s"}`,
+      text: `${data.byCourse.length} program${data.byCourse.length === 1 ? "" : "s"} shown with High and Moderate risk counts`,
       meta: "Active term",
     },
   ];
@@ -406,7 +447,97 @@ export function GuidanceDashboard({
           </CardContent>
         </Card>
 
-        <WeeklyBurnoutRiskTrendChart data={trendData} />
+        <Card>
+          <CardHeader className="gap-1.5">
+            <CardTitle className="text-lg">
+              Burnout by Program / Course
+            </CardTitle>
+            <CardDescription>
+              High and Moderate risk student counts by academic program —
+              highlights programs that may need extra support.
+              {highestCourseSummary ? (
+                <>
+                  {" "}
+                  <span className="font-medium text-foreground">
+                    {highestCourseSummary}
+                  </span>
+                </>
+              ) : null}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="min-w-0 space-y-2 px-2 sm:px-(--card-spacing)">
+            {courseChartData.length === 0 ? (
+              <p className="flex h-56 items-center justify-center text-sm text-muted-foreground">
+                No program data yet.
+              </p>
+            ) : (
+              <ChartContainer
+                config={courseRiskConfig}
+                className="aspect-auto h-[260px] w-full max-w-full"
+              >
+                <BarChart
+                  data={courseChartData}
+                  margin={{ top: 8, right: 12, bottom: 8, left: 4 }}
+                  barCategoryGap={12}
+                >
+                  <CartesianGrid
+                    vertical={false}
+                    strokeDasharray="4 4"
+                    stroke="var(--border)"
+                  />
+                  <XAxis
+                    dataKey="code"
+                    tickLine={false}
+                    axisLine={false}
+                    tickMargin={8}
+                    interval={0}
+                    angle={-40}
+                    textAnchor="end"
+                    height={72}
+                  />
+                  <YAxis
+                    type="number"
+                    allowDecimals={false}
+                    tickLine={false}
+                    axisLine={false}
+                    tickMargin={8}
+                    width={40}
+                  />
+                  <ChartTooltip
+                    content={
+                      <ChartTooltipContent
+                        labelFormatter={(_, payload) => {
+                          const row = payload?.[0]?.payload as
+                            | { code?: string; label?: string }
+                            | undefined;
+                          if (!row) return "";
+                          return row.label && row.label !== row.code
+                            ? `${row.code} · ${row.label}`
+                            : row.code || row.label || "";
+                        }}
+                      />
+                    }
+                  />
+                  <ChartLegend content={<ChartLegendContent />} />
+                  <Bar
+                    dataKey="moderate"
+                    stackId="risk"
+                    fill="var(--color-moderate)"
+                    radius={[0, 0, 0, 0]}
+                    maxBarSize={56}
+                  />
+                  <Bar
+                    dataKey="high"
+                    stackId="risk"
+                    fill="var(--color-high)"
+                    radius={[4, 4, 0, 0]}
+                    maxBarSize={56}
+                  />
+                </BarChart>
+              </ChartContainer>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
@@ -419,82 +550,94 @@ export function GuidanceDashboard({
             Early warning list for timely guidance intervention.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           {filteredHighRisk.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               No high-risk students for this week
               {yearFilter !== "all" ? " in the selected year level" : ""}.
             </p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px] text-left text-sm">
-                <thead className="border-b text-muted-foreground">
-                  <tr>
-                    <th className="px-2 py-1.5 font-medium">Student</th>
-                    <th className="px-2 py-1.5 font-medium">Program</th>
-                    <th className="px-2 py-1.5 font-medium">Risk</th>
-                    <th className="px-2 py-1.5 font-medium">MFBI</th>
-                    <th className="px-2 py-1.5 font-medium">Last Assessment</th>
-                    <th className="px-2 py-1.5 font-medium">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredHighRisk.map((student) => {
-                    const href = `/guidance/monitoring/${student.id}`;
-                    const loading = isPending && pendingHref === href;
-                    return (
-                      <tr key={student.id} className="border-b last:border-0">
-                        <td className="px-2 py-1.5">
-                          <p className="font-medium">{student.full_name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {student.student_number || "—"}
-                          </p>
-                        </td>
-                        <td className="px-2 py-1.5">
-                          {student.course || "—"}
-                          {student.year_level != null
-                            ? ` · ${formatYearLevel(student.year_level)}`
-                            : ""}
-                        </td>
-                        <td className="px-2 py-1.5">
-                          <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-900 dark:bg-orange-950 dark:text-orange-200">
-                            {student.risk}
-                          </span>
-                        </td>
-                        <td className="px-2 py-1.5 tabular-nums">
-                          {student.mfbi_score != null
-                            ? student.mfbi_score.toFixed(2)
-                            : "—"}
-                        </td>
-                        <td className="px-2 py-1.5 text-muted-foreground">
-                          {student.monitoring_date
-                            ? formatDateTime(student.monitoring_date)
-                            : "—"}
-                        </td>
-                        <td className="px-2 py-1.5">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            disabled={loading}
-                            onClick={() => navigate(href)}
-                          >
-                            {loading ? (
-                              <>
-                                <Loader2 className="animate-spin" />
-                                Loading…
-                              </>
-                            ) : (
-                              "View"
-                            )}
-                          </Button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[640px] text-left text-sm">
+                  <thead className="border-b text-muted-foreground">
+                    <tr>
+                      <th className="px-2 py-1.5 font-medium">Student</th>
+                      <th className="px-2 py-1.5 font-medium">Program</th>
+                      <th className="px-2 py-1.5 font-medium">Risk</th>
+                      <th className="px-2 py-1.5 font-medium">MFBI</th>
+                      <th className="px-2 py-1.5 font-medium">Last Assessment</th>
+                      <th className="px-2 py-1.5 font-medium">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {highRiskPageItems.map((student) => {
+                      const href = `/guidance/monitoring/${student.id}`;
+                      const loading = isPending && pendingHref === href;
+                      return (
+                        <tr key={student.id} className="border-b last:border-0">
+                          <td className="px-2 py-1.5">
+                            <p className="font-medium">{student.full_name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {student.student_number || "—"}
+                            </p>
+                          </td>
+                          <td className="px-2 py-1.5">
+                            {student.course || "—"}
+                            {student.year_level != null
+                              ? ` · ${formatYearLevel(student.year_level)}`
+                              : ""}
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-900 dark:bg-orange-950 dark:text-orange-200">
+                              {student.risk}
+                            </span>
+                          </td>
+                          <td className="px-2 py-1.5 tabular-nums">
+                            {student.mfbi_score != null
+                              ? student.mfbi_score.toFixed(2)
+                              : "—"}
+                          </td>
+                          <td className="px-2 py-1.5 text-muted-foreground">
+                            {student.monitoring_date
+                              ? formatDateTime(student.monitoring_date)
+                              : "—"}
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              disabled={loading}
+                              onClick={() => navigate(href)}
+                            >
+                              {loading ? (
+                                <>
+                                  <Loader2 className="animate-spin" />
+                                  Loading…
+                                </>
+                              ) : (
+                                "View"
+                              )}
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <TablePagination
+                page={highRiskPage}
+                pageSize={highRiskPageSize}
+                totalItems={highRiskTotal}
+                onPageChange={setHighRiskPage}
+                onPageSizeChange={setHighRiskPageSize}
+                pageSizeOptions={[10]}
+                id="high-risk-students-rows"
+                className="justify-end"
+              />
+            </>
           )}
         </CardContent>
       </Card>

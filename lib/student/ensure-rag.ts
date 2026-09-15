@@ -57,6 +57,10 @@ function isStaleRagRecommendation(existing: StoredRagRecommendation): boolean {
     existing.assessment_summary.includes("classified as") ||
     existing.human_support.includes("verified student support directory") ||
     existing.human_support.toLowerCase().includes("consider reaching out") ||
+    existing.human_support.toLowerCase().includes("i know this week") ||
+    /\boverwhelmed\b|time-management strategies|self-efficacy|appraisal/i.test(
+      `${existing.assessment_summary}\n${existing.contributing_factors.join("\n")}\n${existing.recommended_actions.join("\n")}`
+    ) ||
     existing.contributing_factors.some((item) =>
       /sleep-related risk|Moderate stress|High study time/i.test(item)
     ) ||
