@@ -230,11 +230,14 @@ export function RecommendationsView({
       <div className="space-y-3">
         <div>
           <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight">
-            What to do this week
+            {recommendationBasis === "next_week"
+              ? "What to do for next week"
+              : "What to do this week"}
           </h2>
           <p className="text-sm text-muted-foreground">
-            Based on your latest monitoring scores for stress, schoolwork, study
-            time, and sleep — compared with your previous week when available.
+            {recommendationBasis === "next_week"
+              ? "Based on your latest monitoring scores for stress, schoolwork, study time, and sleep — advice for next week."
+              : "Based on your latest monitoring scores for stress, schoolwork, study time, and sleep — compared with your previous week when available."}
           </p>
         </div>
         <div className="grid gap-4 md:grid-cols-2">

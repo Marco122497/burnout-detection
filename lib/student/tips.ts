@@ -98,33 +98,33 @@ export function buildStudentFactors(
 const OVERALL: Record<BurnoutLevel, OverallRecommendation> = {
   Low: {
     burnout_level: "Low",
-    title: "You are doing well. Keep it up.",
+    title: "Next week looks okay — keep it up.",
     description:
-      "Your burnout score is low. Your stress, schoolwork, study time, and sleep look okay. Keep the habits that are helping you.",
+      "Next week's burnout outlook looks low. Your stress, schoolwork, study time, and sleep look okay going into the next form. Keep the habits that are helping you.",
     recommended_action:
-      "Sleep 7–8 hours, take short breaks, and fill out next week’s form.",
+      "Sleep 7–8 hours, take short breaks, and fill out next week’s monitoring form.",
   },
   Moderate: {
     burnout_level: "Moderate",
-    title: "Make a small change this week.",
+    title: "Make a small change for next week.",
     description:
-      "Your burnout score is medium. Stress, schoolwork, study time, or sleep may need attention. A small change now can stop it from getting worse.",
+      "Next week may feel a bit heavy. Stress, schoolwork, study time, or sleep may need attention before the next form. A small change now can stop it from getting worse.",
     recommended_action:
-      "Pick one thing to ease this week: sleep earlier, do less extra work, or stop a long study night.",
+      "Pick one thing to ease for next week: sleep earlier, do less extra work, or stop a long study night.",
   },
   High: {
     burnout_level: "High",
-    title: "Please rest and ask for help.",
+    title: "Please rest and ask for help going into next week.",
     description:
-      "Your burnout score is high. Stress, schoolwork, study time, or sleep may be too much. This is a school warning, not a medical diagnosis.",
+      "Next week looks quite hard to carry. Stress, schoolwork, study time, or sleep may be too much. This is a school warning for the next form, not a medical diagnosis.",
     recommended_action:
-      "Talk to the Guidance Office this week. Sleep first. Drop extra tasks if you can.",
+      "Talk to the Guidance Office before next week piles up. Sleep first. Drop extra tasks if you can.",
   },
   Severe: {
     burnout_level: "Severe",
-    title: "Please get help now.",
+    title: "Please get help before next week gets heavier.",
     description:
-      "Your risk is very high. Rest, less school load, and talking to a counselor are important. This app only gives school advice.",
+      "Next week looks very hard to carry. Rest, less school load, and talking to a counselor matter before the next form. This app only gives school advice.",
     recommended_action:
       "Talk to the Guidance Counselor as soon as you can. Tell a teacher or family member you trust.",
   },
@@ -155,11 +155,11 @@ const FACTOR_TIPS: Record<
       category: "Stress",
       title: "Your stress looks okay",
       description: "You are not too stressed right now. Keep checking in with yourself.",
-      recommended_action: "After class, ask: how do I feel today? Do one fun thing this week.",
+      recommended_action: "After class, ask: how do I feel today? Do one fun thing next week.",
       tips: [
         "Each day, notice if you feel calm or tense.",
         "Take 3 slow breaths between classes.",
-        "Do one fun thing this week, like a walk or time with friends.",
+        "Do one fun thing next week, like a walk or time with friends.",
         "Do not add extra tasks on already busy days.",
         "Keep a short list of what you can control today.",
         "Stretch your shoulders for 1 minute after long screen time.",
@@ -168,8 +168,8 @@ const FACTOR_TIPS: Record<
     Moderate: {
       category: "Stress",
       title: "Your stress is moderate",
-      description: "You are under some pressure. Keep calming habits so it does not climb.",
-      recommended_action: "Breathe slowly for 5 minutes a day. Write down 2 things that worry you.",
+      description: "You are under some pressure. Keep calming habits so next week does not climb.",
+      recommended_action: "Breathe slowly for 5 minutes a day. Write down 2 things that worry you going into next week.",
       tips: [
         "Breathe slowly for 5–10 minutes each day.",
         "Talk to a friend, teacher, or counselor about what feels hard.",
@@ -183,11 +183,11 @@ const FACTOR_TIPS: Record<
     High: {
       category: "Stress",
       title: "Your stress is high",
-      description: "Stress is a big part of your burnout score. Rest and help come first.",
-      recommended_action: "When you feel overwhelmed, pause and breathe. Talk to Guidance this week.",
+      description: "Stress is a big part of your burnout score. Rest and help come first before next week.",
+      recommended_action: "When you feel overwhelmed, pause and breathe. Talk to Guidance before next week.",
       tips: [
         "When you feel panic, breathe out slowly and name 5 things you can see.",
-        "Visit the Guidance Office this week.",
+        "Visit the Guidance Office before next week piles up.",
         "Say no to extra clubs or tasks for now.",
         "Tell one person you trust how you feel.",
         "Break the day into morning, afternoon, and evening — do one thing per block.",
@@ -215,7 +215,7 @@ const FACTOR_TIPS: Record<
       category: "Schoolwork",
       title: "Your schoolwork looks okay",
       description: "Your class load is manageable. Plan a little so due dates do not pile up.",
-      recommended_action: "Write this week’s due dates. Start the biggest task one day early.",
+      recommended_action: "Write next week’s due dates. Start the biggest task one day early.",
       tips: [
         "Split big work into small steps.",
         "Do the homework that is due soonest first.",
@@ -228,8 +228,8 @@ const FACTOR_TIPS: Record<
     Moderate: {
       category: "Schoolwork",
       title: "Your schoolwork is somewhat heavy",
-      description: "Your class load is medium-high. Keep tasks organized so burnout does not climb.",
-      recommended_action: "List every task and due date. Drop or delay one extra thing this week.",
+      description: "Your class load is medium-high. Keep tasks organized so next week does not climb.",
+      recommended_action: "List every task and due date. Drop or delay one extra thing next week.",
       tips: [
         "Write all tasks and due dates in one list.",
         "Ask for more time early if you cannot finish on time.",
@@ -243,15 +243,15 @@ const FACTOR_TIPS: Record<
     High: {
       category: "Schoolwork",
       title: "Your schoolwork is too heavy",
-      description: "Schoolwork is a big reason your burnout score is high.",
-      recommended_action: "Talk to a teacher. Pick one task to delay, split, or make smaller.",
+      description: "Schoolwork is a big reason your burnout score is high going into next week.",
+      recommended_action: "Talk to a teacher. Pick one task to delay, split, or make smaller for next week.",
       tips: [
-        "Talk to a teacher or adviser this week about your load.",
+        "Talk to a teacher or adviser before next week about your load.",
         "Pick one task to delay, split, or make smaller.",
         "Do not add new extra work.",
         "Ask classmates to share notes or split group work fairly.",
         "Email or message teachers with one clear ask: deadline help or priority order.",
-        "Remove one optional club task or make-up activity this week.",
+        "Remove one optional club task or make-up activity next week.",
         "Use a timer: 40 minutes work, 10 minutes break, then switch subjects.",
       ],
     },
@@ -618,16 +618,16 @@ function scoreAwareAction(
   if (!Number.isFinite(raw)) return baseAction;
 
   if (key === "stress" && raw >= 27) {
-    return "Talk to the Guidance Office this week. Pause extra commitments until stress eases.";
+    return "Talk to the Guidance Office before next week. Pause extra commitments until stress eases.";
   }
   if (key === "workload" && raw >= 8) {
-    return "Bring your full task list to a teacher or adviser and ask what to delay or split.";
+    return "Bring your full task list to a teacher or adviser and ask what to delay or split for next week.";
   }
   if (key === "studyTime" && raw >= 20) {
-    return "Cap study tonight with a hard stop time. Split remaining work across two shorter days.";
+    return "Cap study tonight with a hard stop time. Split remaining work across two shorter days next week.";
   }
   if (key === "sleep" && raw >= 70) {
-    return "Sleep first tonight. Move non-urgent work to daytime blocks this week.";
+    return "Sleep first tonight. Move non-urgent work to daytime blocks next week.";
   }
   if (level === "Low") return baseAction;
   return baseAction;
@@ -768,32 +768,32 @@ export function getOverallRecommendation(
         } from ${Number(previousMfbi).toFixed(2)} to ${Number(currentMfbi).toFixed(2)}.`
       : mfbiLabel;
 
-  // Current risk + historical trend = early-warning outlook
+  // Current risk + historical trend = early-warning outlook for next week / next form
   if (trend === "decreasing") {
     if (level === "Low") {
       return {
         ...base,
-        title: "Your risk is improving — keep it going.",
-        description: `Your risk is improving and is now low.${mfbiChangeLabel} Keep doing what helped so it stays low.`,
+        title: "Next week looks better — keep it going.",
+        description: `Your risk is improving and next week looks low.${mfbiChangeLabel} Keep doing what helped so the next form stays okay.`,
         recommended_action:
-          "Protect sleep, keep short breaks, and complete next week’s monitoring.",
+          "Protect sleep, keep short breaks, and complete next week’s monitoring form.",
       };
     }
     if (level === "Moderate") {
       return {
         ...base,
-        title: "Your risk is improving — continue the changes that are helping.",
-        description: `Your burnout outlook is improving and is now moderate.${mfbiChangeLabel} Keep the habits that helped so it does not climb again.`,
+        title: "Next week is improving — continue what is helping.",
+        description: `Your burnout outlook for next week is improving and looks moderate.${mfbiChangeLabel} Keep the habits that helped so it does not climb again.`,
         recommended_action:
           "Keep the changes that lowered your score: steady sleep, lighter extra load, and shorter late-night study.",
       };
     }
     return {
       ...base,
-      title: "Your risk is improving — continue monitoring and support strategies.",
-      description: `Your score is moving down, which is progress, but burnout risk is still high.${mfbiChangeLabel} Keep resting and ask for help if you need it.`,
+      title: "Next week is improving — keep resting and ask for help if you need it.",
+      description: `Your score is moving down, which is progress, but next week may still feel hard.${mfbiChangeLabel} Keep resting and ask for help before the next form if you need it.`,
       recommended_action:
-        "Continue lighter load and better sleep. Visit Guidance if things still feel heavy.",
+        "Continue lighter load and better sleep. Visit Guidance if next week still feels heavy.",
     };
   }
 
@@ -801,27 +801,27 @@ export function getOverallRecommendation(
     if (level === "Low") {
       return {
         ...base,
-        title: "Your risk is starting to rise — stay aware.",
-        description: `Your burnout risk is still low, but the trend is increasing.${mfbiLabel} Small habits this week can keep it from climbing.`,
+        title: "Next week may start to rise — stay aware.",
+        description: `Next week still looks low, but the trend is increasing.${mfbiLabel} Small habits before the next form can keep it from climbing.`,
         recommended_action:
-          "Keep sleep steady, avoid stacking extra work, and stop long study nights early.",
+          "Keep sleep steady, avoid stacking extra work, and stop long study nights early next week.",
       };
     }
     if (level === "Moderate") {
       return {
         ...base,
-        title: "Your risk is rising — act early.",
-        description: `Your burnout outlook is increasing and is now moderate.${mfbiLabel} A small change this week can stop it from becoming high.`,
+        title: "Next week is rising — act early.",
+        description: `Your burnout outlook for next week is increasing and looks moderate.${mfbiLabel} A small change before the next form can stop it from becoming high.`,
         recommended_action:
-          "Ease one pressure this week: sleep earlier, cut extra work, or end long study nights sooner.",
+          "Ease one pressure for next week: sleep earlier, cut extra work, or end long study nights sooner.",
       };
     }
     return {
       ...base,
-      title: "Your risk is increasing — seek support early.",
-      description: `Your burnout risk is high and the trend is going up.${mfbiLabel} Treat this as an early warning and get support soon.`,
+      title: "Next week looks harder — rest and get support.",
+      description: `Your burnout outlook for next week is rising and looks high.${mfbiLabel} Rest, cut extras, and talk to Guidance before the next form if you can.`,
       recommended_action:
-        "Talk to the Guidance Office this week. Sleep first. Drop extra tasks if you can.",
+        "Talk to the Guidance Office before next week piles up. Sleep first. Drop extra tasks if you can.",
     };
   }
 
@@ -829,27 +829,27 @@ export function getOverallRecommendation(
     if (level === "Low") {
       return {
         ...base,
-        title: "Your risk is currently low — maintain your routine.",
-        description: `Your burnout risk is low and stable.${mfbiLabel} Keep the habits that are working.`,
+        title: "Next week looks steady and okay — keep your routine.",
+        description: `Next week looks low and steady.${mfbiLabel} Keep the habits that are working before the next form.`,
         recommended_action:
-          "Sleep 7–8 hours, take short breaks, and fill out next week’s form.",
+          "Sleep 7–8 hours, take short breaks, and fill out next week’s monitoring form.",
       };
     }
     if (level === "Moderate") {
       return {
         ...base,
-        title: "Your risk remains moderate — make small adjustments now.",
-        description: `Your burnout risk remains moderate.${mfbiLabel} Small adjustments this week can keep it from rising.`,
+        title: "Next week still looks moderate — make small adjustments now.",
+        description: `Next week still looks moderate.${mfbiLabel} Small adjustments before the next form can keep it from rising.`,
         recommended_action:
-          "Pick one thing to ease this week: sleep earlier, do less extra work, or stop a long study night.",
+          "Pick one thing to ease for next week: sleep earlier, do less extra work, or stop a long study night.",
       };
     }
     return {
       ...base,
-      title: "Your risk remains high — additional support is recommended.",
-      description: `Your burnout risk remains high.${mfbiLabel} Extra support and rest are recommended this week.`,
+      title: "Next week still looks hard — get support.",
+      description: `Next week still looks hard to carry.${mfbiLabel} Extra support and rest are recommended before the next form.`,
       recommended_action:
-        "Talk to the Guidance Office this week. Sleep first. Drop extra tasks if you can.",
+        "Talk to the Guidance Office before next week piles up. Sleep first. Drop extra tasks if you can.",
     };
   }
 
@@ -1454,14 +1454,21 @@ export function buildPersonalizedCounselingRecommendation(input: {
   });
 
   const topElevated = factors.filter((f) => f.level !== "Low").slice(0, 2);
+  const forNextWeek = basis === "next_week";
   const focusNote =
     topElevated.length > 0
-      ? ` This week, focus most on ${topElevated
-          .map((f) => f.category.toLowerCase())
-          .join(" and ")} based on your MFBI questionnaire scores.`
+      ? forNextWeek
+        ? ` For next week and the next form, focus most on ${topElevated
+            .map((f) => f.category.toLowerCase())
+            .join(" and ")} based on your MFBI questionnaire scores.`
+        : ` This week, focus most on ${topElevated
+            .map((f) => f.category.toLowerCase())
+            .join(" and ")} based on your MFBI questionnaire scores.`
       : hasPriorWeek
-        ? " Your factor scores look steady — keep the habits that are working."
-        : " Keep checking stress, schoolwork, study time, and sleep each week.";
+        ? forNextWeek
+          ? " Your factor scores look steady going into next week — keep the habits that are working."
+          : " Your factor scores look steady — keep the habits that are working."
+        : " Keep checking stress, schoolwork, study time, and sleep each week before the next form.";
 
   return {
     title: overall.title,

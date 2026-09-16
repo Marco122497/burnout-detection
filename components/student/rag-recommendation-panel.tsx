@@ -100,11 +100,6 @@ export function RagRecommendationPanel({
         <p className="text-sm text-foreground whitespace-pre-line">
           {summary}
         </p>
-        {recommendation.used_fallback && recommendation.sources.length === 0 ? (
-          <p className="text-xs text-muted-foreground">
-            Retrieved knowledge was unavailable, so this uses general study-rest advice.
-          </p>
-        ) : null}
       </div>
 
       {shownFactors.length ? (

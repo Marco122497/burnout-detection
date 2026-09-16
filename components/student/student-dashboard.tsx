@@ -218,11 +218,14 @@ export function StudentDashboard({
               {data.factorRecommendations.length && !data.ragRecommendation ? (
                 <div className="space-y-2 border-t pt-3">
                   <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    What to do this week
+                    {data.recommendation?.basis === "next_week"
+                      ? "What to do for next week"
+                      : "What to do this week"}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Based on your latest monitoring scores for stress,
-                    schoolwork, study time, and sleep.
+                    {data.recommendation?.basis === "next_week"
+                      ? "Based on your latest scores — advice for next week and the next monitoring form."
+                      : "Based on your latest monitoring scores for stress, schoolwork, study time, and sleep."}
                   </p>
                   <ul className="grid gap-2 sm:grid-cols-2">
                     {data.factorRecommendations.map((item) => (
