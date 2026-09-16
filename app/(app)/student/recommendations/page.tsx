@@ -4,7 +4,7 @@ import { PageHeading } from "@/components/layout/page-heading";
 import { requireRole } from "@/lib/auth/session";
 import { parseEarlyWarningRemarks } from "@/lib/student/ai-client";
 import { ensureRagRecommendation } from "@/lib/student/ensure-rag";
-import { resolveMfbiBurnoutLevel } from "@/lib/student/mfbi";
+import { classifyMfbiScore, resolveMfbiBurnoutLevel } from "@/lib/student/mfbi";
 import { getLatestBurnoutSnapshot } from "@/lib/student/queries";
 import {
   buildPersonalizedCounselingRecommendation,
@@ -26,6 +26,14 @@ export default async function StudentRecommendationsPage() {
   const earlyWarning = parseEarlyWarningRemarks(
     snapshot.latest?.prediction?.remarks ?? null
   );
+  const nextWeekScore =
+    earlyWarning?.next_week_score != null
+      ? Number(earlyWarning.next_week_score)
+      : null;
+  const nextWeekRisk =
+    nextWeekScore != null && Number.isFinite(nextWeekScore)
+      ? classifyMfbiScore(nextWeekScore)
+      : earlyWarning?.next_week_risk ?? null;
   const previous = snapshot.history[1] ?? null;
   const previousMfbi = previous?.mfbi_results
     ? Array.isArray(previous.mfbi_results)
@@ -76,8 +84,16 @@ export default async function StudentRecommendationsPage() {
   return (
     <div className="space-y-6">
       <PageHeading
-        title="Advice for this week"
-        description="A plain-language look at this week, based on your scores and school well-being guidance."
+        title={
+          nextWeekRisk || nextWeekScore != null
+            ? "Advice for next week"
+            : "Advice for this week"
+        }
+        description={
+          nextWeekRisk || nextWeekScore != null
+            ? "A plain-language look at next week's predicted burnout risk, based on your latest form and school well-being guidance."
+            : "A plain-language look at this week, based on your scores and school well-being guidance."
+        }
       />
       <RecommendationsView
         burnoutLevel={counseling?.burnout_level ?? null}
@@ -86,7 +102,8 @@ export default async function StudentRecommendationsPage() {
         recommendationBasis={counseling?.basis ?? null}
         recommendationTrend={counseling?.trend ?? null}
         currentLevel={currentLevel}
-        nextWeekRisk={earlyWarning?.next_week_risk ?? null}
+        nextWeekRisk={nextWeekRisk}
+        nextWeekScore={nextWeekScore}
         currentMfbi={mfbi?.mfbi_score ?? null}
         previousMfbi={previousMfbi?.mfbi_score ?? null}
         ragRecommendation={ragRecommendation}

@@ -39,6 +39,7 @@ export function RecommendationsView({
   currentMfbi = null,
   previousMfbi = null,
   ragRecommendation = null,
+  nextWeekScore = null,
 }: {
   burnoutLevel: BurnoutLevel | null;
   guidance: {
@@ -55,6 +56,7 @@ export function RecommendationsView({
   currentMfbi?: number | null;
   previousMfbi?: number | null;
   ragRecommendation?: StoredRagRecommendation | null;
+  nextWeekScore?: number | null;
 }) {
   const tips = factorRecommendations.length
     ? [...factorRecommendations]
@@ -123,24 +125,37 @@ export function RecommendationsView({
       {ragRecommendation ? (
         <Card>
           <CardHeader>
-            <CardTitle>Advice for this week</CardTitle>
+            <CardTitle>
+              {nextWeekRisk || nextWeekScore != null
+                ? "Advice for next week"
+                : "Advice for this week"}
+            </CardTitle>
             <CardDescription>
-              A plain-language look at this week, based on your scores and
-              school well-being guidance. This does not change your burnout-risk
-              result.
+              {nextWeekRisk || nextWeekScore != null
+                ? "A plain-language look at next week's predicted burnout risk, based on your latest form and school well-being guidance. This does not change your burnout-risk result."
+                : "A plain-language look at this week, based on your scores and school well-being guidance. This does not change your burnout-risk result."}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <RagRecommendationPanel recommendation={ragRecommendation} />
+            <RagRecommendationPanel
+              recommendation={ragRecommendation}
+              nextWeekRisk={nextWeekRisk}
+              nextWeekScore={nextWeekScore}
+            />
           </CardContent>
         </Card>
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle>Advice for this week</CardTitle>
+            <CardTitle>
+              {nextWeekRisk || nextWeekScore != null
+                ? "Advice for next week"
+                : "Advice for this week"}
+            </CardTitle>
             <CardDescription>
-              A plain-language look at this week, based on your scores and
-              school well-being guidance.
+              {nextWeekRisk || nextWeekScore != null
+                ? "A plain-language look at next week's predicted burnout risk, based on your latest form and school well-being guidance."
+                : "A plain-language look at this week, based on your scores and school well-being guidance."}
             </CardDescription>
           </CardHeader>
           <CardContent>

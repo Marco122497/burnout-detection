@@ -1,5 +1,9 @@
 import { getOpenaiLlmEnabled } from "@/lib/app-settings";
-import { callBurnoutAiRecommendation } from "@/lib/student/ai-client";
+import {
+  callBurnoutAiRecommendation,
+  parseEarlyWarningRemarks,
+} from "@/lib/student/ai-client";
+import { classifyMfbiScore } from "@/lib/student/mfbi";
 import type { createClient } from "@/lib/supabase/server";
 import {
   getLatestRagRecommendation,
@@ -109,6 +113,16 @@ export async function ensureRagRecommendation(
   const mfbiScore = mfbi?.mfbi_score;
   if (!mfbi || mfbiScore == null) return existing;
 
+  const earlyWarning = parseEarlyWarningRemarks(latest.prediction?.remarks ?? null);
+  const nextWeekScore =
+    earlyWarning?.next_week_score != null
+      ? Number(earlyWarning.next_week_score)
+      : null;
+  const nextWeekRisk =
+    nextWeekScore != null && Number.isFinite(nextWeekScore)
+      ? classifyMfbiScore(nextWeekScore)
+      : earlyWarning?.next_week_risk ?? null;
+
   const result = await callBurnoutAiRecommendation({
     studentId,
     monitoringId: latest.monitoring_id,
@@ -121,6 +135,11 @@ export async function ensureRagRecommendation(
     riskLevel:
       latest.prediction?.final_prediction ?? mfbi.burnout_level ?? "Moderate",
     predictionModel: latest.prediction?.selected_model ?? "Random Forest",
+    nextWeekScore:
+      nextWeekScore != null && Number.isFinite(nextWeekScore)
+        ? nextWeekScore
+        : null,
+    nextWeekRisk,
   });
 
   if (!result) return existing;

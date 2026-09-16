@@ -20,6 +20,7 @@ import {
 import {
   BurnoutRiskTrendChart,
   EarlyWarningOutlookCard,
+  resolveNextWeekDisplay,
 } from "@/components/shared/burnout-outlook";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -52,6 +53,8 @@ export function StudentDashboard({
   profile: Profile;
   data: StudentDashboardData;
 }) {
+  const nextWeek = resolveNextWeekDisplay(data.earlyWarning);
+
   return (
     <div className="space-y-6">
       <div className="space-y-2">
@@ -121,11 +124,14 @@ export function StudentDashboard({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <LightbulbIcon className="size-4" />
-            Advice for this week
+            {nextWeek.level || nextWeek.score != null
+              ? "Advice for next week"
+              : "Advice for this week"}
           </CardTitle>
           <CardDescription>
-            A plain-language look at this week, based on your scores and school
-            well-being guidance.
+            {nextWeek.level || nextWeek.score != null
+              ? "A plain-language look at next week's predicted burnout risk, based on your latest form and school well-being guidance."
+              : "A plain-language look at this week, based on your scores and school well-being guidance."}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -133,6 +139,8 @@ export function StudentDashboard({
             <RagRecommendationPanel
               recommendation={data.ragRecommendation}
               compact
+              nextWeekRisk={nextWeek.level}
+              nextWeekScore={nextWeek.score}
             />
           ) : data.recommendation ? (
             <div className="space-y-2">

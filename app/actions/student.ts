@@ -343,8 +343,18 @@ async function submitWeeklyMonitoringInner(
   }
 
   try {
-    const { callBurnoutAiRecommendation } = await import("@/lib/student/ai-client");
+    const { callBurnoutAiRecommendation, parseEarlyWarningRemarks } =
+      await import("@/lib/student/ai-client");
     const { saveRagRecommendation } = await import("@/lib/student/rag");
+    const earlyWarning = parseEarlyWarningRemarks(prediction.remarks);
+    const nextWeekScore =
+      earlyWarning?.next_week_score != null
+        ? Number(earlyWarning.next_week_score)
+        : null;
+    const nextWeekRisk =
+      nextWeekScore != null && Number.isFinite(nextWeekScore)
+        ? classifyMfbiScore(nextWeekScore)
+        : earlyWarning?.next_week_risk ?? null;
     const ragResult = await callBurnoutAiRecommendation({
       studentId: user.id,
       monitoringId: monitoring.monitoring_id,
@@ -357,6 +367,11 @@ async function submitWeeklyMonitoringInner(
       mfbiScore: Number(mfbiRow.mfbi_score),
       riskLevel: prediction.final_prediction,
       predictionModel: prediction.selected_model,
+      nextWeekScore:
+        nextWeekScore != null && Number.isFinite(nextWeekScore)
+          ? nextWeekScore
+          : null,
+      nextWeekRisk,
     });
     if (ragResult) {
       await saveRagRecommendation(supabase, {

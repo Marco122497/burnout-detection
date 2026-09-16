@@ -260,6 +260,8 @@ export async function callBurnoutAiRecommendation(input: {
   mfbiScore: number;
   riskLevel: string;
   predictionModel?: string | null;
+  nextWeekScore?: number | null;
+  nextWeekRisk?: string | null;
 }): Promise<RagRecommendationResult | null> {
   const payload = {
     student_id: input.studentId,
@@ -273,6 +275,8 @@ export async function callBurnoutAiRecommendation(input: {
     mfbi_score: input.mfbiScore,
     risk_level: input.riskLevel,
     prediction_model: input.predictionModel,
+    next_week_score: input.nextWeekScore ?? undefined,
+    next_week_risk: input.nextWeekRisk ?? undefined,
   };
 
   const baseUrl = recommendationUrl();
