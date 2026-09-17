@@ -5,7 +5,7 @@ import { requireRole } from "@/lib/auth/session";
 import { parseEarlyWarningRemarks } from "@/lib/student/ai-client";
 import { ensureRagRecommendation } from "@/lib/student/ensure-rag";
 import { classifyMfbiScore, resolveMfbiBurnoutLevel } from "@/lib/student/mfbi";
-import { getLatestBurnoutSnapshot } from "@/lib/student/queries";
+import { getLatestBurnoutSnapshot, getLatestRagRecommendation } from "@/lib/student/queries";
 import {
   buildPersonalizedCounselingRecommendation,
   buildStudentFactors,
@@ -18,11 +18,23 @@ export const metadata = {
 export default async function StudentRecommendationsPage() {
   const { supabase, user } = await requireRole(["Student"]);
   const snapshot = await getLatestBurnoutSnapshot(supabase, user.id);
-  const ragRecommendation = await ensureRagRecommendation(
-    supabase,
-    user.id,
-    snapshot.latest
-  );
+  const existingRag = snapshot.latest
+    ? await getLatestRagRecommendation(
+        supabase,
+        user.id,
+        snapshot.latest.monitoring_id
+      )
+    : null;
+  // Prefer saved advice first so the page renders quickly; regenerate only if missing.
+  const ragRecommendation =
+    existingRag ??
+    (await ensureRagRecommendation(supabase, user.id, snapshot.latest));
+  if (existingRag && snapshot.latest) {
+    void ensureRagRecommendation(supabase, user.id, snapshot.latest).catch(
+      (error) => console.error("background ensureRagRecommendation:", error)
+    );
+  }
+
   const earlyWarning = parseEarlyWarningRemarks(
     snapshot.latest?.prediction?.remarks ?? null
   );
@@ -40,15 +52,11 @@ export default async function StudentRecommendationsPage() {
       ? previous.mfbi_results[0]
       : previous.mfbi_results
     : null;
-
-  const currentLevel = resolveMfbiBurnoutLevel(
-    snapshot.mfbi?.mfbi_score ?? null,
-    snapshot.mfbi?.burnout_level ?? null
-  );
-  const latest = snapshot.latest;
-  const mfbi = snapshot.mfbi;
+  const currentMfbi = snapshot.mfbi;
   const factors =
-    latest && mfbi ? buildStudentFactors(latest, mfbi) : null;
+    snapshot.latest && currentMfbi
+      ? buildStudentFactors(snapshot.latest, currentMfbi)
+      : null;
   const previousFactors =
     previous && previousMfbi
       ? buildStudentFactors(
@@ -63,50 +71,49 @@ export default async function StudentRecommendationsPage() {
       : null;
 
   const counseling = buildPersonalizedCounselingRecommendation({
-    currentLevel,
-    nextWeekRisk: earlyWarning?.next_week_risk ?? null,
+    currentLevel: resolveMfbiBurnoutLevel(
+      currentMfbi?.mfbi_score ?? null,
+      currentMfbi?.burnout_level ?? null
+    ),
+    nextWeekRisk,
     earlyWarningTrend: earlyWarning?.trend ?? null,
-    currentMfbi: mfbi?.mfbi_score ?? null,
+    currentMfbi: currentMfbi?.mfbi_score ?? null,
     previousMfbi: previousMfbi?.mfbi_score ?? null,
     factors,
     previousFactors,
   });
 
-  const guidance = counseling
-    ? {
-        title: counseling.title,
-        description: counseling.description,
-        burnout_level: counseling.burnout_level,
-        recommended_action: counseling.recommended_action,
-      }
-    : null;
-
   return (
     <div className="space-y-6">
       <PageHeading
-        title={
-          nextWeekRisk || nextWeekScore != null
-            ? "Advice for next week"
-            : "Advice for this week"
-        }
-        description={
-          nextWeekRisk || nextWeekScore != null
-            ? "A plain-language look at next week's predicted burnout risk, based on your latest form and school well-being guidance."
-            : "A plain-language look at this week, based on your scores and school well-being guidance."
-        }
+        title="Recommendations"
+        description="Personalized next-week guidance based on your latest monitoring results."
       />
       <RecommendationsView
         burnoutLevel={counseling?.burnout_level ?? null}
-        guidance={guidance}
+        guidance={
+          counseling
+            ? {
+                title: counseling.title,
+                description: counseling.description,
+                burnout_level: counseling.burnout_level,
+                recommended_action: counseling.recommended_action,
+              }
+            : null
+        }
         factorRecommendations={counseling?.factors ?? []}
         recommendationBasis={counseling?.basis ?? null}
         recommendationTrend={counseling?.trend ?? null}
-        currentLevel={currentLevel}
-        nextWeekRisk={nextWeekRisk}
-        nextWeekScore={nextWeekScore}
-        currentMfbi={mfbi?.mfbi_score ?? null}
-        previousMfbi={previousMfbi?.mfbi_score ?? null}
+        currentLevel={counseling?.currentLevel ?? null}
+        nextWeekRisk={counseling?.nextWeekRisk ?? null}
+        currentMfbi={counseling?.currentMfbi ?? null}
+        previousMfbi={counseling?.previousMfbi ?? null}
         ragRecommendation={ragRecommendation}
+        nextWeekScore={
+          nextWeekScore != null && Number.isFinite(nextWeekScore)
+            ? nextWeekScore
+            : null
+        }
       />
     </div>
   );

@@ -137,9 +137,20 @@ async function readMetricsFromFile(): Promise<ModelEvaluationSnapshot | null> {
 async function loadAiModelStatus(): Promise<AiModelStatus> {
   const { fetchBurnoutAiMetrics } = await import("@/lib/student/ai-client");
 
-  const liveMetrics = await fetchBurnoutAiMetrics();
+  // Prefer local metrics first so dashboards do not wait on Render cold starts.
+  const fileMapped = await readMetricsFromFile();
 
-  const liveMapped = mapAiMetrics(liveMetrics);
+  let liveMapped: ModelEvaluationSnapshot | null = null;
+  try {
+    const liveMetrics = await Promise.race([
+      fetchBurnoutAiMetrics(),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500)),
+    ]);
+    liveMapped = mapAiMetrics(liveMetrics);
+  } catch {
+    liveMapped = null;
+  }
+
   if (liveMapped) {
     return {
       modelEvaluation: liveMapped,
@@ -148,7 +159,6 @@ async function loadAiModelStatus(): Promise<AiModelStatus> {
     };
   }
 
-  const fileMapped = await readMetricsFromFile();
   if (fileMapped) {
     return {
       modelEvaluation: fileMapped,
@@ -167,7 +177,7 @@ async function loadAiModelStatus(): Promise<AiModelStatus> {
 export const getAiModelStatus = unstable_cache(
   loadAiModelStatus,
   ["burnout-ai-model-status"],
-  { revalidate: 60 }
+  { revalidate: 300 }
 );
 
 export async function getModelEvaluation(): Promise<ModelEvaluationSnapshot> {

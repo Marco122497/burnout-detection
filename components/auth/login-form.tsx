@@ -30,7 +30,7 @@ export function LoginForm() {
   const [state, formAction, pending] = useActionState(login, initialState);
   const authBusy = useAuthBusy();
   const setAuthBusy = authBusy?.setBusy;
-  useActionToast(state);
+  useActionToast(state, pending);
   useActionRedirect(state);
 
   const redirecting = Boolean(state.redirectTo);

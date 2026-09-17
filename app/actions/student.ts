@@ -6,22 +6,10 @@ import { redirect } from "next/navigation";
 import { isRedirectError } from "next/dist/client/components/redirect-error";
 
 import { toAuditLogRow } from "@/lib/audit";
-import { buildFullName } from "@/lib/auth/roles";
 import { requireRole, requireUser } from "@/lib/auth/session";
-import { createAdminClient } from "@/lib/supabase/admin";
 import {
-  classifyMfbiScore,
-  computeMfbi,
-  resolveMfbiBurnoutLevel,
-  type BurnoutLevel,
-} from "@/lib/student/mfbi";
-import { saveBurnoutTrend } from "@/lib/student/burnout-trends";
-import {
-  FIRST_WEEK_BASELINE_LEVEL,
-  FIRST_WEEK_BASELINE_MFBI,
-  FIRST_WEEK_BASELINE_PRIOR,
-  predictBurnoutRiskWithAi,
-} from "@/lib/student/predict";
+  finalizeWeeklyMonitoring,
+} from "@/lib/student/finalize-monitoring";
 import { getWeeklyMonitoringSections } from "@/lib/student/questionnaires";
 import {
   computeSectionScores,
@@ -33,54 +21,11 @@ import {
   resolveStudentResearchConsent,
   RESEARCH_CONSENT_VERSION,
 } from "@/lib/student/research-consent";
-import { formatYearLevel } from "@/lib/utils";
 
 export type StudentActionState = {
   error?: string;
   success?: string;
 };
-
-const FACTOR_LABELS = {
-  stress: "Stress Level",
-  workload: "Academic Workload",
-  studyTime: "Study Time",
-  sleep: "Sleep Hours",
-} as const;
-
-function highMfbiFactors(mfbi: {
-  normalized_stress: number;
-  normalized_academic_workload: number;
-  normalized_study_time: number;
-  normalized_sleep_hours: number;
-}): { label: string; score: number; level: BurnoutLevel }[] {
-  const factors = [
-    {
-      label: FACTOR_LABELS.stress,
-      score: Number(mfbi.normalized_stress),
-    },
-    {
-      label: FACTOR_LABELS.workload,
-      score: Number(mfbi.normalized_academic_workload),
-    },
-    {
-      label: FACTOR_LABELS.studyTime,
-      score: Number(mfbi.normalized_study_time),
-    },
-    {
-      label: FACTOR_LABELS.sleep,
-      score: Number(mfbi.normalized_sleep_hours),
-    },
-  ];
-
-  return factors
-    .map((factor) => ({
-      ...factor,
-      level: classifyMfbiScore(factor.score),
-    }))
-    .filter(
-      (factor) => factor.level === "High" || factor.level === "Severe"
-    );
-}
 
 async function getRequestIp() {
   const headerStore = await headers();
@@ -198,9 +143,31 @@ async function submitWeeklyMonitoringInner(
     .eq("week_number", week_number)
     .maybeSingle();
 
-  if (existing) {
+  // Interrupted submit (reload / network drop): resume scoring + AI instead of blocking.
+  if (existing?.monitoring_id) {
+    const finalized = await finalizeWeeklyMonitoring(supabase, {
+      studentId: user.id,
+      profile,
+      monitoringId: existing.monitoring_id,
+    });
+
+    revalidatePath("/student");
+    revalidatePath("/student/monitoring");
+    revalidatePath("/student/burnout");
+    revalidatePath("/student/recommendations");
+    revalidatePath("/student/notifications");
+    revalidatePath("/instructor");
+    revalidatePath("/instructor/notifications");
+    revalidatePath("/instructor/monitoring");
+
+    if (!finalized.complete) {
+      return { error: finalized.message };
+    }
+
     return {
-      error: `You already submitted monitoring for week ${week_number}.`,
+      success: finalized.resumed
+        ? finalized.message
+        : `Week ${week_number} was already submitted. MFBI ${Number(finalized.mfbiScore).toFixed(2)} (${finalized.burnoutLevel}). Prediction: ${finalized.prediction}.`,
     };
   }
 
@@ -247,231 +214,23 @@ async function submitWeeklyMonitoringInner(
     return { error: `Failed to save answers: ${answersError.message}` };
   }
 
-  const mfbi = computeMfbi({
-    stressScore: scores.stress_score,
-    academicWorkload: scores.academic_workload_score,
-    studyTime: scores.study_time_score,
-    sleepRisk: scores.sleep_hours_score,
-  });
-
-  const { data: mfbiRow, error: mfbiError } = await supabase
-    .from("mfbi_results")
-    .insert({
-      monitoring_id: monitoring.monitoring_id,
-      ...mfbi,
-      remarks: `Auto-computed from week ${week_number} monitoring`,
-    })
-    .select("mfbi_id, mfbi_score, burnout_risk_level")
-    .single();
-
-  if (mfbiError || !mfbiRow) {
-    return {
-      error: `Monitoring saved but MFBI failed: ${mfbiError?.message ?? "unknown error"}`,
-    };
-  }
-
-  const { data: priorRows } = await supabase
-    .from("weekly_monitoring")
-    .select(
-      "week_number, stress_score, academic_workload_score, study_time_score, sleep_hours_score, mfbi_results(mfbi_score, burnout_risk_level)"
-    )
-    .eq("student_id", user.id)
-    .eq("term_id", term.term_id)
-    .lt("week_number", week_number)
-    .order("week_number", { ascending: true });
-
-  const historyLevels: string[] = [];
-  const historyMfbi: number[] = [];
-  let priorWeek: {
-    stress_score: number;
-    academic_workload_score: number;
-    study_time_score: number;
-    sleep_hours_score: number;
-  } | null = null;
-
-  for (const row of priorRows ?? []) {
-    const mfbiRaw = row.mfbi_results;
-    const mfbiPrior = Array.isArray(mfbiRaw) ? mfbiRaw[0] : mfbiRaw;
-    if (mfbiPrior?.burnout_risk_level) {
-      historyLevels.push(String(mfbiPrior.burnout_risk_level));
-    }
-    if (mfbiPrior?.mfbi_score != null) {
-      historyMfbi.push(Number(mfbiPrior.mfbi_score));
-    }
-  }
-
-  if (priorRows && priorRows.length > 0) {
-    const last = priorRows[priorRows.length - 1];
-    priorWeek = {
-      stress_score: Number(last.stress_score),
-      academic_workload_score: Number(last.academic_workload_score),
-      study_time_score: Number(last.study_time_score),
-      sleep_hours_score: Number(last.sleep_hours_score),
-    };
-  } else {
-    // First monitoring week: no earlier row. Use a fixed MFBI 0.50 Moderate
-    // baseline so next-week ML gets real trend deltas vs mid-scale priors.
-    priorWeek = FIRST_WEEK_BASELINE_PRIOR;
-    historyLevels.push(FIRST_WEEK_BASELINE_LEVEL);
-    historyMfbi.push(FIRST_WEEK_BASELINE_MFBI);
-  }
-
-  // Include the week being submitted in trend history.
-  historyLevels.push(mfbi.burnout_risk_level);
-  historyMfbi.push(mfbi.mfbi_score);
-
-  const prediction = await predictBurnoutRiskWithAi(mfbi, scores, {
+  // Scores + answers are durable from here. Finalize MFBI / AI / alerts
+  // (also used to recover if this request is interrupted mid-AI).
+  const finalized = await finalizeWeeklyMonitoring(supabase, {
     studentId: user.id,
-    priorWeek,
-    historyLevels,
-    historyMfbi,
-  });
-  const { data: predictionRow, error: predictionError } = await supabase
-    .from("ml_predictions")
-    .insert({
-      mfbi_id: mfbiRow.mfbi_id,
-      ...prediction,
-      prediction_date: submittedAt,
-    })
-    .select("prediction_id, final_prediction")
-    .single();
-
-  if (predictionError) {
-    return {
-      error: `MFBI saved but prediction failed: ${predictionError.message}`,
-    };
-  }
-
-  try {
-    const { callBurnoutAiRecommendation, parseEarlyWarningRemarks } =
-      await import("@/lib/student/ai-client");
-    const { saveRagRecommendation } = await import("@/lib/student/rag");
-    const earlyWarning = parseEarlyWarningRemarks(prediction.remarks);
-    const nextWeekScore =
-      earlyWarning?.next_week_score != null
-        ? Number(earlyWarning.next_week_score)
-        : null;
-    const nextWeekRisk =
-      nextWeekScore != null && Number.isFinite(nextWeekScore)
-        ? classifyMfbiScore(nextWeekScore)
-        : earlyWarning?.next_week_risk ?? null;
-    const ragResult = await callBurnoutAiRecommendation({
-      studentId: user.id,
-      monitoringId: monitoring.monitoring_id,
-      mfbiId: mfbiRow.mfbi_id,
-      predictionId: predictionRow?.prediction_id ?? null,
-      stressScore: scores.stress_score,
-      academicWorkloadScore: scores.academic_workload_score,
-      studyTimeScore: scores.study_time_score,
-      sleepHoursScore: scores.sleep_hours_score,
-      mfbiScore: Number(mfbiRow.mfbi_score),
-      riskLevel: prediction.final_prediction,
-      predictionModel: prediction.selected_model,
-      nextWeekScore:
-        nextWeekScore != null && Number.isFinite(nextWeekScore)
-          ? nextWeekScore
-          : null,
-      nextWeekRisk,
-    });
-    if (ragResult) {
-      await saveRagRecommendation(supabase, {
-        studentId: user.id,
-        monitoringId: monitoring.monitoring_id,
-        mfbiId: mfbiRow.mfbi_id,
-        predictionId: predictionRow?.prediction_id ?? null,
-        result: ragResult,
-      });
-    }
-  } catch (error) {
-    console.error("RAG recommendation save skipped:", error);
-  }
-
-  await saveBurnoutTrend(supabase, {
-    studentId: user.id,
-    termId: term.term_id,
-    weekNumber: week_number,
+    profile,
     monitoringId: monitoring.monitoring_id,
-    mfbiScore: Number(mfbiRow.mfbi_score),
-    riskLevel: mfbiRow.burnout_risk_level,
-    previousMfbiScore:
-      historyMfbi.length >= 2 ? historyMfbi[historyMfbi.length - 2] : null,
   });
+
+  if (!finalized.complete) {
+    revalidatePath("/student");
+    revalidatePath("/student/monitoring");
+    return {
+      error: `${finalized.message} Your answers were saved — reopen this page or submit again to finish processing.`,
+    };
+  }
 
   const ip = await getRequestIp();
-  const { parseEarlyWarningRemarks } = await import("@/lib/student/ai-client");
-  const earlyWarning = parseEarlyWarningRemarks(prediction.remarks);
-  const mfbiScore = Number(mfbiRow.mfbi_score);
-  const mfbiRisk =
-    resolveMfbiBurnoutLevel(mfbiScore, mfbiRow.burnout_risk_level) ??
-    String(mfbiRow.burnout_risk_level);
-  // High burnout alerts follow MFBI bands (not ML prediction / early-warning outlook).
-  const alertHigh = mfbiRisk === "High" || mfbiRisk === "Severe";
-  const elevatedFactors = highMfbiFactors(mfbi);
-  const factorAlert = elevatedFactors.length > 0;
-
-  await supabase.from("notifications").insert([
-    {
-      user_id: user.id,
-      title: "Weekly monitoring submitted",
-      message: `Week ${week_number} monitoring was saved successfully. MFBI ${mfbiScore.toFixed(2)} (${mfbiRisk}).`,
-      notification_type: "Assessment",
-      priority: "Normal",
-      monitoring_id: monitoring.monitoring_id,
-      prediction_id: predictionRow?.prediction_id ?? null,
-    },
-    ...(alertHigh
-      ? [
-          {
-            user_id: user.id,
-            title: "Counseling recommendation",
-            message:
-              earlyWarning?.warning_message ??
-              `Your MFBI burnout risk is ${mfbiRisk} (${mfbiScore.toFixed(2)}). Consider reviewing guidance recommendations and contacting the Guidance Office if needed.`,
-            notification_type: "Counseling" as const,
-            priority: "High" as const,
-            monitoring_id: monitoring.monitoring_id,
-            prediction_id: predictionRow?.prediction_id ?? null,
-          },
-        ]
-      : []),
-    ...(factorAlert
-      ? [
-          {
-            user_id: user.id,
-            title:
-              elevatedFactors.length === 1
-                ? `High ${elevatedFactors[0].label}`
-                : "High burnout factors detected",
-            message: `Week ${week_number}: ${elevatedFactors
-              .map(
-                (factor) =>
-                  `${factor.label} is ${factor.level} (${factor.score.toFixed(2)})`
-              )
-              .join("; ")}. Review your recommendations and consider adjusting these areas this week.`,
-            notification_type: "Assessment" as const,
-            priority: "High" as const,
-            monitoring_id: monitoring.monitoring_id,
-            prediction_id: predictionRow?.prediction_id ?? null,
-          },
-        ]
-      : []),
-  ]);
-
-  await notifyDepartmentInstructors({
-    studentName: buildFullName(profile),
-    yearLevel: profile.year_level,
-    course: profile.course,
-    section: profile.section,
-    departmentId: profile.department_id,
-    weekNumber: week_number,
-    mfbiScore,
-    burnoutLevel: mfbiRisk,
-    alertHigh,
-    earlyWarningMessage: earlyWarning?.warning_message ?? null,
-    monitoringId: monitoring.monitoring_id,
-    predictionId: predictionRow?.prediction_id ?? null,
-  });
-
   await supabase.from("audit_logs").insert(
     toAuditLogRow({
       user_id: user.id,
@@ -480,7 +239,7 @@ async function submitWeeklyMonitoringInner(
       action_type: "CREATE",
       table_name: "weekly_monitoring",
       record_id: monitoring.monitoring_id,
-      description: `Week ${week_number} MFBI ${mfbiRow.mfbi_score} (${mfbiRow.burnout_risk_level}); prediction ${prediction.final_prediction}`,
+      description: `Week ${week_number} MFBI ${finalized.mfbiScore} (${finalized.burnoutLevel}); prediction ${finalized.prediction}`,
       ip_address: ip,
     })
   );
@@ -495,80 +254,8 @@ async function submitWeeklyMonitoringInner(
   revalidatePath("/instructor/monitoring");
 
   return {
-    success: `Week ${week_number} submitted. MFBI ${Number(mfbiRow.mfbi_score).toFixed(2)} (${mfbiRow.burnout_risk_level}). Prediction: ${prediction.final_prediction}.`,
+    success: `Week ${week_number} submitted. MFBI ${Number(finalized.mfbiScore).toFixed(2)} (${finalized.burnoutLevel}). Prediction: ${finalized.prediction}.`,
   };
-}
-
-function instructorStudentLabel(input: {
-  studentName: string;
-  yearLevel: number | null;
-  course: string | null;
-  section: string | null;
-}) {
-  const year =
-    input.yearLevel != null
-      ? `${formatYearLevel(input.yearLevel).replace("year", "Year")} Student`
-      : "Student";
-  const details = [
-    input.course?.trim() || null,
-    input.section?.trim() ? `Section ${input.section.trim()}` : null,
-  ].filter(Boolean);
-
-  if (details.length) {
-    return `${input.studentName}, a ${year} in ${details.join(" · ")}`;
-  }
-  return `${input.studentName}, a ${year}`;
-}
-
-async function notifyDepartmentInstructors(input: {
-  studentName: string;
-  yearLevel: number | null;
-  course: string | null;
-  section: string | null;
-  departmentId: number | null;
-  weekNumber: number;
-  mfbiScore: number;
-  burnoutLevel: string;
-  alertHigh: boolean;
-  earlyWarningMessage: string | null;
-  monitoringId: number;
-  predictionId: number | null;
-}) {
-  if (!input.departmentId) return;
-
-  try {
-    const admin = createAdminClient();
-    const { data: instructors, error } = await admin
-      .from("profiles")
-      .select("id")
-      .eq("role", "Instructor")
-      .eq("is_active", true)
-      .eq("department_id", input.departmentId);
-
-    if (error || !instructors?.length) return;
-
-    const student = instructorStudentLabel(input);
-    const title = input.alertHigh
-      ? `High burnout risk · ${input.studentName}`
-      : `${input.studentName} submitted Week ${input.weekNumber}`;
-    const message = input.alertHigh
-      ? `${student} has elevated burnout risk. Week ${input.weekNumber}: MFBI ${input.mfbiScore.toFixed(2)} (${input.burnoutLevel}).${input.earlyWarningMessage ? ` ${input.earlyWarningMessage}` : ""}`
-      : `${student} completed Week ${input.weekNumber} monitoring. MFBI ${input.mfbiScore.toFixed(2)} (${input.burnoutLevel}). Current risk: ${input.burnoutLevel}.`;
-
-    await admin.from("notifications").insert(
-      instructors.map((instructor) => ({
-        user_id: instructor.id,
-        title,
-        message,
-        notification_type: input.alertHigh ? "Burnout Alert" : "Assessment",
-        priority: input.alertHigh ? "High" : "Normal",
-        monitoring_id: input.monitoringId,
-        prediction_id: input.predictionId,
-      }))
-    );
-  } catch (error) {
-    console.error("notifyDepartmentInstructors:", error);
-  }
 }
 
 export async function markNotificationRead(

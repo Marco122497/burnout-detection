@@ -29,23 +29,62 @@ async function getRequestMeta() {
   };
 }
 
-async function resolveLoginEmail(identifier: string): Promise<string | null> {
+type ResolveLoginEmailResult =
+  | { ok: true; email: string }
+  | { ok: false; reason: "not_found_email" | "not_found_id" | "config" };
+
+async function authEmailExists(
+  admin: ReturnType<typeof createAdminClient>,
+  email: string
+): Promise<boolean | null> {
+  // generateLink does not send mail; recovery errors when the auth user is missing.
+  const { error } = await admin.auth.admin.generateLink({
+    type: "recovery",
+    email,
+  });
+  if (!error) return true;
+  const message = (error.message || "").toLowerCase();
+  const code = String(
+    (error as { code?: string }).code || error.status || ""
+  ).toLowerCase();
+  if (
+    message.includes("not found") ||
+    message.includes("unable to find") ||
+    message.includes("user not found") ||
+    code.includes("not_found") ||
+    error.status === 404
+  ) {
+    return false;
+  }
+  // Unknown admin error — caller can fall through to password sign-in.
+  return null;
+}
+
+async function resolveLoginEmail(
+  identifier: string
+): Promise<ResolveLoginEmailResult> {
   const value = identifier.trim();
-  if (!value) return null;
-  if (value.includes("@")) return value;
+  if (!value) return { ok: false, reason: "not_found_email" };
 
   let admin;
   try {
     admin = createAdminClient();
   } catch {
-    return null;
+    // Without the service role key we can still try email/password login.
+    if (value.includes("@")) return { ok: true, email: value };
+    return { ok: false, reason: "config" };
+  }
+
+  if (value.includes("@")) {
+    const exists = await authEmailExists(admin, value);
+    if (exists === false) return { ok: false, reason: "not_found_email" };
+    return { ok: true, email: value };
   }
 
   const { data: byStudentNumber } = await admin
     .from("profiles")
     .select("id")
     .eq("student_number", value)
-    .eq("is_active", true)
     .maybeSingle();
 
   const profile =
@@ -55,15 +94,14 @@ async function resolveLoginEmail(identifier: string): Promise<string | null> {
         .from("profiles")
         .select("id")
         .eq("employee_no", value)
-        .eq("is_active", true)
         .maybeSingle()
     ).data;
 
-  if (!profile) return null;
+  if (!profile) return { ok: false, reason: "not_found_id" };
 
   const { data, error } = await admin.auth.admin.getUserById(profile.id);
-  if (error || !data.user?.email) return null;
-  return data.user.email;
+  if (error || !data.user?.email) return { ok: false, reason: "not_found_id" };
+  return { ok: true, email: data.user.email };
 }
 
 export async function register(
@@ -200,11 +238,21 @@ export async function login(
       return { error: "Email or ID number and password are required." };
     }
 
-    const email = await resolveLoginEmail(identifier);
-    if (!email) {
-      return { error: "Invalid email or ID number and password." };
+    const resolved = await resolveLoginEmail(identifier);
+    if (!resolved.ok) {
+      if (resolved.reason === "not_found_email") {
+        return { error: "No account found with this email." };
+      }
+      if (resolved.reason === "not_found_id") {
+        return { error: "No account found with this ID number." };
+      }
+      return {
+        error:
+          "ID login is not available right now. Use your email, or ask an administrator to configure access.",
+      };
     }
 
+    const email = resolved.email;
     const supabase = await createClient();
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
@@ -212,7 +260,15 @@ export async function login(
     });
 
     if (error || !data.user) {
-      return { error: "Invalid email or ID number and password." };
+      const message = (error?.message || "").toLowerCase();
+      if (
+        message.includes("invalid login") ||
+        message.includes("invalid credentials") ||
+        message.includes("email not confirmed")
+      ) {
+        return { error: "Incorrect password. Please try again." };
+      }
+      return { error: "Sign in failed. Please check your details and try again." };
     }
 
     let { data: profile, error: profileError } = await supabase

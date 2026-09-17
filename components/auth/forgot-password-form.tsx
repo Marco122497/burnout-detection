@@ -25,7 +25,7 @@ export function ForgotPasswordForm() {
     forgotPassword,
     initialState
   );
-  useActionToast(state);
+  useActionToast(state, pending);
 
   return (
     <Card className="w-full max-w-md border-border/80 shadow-sm">

@@ -32,7 +32,7 @@ export function RegisterForm({
   departments: Department[];
 }) {
   const [state, formAction, pending] = useActionState(register, initialState);
-  useActionToast(state);
+  useActionToast(state, pending);
   useActionRedirect(state);
 
   return (

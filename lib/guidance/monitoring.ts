@@ -14,6 +14,11 @@ import {
 } from "@/lib/student/mfbi";
 import { fetchAllPages } from "@/lib/supabase/fetch-all";
 import { buildGenderRiskSummary } from "@/lib/reports/gender-risk";
+import {
+  fetchInChunks,
+  getCachedUniversityWeeklySeries,
+} from "@/lib/cache/monitoring";
+import { cache } from "react";
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -52,29 +57,13 @@ function countBy(values: string[]) {
     .map(([label, count]) => ({ label, count }));
 }
 
-export async function getGuidanceStudentRows(
+export const getGuidanceStudentRows = cache(async function getGuidanceStudentRows(
   supabase: SupabaseClient
 ): Promise<GuidanceStudentRow[]> {
   const term = await getActiveTerm(supabase);
   const currentWeek = term ? getCurrentWeekNumber(term) : null;
 
-  const students = await fetchAllPages(async (from, to) =>
-    supabase
-      .from("profiles")
-      .select(
-        "id, first_name, middle_name, last_name, suffix, student_number, sex, course, year_level, section, is_active, department_id, profile_picture, departments(department_code, department_name, description)"
-      )
-      .eq("role", "Student")
-      .eq("is_active", true)
-      .order("last_name", { ascending: true })
-      .range(from, to)
-  );
-
-  if (!students.length) return [];
-
-  const ids = students.map((s) => s.id);
-  const studentIdSet = new Set(ids);
-  const monitoringList: Array<{
+  type MonitoringListRow = {
     monitoring_id: number;
     student_id: string;
     week_number: number;
@@ -97,34 +86,47 @@ export async function getGuidanceStudentRows(
           burnout_risk_level: string;
         }[]
       | null;
-  }> = [];
+  };
 
-  if (term?.term_id) {
-    let from = 0;
-    const pageSize = 1000;
-
-    while (true) {
-      const { data, error } = await supabase
-        .from("weekly_monitoring")
+  // Students + current-week monitoring do not depend on each other — fetch in parallel.
+  const [students, monitoringRaw] = await Promise.all([
+    fetchAllPages(async (from, to) =>
+      supabase
+        .from("profiles")
         .select(
-          "monitoring_id, student_id, week_number, stress_score, academic_workload_score, study_time_score, sleep_hours_score, submitted_at, term_id, created_at, mfbi_results(mfbi_id, mfbi_score, burnout_risk_level)"
+          "id, first_name, middle_name, last_name, suffix, student_number, sex, course, year_level, section, is_active, department_id, profile_picture, departments(department_code, department_name, description)"
         )
-        .eq("term_id", term.term_id)
-        .order("week_number", { ascending: false })
-        .range(from, from + pageSize - 1);
+        .eq("role", "Student")
+        .eq("is_active", true)
+        .order("last_name", { ascending: true })
+        .range(from, to)
+    ),
+    term?.term_id
+      ? fetchAllPages(async (from, to) => {
+          let query = supabase
+            .from("weekly_monitoring")
+            .select(
+              "monitoring_id, student_id, week_number, stress_score, academic_workload_score, study_time_score, sleep_hours_score, submitted_at, term_id, created_at, mfbi_results(mfbi_id, mfbi_score, burnout_risk_level)"
+            )
+            .eq("term_id", term.term_id)
+            .order("week_number", { ascending: false });
 
-      if (error) break;
+          // Dashboard/monitoring cards use the active week only — skip older weeks.
+          if (currentWeek != null) {
+            query = query.eq("week_number", currentWeek);
+          }
 
-      for (const row of data ?? []) {
-        if (studentIdSet.has(row.student_id)) {
-          monitoringList.push(row);
-        }
-      }
+          return query.range(from, to);
+        })
+      : Promise.resolve([] as MonitoringListRow[]),
+  ]);
 
-      if (!data?.length || data.length < pageSize) break;
-      from += pageSize;
-    }
-  }
+  if (!students.length) return [];
+
+  const studentIdSet = new Set(students.map((s) => s.id));
+  const monitoringList = (monitoringRaw as MonitoringListRow[]).filter((row) =>
+    studentIdSet.has(row.student_id)
+  );
 
   const latestMonitoring = new Map<string, (typeof monitoringList)[number]>();
   const currentWeekMonitoring = new Map<string, (typeof monitoringList)[number]>();
@@ -173,14 +175,16 @@ export async function getGuidanceStudentRows(
     }
   >();
   if (mfbiIds.length) {
-    const { data: predictions } = await supabase
-      .from("ml_predictions")
-      .select("mfbi_id, final_prediction, remarks")
-      .in("mfbi_id", mfbiIds);
+    const predictions = await fetchInChunks(mfbiIds, 200, (chunk) =>
+      supabase
+        .from("ml_predictions")
+        .select("mfbi_id, final_prediction, remarks")
+        .in("mfbi_id", chunk as number[])
+    );
     const { staffEarlyWarningFromRemarks } = await import(
       "@/lib/student/early-warning-staff"
     );
-    for (const prediction of predictions ?? []) {
+    for (const prediction of predictions) {
       const ew = staffEarlyWarningFromRemarks(prediction.remarks);
       predictionByMfbi.set(prediction.mfbi_id, {
         final_prediction: prediction.final_prediction,
@@ -261,33 +265,34 @@ export async function getGuidanceStudentRows(
         dept?.department_name || dept?.description || null,
     };
   });
-}
+});
 
-export async function getGuidanceStudentHistory(
+export const getGuidanceStudentHistory = cache(async function getGuidanceStudentHistory(
   supabase: SupabaseClient,
   studentId: string
 ): Promise<{
   student: GuidanceStudentRow | null;
   history: StudentHistoryRow[];
 }> {
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select(
-      "id, first_name, middle_name, last_name, suffix, student_number, sex, course, year_level, section, department_id, role, is_active, departments(department_code, department_name, description)"
-    )
-    .eq("id", studentId)
-    .eq("role", "Student")
-    .maybeSingle();
+  const [{ data: profile }, { data: monitoringRows }] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select(
+        "id, first_name, middle_name, last_name, suffix, student_number, sex, course, year_level, section, department_id, role, is_active, departments(department_code, department_name, description)"
+      )
+      .eq("id", studentId)
+      .eq("role", "Student")
+      .maybeSingle(),
+    supabase
+      .from("weekly_monitoring")
+      .select(
+        "monitoring_id, week_number, stress_score, academic_workload_score, study_time_score, sleep_hours_score, submitted_at, mfbi_results(mfbi_id, mfbi_score, burnout_risk_level, normalized_stress, normalized_academic_workload, normalized_study_time, normalized_sleep_hours)"
+      )
+      .eq("student_id", studentId)
+      .order("week_number", { ascending: false }),
+  ]);
 
   if (!profile) return { student: null, history: [] };
-
-  const { data: monitoringRows } = await supabase
-    .from("weekly_monitoring")
-    .select(
-      "monitoring_id, week_number, stress_score, academic_workload_score, study_time_score, sleep_hours_score, submitted_at, mfbi_results(mfbi_id, mfbi_score, burnout_risk_level, normalized_stress, normalized_academic_workload, normalized_study_time, normalized_sleep_hours)"
-    )
-    .eq("student_id", studentId)
-    .order("week_number", { ascending: false });
 
   const rows = monitoringRows ?? [];
   const mfbiIds = rows
@@ -398,65 +403,10 @@ export async function getGuidanceStudentHistory(
     },
     history,
   };
-}
+});
 
 export async function getUniversityWeeklySeries(supabase: SupabaseClient) {
-  const term = await getActiveTerm(supabase);
-  let query = supabase
-    .from("weekly_monitoring")
-    .select("week_number, mfbi_results(mfbi_score, burnout_risk_level)");
-
-  if (term?.term_id) {
-    query = query.eq("term_id", term.term_id);
-  }
-
-  const { data } = await query;
-
-  const weeklyMap = new Map<
-    number,
-    { scores: number[]; low: number; moderate: number; high: number }
-  >();
-
-  for (const row of data ?? []) {
-    const mfbi = Array.isArray(row.mfbi_results)
-      ? row.mfbi_results[0]
-      : row.mfbi_results;
-    if (row.week_number == null) continue;
-
-    const entry = weeklyMap.get(row.week_number) ?? {
-      scores: [],
-      low: 0,
-      moderate: 0,
-      high: 0,
-    };
-
-    if (mfbi?.mfbi_score != null) {
-      entry.scores.push(Number(mfbi.mfbi_score));
-    }
-
-    const bucket =
-      mfbi?.mfbi_score != null
-        ? classifyMfbiScore(Number(mfbi.mfbi_score))
-        : riskBucket(mfbi?.burnout_risk_level ?? null);
-    if (bucket === "Low") entry.low += 1;
-    else if (bucket === "Moderate") entry.moderate += 1;
-    else if (bucket === "High") entry.high += 1;
-
-    weeklyMap.set(row.week_number, entry);
-  }
-
-  return [...weeklyMap.entries()]
-    .sort(([a], [b]) => a - b)
-    .map(([week, entry]) => ({
-      week,
-      average: entry.scores.length
-        ? entry.scores.reduce((a, b) => a + b, 0) / entry.scores.length
-        : 0,
-      count: entry.scores.length,
-      lowCount: entry.low,
-      moderateCount: entry.moderate,
-      highCount: entry.high,
-    }));
+  return getCachedUniversityWeeklySeries(supabase);
 }
 
 function rowMfbiRiskBucket(

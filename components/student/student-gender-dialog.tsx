@@ -28,7 +28,8 @@ const initialState: StudentActionState = {};
 
 export function StudentGenderDialog() {
   const router = useRouter();
-  const [open, setOpen] = useState(true);
+  const [mounted, setMounted] = useState(false);
+  const [open, setOpen] = useState(false);
   const [state, formAction, pending] = useActionState(
     setStudentGender,
     initialState
@@ -37,10 +38,17 @@ export function StudentGenderDialog() {
   useActionToast(state);
 
   useEffect(() => {
+    setMounted(true);
+    setOpen(true);
+  }, []);
+
+  useEffect(() => {
     if (!state.success) return;
     setOpen(false);
     router.refresh();
   }, [state.success, router]);
+
+  if (!mounted) return null;
 
   return (
     <AlertDialog

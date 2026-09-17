@@ -129,12 +129,33 @@ export async function checkBurnoutAiHealth(): Promise<boolean> {
   if (!baseUrl) return false;
   try {
     const response = await fetch(`${baseUrl}/health`, {
-      cache: "no-store",
-      signal: AbortSignal.timeout(4000),
+      next: { revalidate: 60 },
+      signal: AbortSignal.timeout(2000),
     });
     if (!response.ok) return false;
     const data = (await response.json()) as { models_ready?: boolean };
     return Boolean(data.models_ready);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Best-effort wake for Render cold starts. Guidance dashboards already hit
+ * /metrics; students do not — call this on student entry so submit is faster.
+ */
+export async function warmBurnoutAi(): Promise<boolean> {
+  const baseUrl = aiBaseUrl();
+  if (!baseUrl) return false;
+  try {
+    const response = await fetch(`${baseUrl}/health`, {
+      cache: "no-store",
+      // Cold starts on free Render can take 30–60s.
+      signal: AbortSignal.timeout(45000),
+    });
+    if (!response.ok) return false;
+    const data = (await response.json()) as { models_ready?: boolean };
+    return data.models_ready !== false;
   } catch {
     return false;
   }
@@ -145,8 +166,8 @@ export async function fetchBurnoutAiMetrics(): Promise<unknown | null> {
   if (!baseUrl) return null;
   try {
     const response = await fetch(`${baseUrl}/metrics`, {
-      cache: "no-store",
-      signal: AbortSignal.timeout(5000),
+      next: { revalidate: 300 },
+      signal: AbortSignal.timeout(2000),
     });
     if (!response.ok) return null;
     return response.json();

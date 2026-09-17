@@ -9,6 +9,7 @@ import { getStudentBurnoutTrends, backfillBurnoutTrendsFromHistory } from "@/lib
 import { ensureRagRecommendation } from "@/lib/student/ensure-rag";
 import {
   ensureWeeklyMonitoringReminder,
+  getLatestRagRecommendation,
   getWeeklyMonitoringHistory,
 } from "@/lib/student/queries";
 import { getActiveTerm, getCurrentWeekNumber } from "@/lib/student/terms";
@@ -121,11 +122,6 @@ export async function getStudentDashboardData(
   );
 
   const latest = history[0] ?? null;
-  const ragRecommendation = await ensureRagRecommendation(
-    supabase,
-    studentId,
-    latest
-  );
   const mfbi = latest?.mfbi_results
     ? Array.isArray(latest.mfbi_results)
       ? latest.mfbi_results[0]
@@ -172,8 +168,16 @@ export async function getStudentDashboardData(
   const predictionDate =
     latest?.monitoring_date ?? latest?.prediction?.prediction_date ?? null;
 
-  const [department, announcementResult] =
+  const [ragRecommendation, department, announcementResult] =
     await Promise.all([
+      // Dashboard never waits on AI generation — use saved advice only.
+      latest
+        ? getLatestRagRecommendation(
+            supabase,
+            studentId,
+            latest.monitoring_id
+          )
+        : Promise.resolve(null),
       profile.department_id
         ? supabase
             .from("departments")
@@ -190,6 +194,13 @@ export async function getStudentDashboardData(
         submittedThisWeek || !term?.monitoring_enabled
       ),
     ]);
+
+  // Refresh stale/missing advice in the background after the page can render.
+  if (latest) {
+    void ensureRagRecommendation(supabase, studentId, latest).catch((error) => {
+      console.error("background ensureRagRecommendation:", error);
+    });
+  }
 
   const factors =
     latest && mfbi ? buildStudentFactors(latest, mfbi) : null;

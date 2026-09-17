@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { createClient } from "@/lib/supabase/server";
+import { cache } from "react";
 
 type NotificationLike = {
   notification_id: number;
@@ -78,7 +79,7 @@ export function announcementMatchesStudent(
   return true;
 }
 
-export async function getStudentAnnouncements(
+export const getStudentAnnouncements = cache(async function getStudentAnnouncements(
   supabase: SupabaseClient,
   student: StudentAudience,
   limit = 20
@@ -95,7 +96,7 @@ export async function getStudentAnnouncements(
   return (data ?? [])
     .filter((item) => announcementMatchesStudent(item, student))
     .slice(0, limit);
-}
+});
 
 export function mergeAnnouncementNotifications(
   notifications: NotificationLike[],

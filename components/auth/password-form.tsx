@@ -32,7 +32,7 @@ type PasswordFormProps = {
 export function PasswordForm({ mode }: PasswordFormProps) {
   const action = mode === "change" ? changePassword : resetPassword;
   const [state, formAction, pending] = useActionState(action, initialState);
-  useActionToast(state);
+  useActionToast(state, pending);
   useActionRedirect(state);
 
   return (

@@ -30,7 +30,8 @@ export function StudentResearchConsentGate({
   declined?: boolean;
 }) {
   const router = useRouter();
-  const [open, setOpen] = useState(true);
+  const [mounted, setMounted] = useState(false);
+  const [open, setOpen] = useState(false);
   const [readUnderstood, setReadUnderstood] = useState(false);
   const [voluntarilyAgreed, setVoluntarilyAgreed] = useState(false);
   const [state, formAction, pending] = useActionState(
@@ -41,12 +42,19 @@ export function StudentResearchConsentGate({
   useActionToast(state);
 
   useEffect(() => {
+    setMounted(true);
+    setOpen(true);
+  }, []);
+
+  useEffect(() => {
     if (!state.success) return;
     setOpen(false);
     router.refresh();
   }, [state.success, router]);
 
   const canAgree = readUnderstood && voluntarilyAgreed && !pending;
+
+  if (!mounted) return null;
 
   return (
     <AlertDialog

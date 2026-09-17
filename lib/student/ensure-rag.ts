@@ -100,12 +100,10 @@ export async function ensureRagRecommendation(
       ? Boolean(existing.llm_model)
       : !existing.llm_model
     : false;
-  if (
-    existing &&
-    matchesLlmMode &&
-    !existing.used_fallback &&
-    !stale
-  ) {
+  // Reuse any saved recommendation for this monitoring week (including
+  // non-GPT / fallback wording). Regenerating on every page load made
+  // dashboards wait on Render + OpenAI even with fast home internet.
+  if (existing && matchesLlmMode && !stale) {
     return existing;
   }
 

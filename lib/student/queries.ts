@@ -7,6 +7,7 @@ import {
 import { getAnswerLabelForQuestion } from "@/lib/student/scale-options";
 import { reconcileMonitoringStudyDisplay } from "@/lib/student/monitoring-display";
 import { getActiveTerm, getCurrentWeekNumber } from "@/lib/student/terms";
+import { cache } from "react";
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -60,7 +61,7 @@ function unwrapMfbi(row: MonitoringRow) {
   return Array.isArray(mfbi) ? mfbi[0] ?? null : mfbi;
 }
 
-export async function getWeeklyMonitoringHistory(
+export const getWeeklyMonitoringHistory = cache(async function getWeeklyMonitoringHistory(
   supabase: SupabaseClient,
   studentId: string
 ) {
@@ -175,9 +176,9 @@ export async function getWeeklyMonitoringHistory(
         : null,
     });
   });
-}
+});
 
-export async function getLatestBurnoutSnapshot(
+export const getLatestBurnoutSnapshot = cache(async function getLatestBurnoutSnapshot(
   supabase: SupabaseClient,
   studentId: string
 ) {
@@ -215,7 +216,7 @@ export async function getLatestBurnoutSnapshot(
     submittedThisWeek,
     history,
   };
-}
+});
 
 export type MonitoringAnswer = {
   question_id: number;
@@ -308,7 +309,7 @@ export async function getMonitoringAnswers(
   return map;
 }
 
-export async function getStudentNotifications(
+export const getStudentNotifications = cache(async function getStudentNotifications(
   supabase: SupabaseClient,
   userId: string,
   limit = 12
@@ -323,7 +324,7 @@ export async function getStudentNotifications(
     .limit(limit);
 
   return data ?? [];
-}
+});
 
 export async function ensureWeeklyMonitoringReminder(
   supabase: SupabaseClient,
@@ -360,7 +361,7 @@ export async function ensureWeeklyMonitoringReminder(
 
 export { unwrapMfbi };
 
-export async function getLatestRagRecommendation(
+export const getLatestRagRecommendation = cache(async function getLatestRagRecommendation(
   supabase: SupabaseClient,
   studentId: string,
   monitoringId?: number | null
@@ -387,4 +388,4 @@ export async function getLatestRagRecommendation(
     return null;
   }
   return mapStoredRagRecommendation(data);
-}
+});

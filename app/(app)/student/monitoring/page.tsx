@@ -23,12 +23,16 @@ export const metadata = {
 export default async function StudentMonitoringPage() {
   const { supabase, user, profile } = await requireRole(["Student"]);
 
-  const consent = await resolveStudentResearchConsent(
-    supabase,
-    user.id,
-    profile.research_consent_status,
-    profile.research_consent_version
-  );
+  const [consent, snapshot, sections] = await Promise.all([
+    resolveStudentResearchConsent(
+      supabase,
+      user.id,
+      profile.research_consent_status,
+      profile.research_consent_version
+    ),
+    getLatestBurnoutSnapshot(supabase, user.id),
+    getWeeklyMonitoringSections(supabase),
+  ]);
 
   if (!consent.hasAgreed) {
     return (
@@ -53,11 +57,6 @@ export default async function StudentMonitoringPage() {
       </div>
     );
   }
-
-  const [snapshot, sections] = await Promise.all([
-    getLatestBurnoutSnapshot(supabase, user.id),
-    getWeeklyMonitoringSections(supabase),
-  ]);
 
   return (
     <div className="space-y-6">
