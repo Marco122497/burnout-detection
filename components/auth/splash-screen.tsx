@@ -77,8 +77,8 @@ export function SplashScreen({
         <p className="splash-title font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
           Burnout Monitor
         </p>
-        <p className="splash-subtitle mt-2 text-sm text-muted-foreground">
-          Student wellness & early intervention
+        <p className="splash-subtitle mt-2 max-w-sm text-sm font-medium tracking-wide text-muted-foreground sm:text-base">
+          Detect Early. Act Wisely. Stay Strong.
         </p>
 
         <div
