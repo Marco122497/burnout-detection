@@ -66,7 +66,7 @@ export function RagRecommendationPanel({
     : recommendation.human_support;
 
   return (
-    <div className="space-y-4">
+    <div className="student-chum-prose space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">

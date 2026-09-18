@@ -44,7 +44,7 @@ export function AuthChrome({ children }: { children: React.ReactNode }) {
             className="mb-4 size-28 object-contain sm:size-32"
           />
           <p className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            <span className="student-chum-marker">BURNOUT SYSTEM</span>
+            BURNOUT SYSTEM
           </p>
           <p className="mt-2 max-w-sm text-sm font-medium tracking-wide text-muted-foreground sm:text-base">
             Detect Early. Act Wisely. Stay Strong.
@@ -52,8 +52,8 @@ export function AuthChrome({ children }: { children: React.ReactNode }) {
         </div>
         {children}
       </div>
-      <div className="relative z-10 px-4 pb-6 text-center">
-        <AppMetaFooter className="text-xs text-muted-foreground/70 sm:text-sm" />
+      <div className="relative z-10 px-4 pb-3 text-center">
+        <AppMetaFooter className="text-[11px] leading-tight text-muted-foreground/70" />
       </div>
     </div>
   );

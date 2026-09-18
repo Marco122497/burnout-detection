@@ -57,17 +57,17 @@ export function AppMetaFooter({ className }: { className?: string }) {
   }, []);
 
   return (
-    <div className={cn("text-[11px] leading-relaxed", className)}>
-      <p>
+    <div className={cn("space-y-0 text-[11px] leading-tight", className)}>
+      <p className="m-0">
         {formatAppVersion()} · built {builtAgo ?? "recently"}
       </p>
-      <DeveloperCredit />
+      <DeveloperCredit className="m-0 leading-tight" />
     </div>
   );
 }
 
 export function SidebarAppFooter() {
   return (
-    <AppMetaFooter className="px-2 py-1 text-sidebar-foreground/60" />
+    <AppMetaFooter className="px-2 py-0 text-sidebar-foreground/60" />
   );
 }

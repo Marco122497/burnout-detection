@@ -108,7 +108,7 @@ export function openPrintReport(
       margin: 0;
       background: #e5e7eb;
       color: #111111;
-      font-family: "Aptos Narrow", "Aptos", "Segoe UI", system-ui, -apple-system, sans-serif;
+      font-family: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
     }
     .toolbar {
       position: sticky;
@@ -164,7 +164,7 @@ export function openPrintReport(
     .brand-text { text-align: center; }
     .brand-name {
       margin: 0;
-      font-family: "Aptos Narrow", "Aptos", "Segoe UI", system-ui, -apple-system, sans-serif;
+      font-family: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
       font-size: 17px;
       font-weight: 700;
       letter-spacing: 0.02em;

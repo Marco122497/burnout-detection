@@ -7,11 +7,13 @@ import {
   KeyRoundIcon,
   Loader2,
   LogOutIcon,
+  SettingsIcon,
   UserRoundIcon,
 } from "lucide-react";
 
 import { logout } from "@/app/actions/auth";
 import type { Profile } from "@/lib/auth/roles";
+import { getDashboardPath, isGuidanceRole } from "@/lib/auth/roles";
 import { useNavigationPending } from "@/components/layout/navigation-pending";
 import {
   AlertDialog,
@@ -63,8 +65,11 @@ export function NavUser({
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const name = displayName(profile);
+  const settingsHref = `${getDashboardPath(profile.role)}/settings`;
+  const showSettings = isGuidanceRole(profile.role);
   const profileLoading = isPending && pendingHref === "/profile";
   const passwordLoading = isPending && pendingHref === "/change-password";
+  const settingsLoading = isPending && pendingHref === settingsHref;
 
   function onNavigate(url: string) {
     if (pathname === url) return;
@@ -161,6 +166,19 @@ export function NavUser({
               )}
               Change password
             </DropdownMenuItem>
+            {showSettings ? (
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={() => onNavigate(settingsHref)}
+              >
+                {settingsLoading ? (
+                  <Loader2 className="animate-spin" />
+                ) : (
+                  <SettingsIcon />
+                )}
+                Settings
+              </DropdownMenuItem>
+            ) : null}
           </DropdownMenuGroup>
 
           <DropdownMenuSeparator />

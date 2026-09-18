@@ -215,7 +215,7 @@ function FactorCard({
           </span>
           <CardTitle className="text-sm">{label}</CardTitle>
         </div>
-        <CardDescription className="text-xs">{description}</CardDescription>
+        <CardDescription className="student-chum-prose text-xs">{description}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-2">
         {factor ? (
@@ -225,7 +225,9 @@ function FactorCard({
                 {primaryLabel ?? `${percent}%`}
               </span>
               {rawLabel ? (
-                <span className="text-xs text-muted-foreground">{rawLabel}</span>
+                <span className="student-chum-prose text-xs text-muted-foreground">
+                  {rawLabel}
+                </span>
               ) : null}
             </div>
             <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
@@ -237,7 +239,9 @@ function FactorCard({
                 style={{ width: `${Math.max(percent ?? 0, 3)}%` }}
               />
             </div>
-            <p className="text-[11px] text-muted-foreground">{footnote}</p>
+            <p className="student-chum-prose text-[11px] text-muted-foreground">
+              {footnote}
+            </p>
           </>
         ) : (
           <p className="text-sm text-muted-foreground">No data yet.</p>
@@ -270,7 +274,7 @@ export function BurnoutFactorSection({
       <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight">
         {heading}
       </h2>
-      <p className="text-sm text-muted-foreground">{subheading}</p>
+      <p className="student-chum-prose text-sm text-muted-foreground">{subheading}</p>
       <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <FactorCard
           icon={<BrainIcon />}

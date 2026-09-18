@@ -3,7 +3,7 @@ function escapeCssString(value: string) {
 }
 
 const PRINT_MARGIN_FONT =
-  '"Aptos Narrow", "Aptos", "Segoe UI", system-ui, -apple-system, sans-serif';
+  '"Nunito", system-ui, -apple-system, "Segoe UI", sans-serif';
 
 /** Fixed print margin footer (left) + page numbers (right) on every printed page. */
 export function reportPrintPageCss(footerLabel: string) {

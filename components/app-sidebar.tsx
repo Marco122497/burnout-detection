@@ -26,7 +26,9 @@ import {
 } from "@/components/ui/sidebar";
 
 function getPrefetchUrls(home: string, urls: string[]) {
-  return Array.from(new Set([home, "/profile", "/change-password", ...urls]));
+  return Array.from(
+    new Set([home, "/profile", "/change-password", `${home}/settings`, ...urls])
+  );
 }
 
 function isItemActive(pathname: string, itemUrl: string, home: string) {
@@ -141,8 +143,8 @@ export function AppSidebar({
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="group-data-[collapsible=icon]:hidden">
-        <SidebarSeparator />
+      <SidebarFooter className="gap-1 p-1.5 group-data-[collapsible=icon]:hidden">
+        <SidebarSeparator className="mx-0" />
         <SidebarAppFooter />
       </SidebarFooter>
       <SidebarRail className={isBusy ? "pointer-events-none" : undefined} />

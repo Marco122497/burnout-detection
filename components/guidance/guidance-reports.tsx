@@ -527,7 +527,7 @@ export function GuidanceReportsPanel({
             { key: "followup", label: "Follow-up" },
           ],
           csvHeader: [
-            "Department",
+                      "Department",
             "Year Level",
             "No.",
             "Student",

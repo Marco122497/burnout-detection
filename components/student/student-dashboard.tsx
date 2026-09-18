@@ -58,7 +58,6 @@ export function StudentDashboard({
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <p className="student-chum-pill w-fit">Student dashboard</p>
         <h1 className="text-3xl font-bold tracking-tight text-[color:var(--chum-ink)] sm:text-4xl">
           Welcome,{" "}
           <span className="student-chum-marker">{profile.first_name}</span>
@@ -134,7 +133,7 @@ export function StudentDashboard({
               : "A plain-language look at this week, based on your scores and school well-being guidance."}
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="student-chum-prose space-y-4">
           {data.ragRecommendation ? (
             <RagRecommendationPanel
               recommendation={data.ragRecommendation}
@@ -304,7 +303,7 @@ export function StudentDashboard({
             Announcements
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="student-chum-prose space-y-4">
           {data.announcements.length ? (
             data.announcements.map((item) => (
               <div

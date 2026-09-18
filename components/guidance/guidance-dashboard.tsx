@@ -295,7 +295,6 @@ export function GuidanceDashboard({
     <div className="space-y-8">
       <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="min-w-0 space-y-2">
-          <span className="student-chum-pill w-fit">Guidance dashboard</span>
           <PageHeading
             title={`Welcome, ${firstName}`}
             description="Administrator overview for the current monitoring week — student burnout risk, submissions, and early-warning alerts."

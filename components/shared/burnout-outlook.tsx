@@ -364,9 +364,6 @@ export function EarlyWarningOutlookCard({
   return (
     <Card>
       <CardHeader>
-        <div className="mb-1">
-          <span className="student-chum-pill">AI Early Detection</span>
-        </div>
         <CardTitle className="text-lg">Outlook timeline</CardTitle>
         <CardDescription>
           Current MFBI, AI next-week forecast, and week-2 trend projection.
@@ -405,11 +402,11 @@ export function EarlyWarningOutlookCard({
         />
 
         {warningMessage ? (
-          <p className="rounded-lg bg-amber-500/10 p-3 text-sm text-amber-950 dark:text-amber-100">
+          <p className="student-chum-prose rounded-lg bg-amber-500/10 p-3 text-sm text-amber-950 dark:text-amber-100">
             {warningMessage}
           </p>
         ) : null}
-        <p className="text-xs text-muted-foreground">
+        <p className="student-chum-prose text-xs text-muted-foreground">
           AI early detection supports school wellness planning and is not a
           medical diagnosis.
         </p>
@@ -633,7 +630,7 @@ export function BurnoutRiskTrendChart({
       </CardHeader>
       <CardContent className="space-y-4">
         {chartData.length === 0 ? (
-          <p className="py-16 text-center text-sm text-muted-foreground">
+          <p className="student-chum-prose py-16 text-center text-sm text-muted-foreground">
             {emptyMessage}
           </p>
         ) : (
@@ -643,7 +640,7 @@ export function BurnoutRiskTrendChart({
               <div className="flex justify-end">
                 <p
                   className={cn(
-                    "rounded-md px-2.5 py-1 text-xs font-semibold tracking-tight",
+                    "student-chum-prose rounded-md px-2.5 py-1 text-xs font-semibold tracking-tight",
                     movementHighlight(latestMovement.direction)
                   )}
                 >
@@ -827,7 +824,7 @@ export function BurnoutRiskTrendChart({
             </ChartContainer>
 
             {hasProjection || includesHistoryStart ? (
-              <p className="text-[11px] text-muted-foreground">
+              <p className="student-chum-prose text-[11px] text-muted-foreground">
                 {includesHistoryStart ? (
                   <>
                     <span className="font-medium text-slate-600 dark:text-slate-300">

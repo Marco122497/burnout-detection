@@ -46,35 +46,42 @@ export function TablePagination({
   return (
     <div
       className={cn(
-        "flex flex-row flex-wrap items-center justify-between gap-3",
+        "flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between",
         className
       )}
     >
-      <Field orientation="horizontal" className="w-fit">
-        <FieldLabel htmlFor={id}>Rows per page</FieldLabel>
-        <Select
-          value={String(pageSize)}
-          onValueChange={(value) => {
-            if (value == null) return;
-            onPageSizeChange(Number(value));
-          }}
-        >
-          <SelectTrigger className="w-20" id={id}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent align="start">
-            <SelectGroup>
-              {pageSizeOptions.map((size) => (
-                <SelectItem key={size} value={String(size)}>
-                  {size}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-      </Field>
-      <Pagination className="mx-0 w-auto">
-        <PaginationContent>
+      <div className="flex flex-wrap items-center justify-between gap-3 sm:justify-start">
+        <Field orientation="horizontal" className="w-fit">
+          <FieldLabel htmlFor={id} className="whitespace-nowrap">
+            Rows per page
+          </FieldLabel>
+          <Select
+            value={String(pageSize)}
+            onValueChange={(value) => {
+              if (value == null) return;
+              onPageSizeChange(Number(value));
+            }}
+          >
+            <SelectTrigger className="w-20" id={id}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent align="start">
+              <SelectGroup>
+                {pageSizeOptions.map((size) => (
+                  <SelectItem key={size} value={String(size)}>
+                    {size}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </Field>
+        <p className="text-xs text-muted-foreground tabular-nums sm:hidden">
+          Page {page} of {totalPages}
+        </p>
+      </div>
+      <Pagination className="mx-0 w-full justify-between sm:w-auto sm:justify-end">
+        <PaginationContent className="w-full justify-between gap-2 sm:w-auto sm:justify-end">
           <PaginationItem>
             <PaginationPrevious
               href="#"
@@ -87,6 +94,11 @@ export function TablePagination({
                 if (canPrevious) onPageChange(page - 1);
               }}
             />
+          </PaginationItem>
+          <PaginationItem className="hidden sm:list-item">
+            <span className="px-2 text-xs text-muted-foreground tabular-nums">
+              Page {page} of {totalPages}
+            </span>
           </PaginationItem>
           <PaginationItem>
             <PaginationNext

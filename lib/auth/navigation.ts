@@ -9,14 +9,11 @@ import {
   FileTextIcon,
   HeartPulseIcon,
   HistoryIcon,
-  KeyRoundIcon,
   LayoutDashboardIcon,
-  SettingsIcon,
   ShieldIcon,
   LightbulbIcon,
   MegaphoneIcon,
   UserRoundCogIcon,
-  UserRoundIcon,
   UsersIcon,
 } from "lucide-react";
 
@@ -50,12 +47,6 @@ export function getNavItems(role: UserRole, home: string): NavItem[] {
         url: `${home}/recommendations`,
         icon: LightbulbIcon,
       },
-      { title: "Profile", url: "/profile", icon: UserRoundIcon },
-      {
-        title: "Change password",
-        url: "/change-password",
-        icon: KeyRoundIcon,
-      },
     ];
   }
 
@@ -86,12 +77,6 @@ export function getNavItems(role: UserRole, home: string): NavItem[] {
         title: "Announcements",
         url: `${home}/announcements`,
         icon: MegaphoneIcon,
-      },
-      { title: "Profile", url: "/profile", icon: UserRoundIcon },
-      {
-        title: "Change password",
-        url: "/change-password",
-        icon: KeyRoundIcon,
       },
     ];
   }
@@ -147,17 +132,6 @@ export function getNavItems(role: UserRole, home: string): NavItem[] {
       title: "Announcements",
       url: `${home}/announcements`,
       icon: MegaphoneIcon,
-    },
-    {
-      title: "Settings",
-      url: `${home}/settings`,
-      icon: SettingsIcon,
-    },
-    { title: "Profile", url: "/profile", icon: UserRoundIcon },
-    {
-      title: "Change password",
-      url: "/change-password",
-      icon: KeyRoundIcon,
     },
   ];
 }

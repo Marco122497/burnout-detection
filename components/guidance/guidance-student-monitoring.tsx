@@ -22,6 +22,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Card,
   CardContent,
   CardDescription,
@@ -39,6 +48,27 @@ function nameInitials(name: string) {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("");
+}
+
+function courseCode(row: GuidanceStudentRow) {
+  return row.department_code || "—";
+}
+
+function DetailItem({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-lg border border-border/70 bg-muted/30 px-3 py-2">
+      <p className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+        {label}
+      </p>
+      <div className="mt-0.5 text-sm font-medium">{children}</div>
+    </div>
+  );
 }
 
 export function GuidanceStudentMonitoring({
@@ -69,22 +99,20 @@ export function GuidanceStudentMonitoring({
   const [submission, setSubmission] = useState(
     searchParams.get("submission") ?? ""
   );
-
-  const sectionOptions = useMemo(() => {
-    return [
-      ...new Set(
-        rows
-          .map((r) => r.section)
-          .filter((value): value is string => Boolean(value))
-      ),
-    ].sort((a, b) => a.localeCompare(b));
-  }, [rows]);
+  const [selectedRow, setSelectedRow] = useState<GuidanceStudentRow | null>(
+    null
+  );
 
   const filtered = useMemo(() => {
     const matched = rows.filter((row) => {
       const query = q.trim().toLowerCase();
       if (query) {
-        const haystack = [row.full_name, row.student_number, row.email]
+        const haystack = [
+          row.full_name,
+          row.student_number,
+          row.email,
+          row.department_code,
+        ]
           .filter(Boolean)
           .join(" ")
           .toLowerCase();
@@ -95,7 +123,7 @@ export function GuidanceStudentMonitoring({
       }
       if (course.trim()) {
         const needle = course.trim().toLowerCase();
-        const haystack = [row.course, row.department_name]
+        const haystack = [row.course, row.department_name, row.department_code]
           .filter(Boolean)
           .join(" ")
           .toLowerCase();
@@ -121,7 +149,6 @@ export function GuidanceStudentMonitoring({
       return true;
     });
 
-    // Submitted first (earliest submission at top), then pending by last name.
     return [...matched].sort((a, b) => {
       if (a.submittedThisWeek !== b.submittedThisWeek) {
         return a.submittedThisWeek ? -1 : 1;
@@ -204,6 +231,12 @@ export function GuidanceStudentMonitoring({
       query ? `/guidance/monitoring?${query}` : "/guidance/monitoring"
     );
   }
+
+  const historyHref = selectedRow
+    ? `/guidance/monitoring/${selectedRow.id}`
+    : null;
+  const historyLoading =
+    Boolean(historyHref) && isPending && pendingHref === historyHref;
 
   return (
     <div className="space-y-6">
@@ -316,6 +349,7 @@ export function GuidanceStudentMonitoring({
           <CardDescription>
             Showing {filtered.length} of {rows.length} students across all
             departments.
+            <span className="md:hidden"> Tap a row for weekly details.</span>
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -323,26 +357,21 @@ export function GuidanceStudentMonitoring({
             <p className="text-sm text-muted-foreground">No students found.</p>
           ) : (
             <>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[1100px] text-left text-sm">
+              {/* Mobile: compact single-column list + row modal */}
+              <div className="md:hidden">
+                <table className="w-full text-left text-sm">
                   <thead className="border-b text-muted-foreground">
                     <tr>
                       <th className="px-2 py-1.5 font-medium">Student</th>
-                      <th className="px-2 py-1.5 font-medium">Department</th>
-                      <th className="px-2 py-1.5 font-medium">Year</th>
-                      <th className="px-2 py-1.5 font-medium">Stress</th>
-                      <th className="px-2 py-1.5 font-medium">Workload</th>
-                      <th className="px-2 py-1.5 font-medium">Study</th>
-                      <th className="px-2 py-1.5 font-medium">Sleep</th>
-                      <th className="px-2 py-1.5 font-medium">MFBI</th>
-                      <th className="px-2 py-1.5 font-medium">Risk</th>
-                      <th className="px-2 py-1.5 font-medium">Week</th>
-                      <th className="px-2 py-1.5 font-medium">History</th>
                     </tr>
                   </thead>
                   <tbody>
                     {pageItems.map((row) => (
-                      <tr key={row.id} className="border-b last:border-0">
+                      <tr
+                        key={row.id}
+                        className="cursor-pointer border-b last:border-0 hover:bg-muted/40"
+                        onClick={() => setSelectedRow(row)}
+                      >
                         <td className="px-2 py-1.5">
                           <div className="flex items-start gap-2.5">
                             <Avatar className="size-8 shrink-0">
@@ -363,77 +392,134 @@ export function GuidanceStudentMonitoring({
                                   ? `${row.student_number || "—"} | ${row.email}`
                                   : row.student_number || "—"}
                               </p>
+                              <p className="mt-0.5 truncate text-xs font-medium text-muted-foreground">
+                                {courseCode(row)}
+                              </p>
                             </div>
                           </div>
-                        </td>
-                        <td className="px-2 py-1.5">
-                          {row.department_name || "—"}
-                        </td>
-                        <td className="px-2 py-1.5">{row.year_level ?? "—"}</td>
-                        <td className="px-2 py-1.5 tabular-nums">
-                          {formatNormalizedFactor(
-                            normalizeFactorScore(row.stress_score, 40)
-                          )}
-                        </td>
-                        <td className="px-2 py-1.5 tabular-nums">
-                          {formatNormalizedFactor(
-                            normalizeFactorScore(row.academic_workload, 10)
-                          )}
-                        </td>
-                        <td className="px-2 py-1.5 tabular-nums">
-                          {formatNormalizedFactor(
-                            normalizeFactorScore(row.study_time, STUDY_TIME_SCORE_MAX)
-                          )}
-                        </td>
-                        <td className="px-2 py-1.5 tabular-nums">
-                          {formatNormalizedFactor(
-                            normalizeFactorScore(row.sleep_hours, 100)
-                          )}
-                        </td>
-                        <td className="px-2 py-1.5">
-                          {row.mfbi_score != null
-                            ? row.mfbi_score.toFixed(2)
-                            : "—"}
-                        </td>
-                        <td className="px-2 py-1.5">
-                          <RiskLevelText
-                            level={row.burnout_level}
-                            score={row.mfbi_score}
-                          />
-                        </td>
-                        <td className="px-2 py-1.5">
-                          {row.submittedThisWeek ? "Submitted" : "Pending"}
-                        </td>
-                        <td className="px-2 py-1.5">
-                          {(() => {
-                            const viewHref = `/guidance/monitoring/${row.id}`;
-                            const viewLoading =
-                              isPending && pendingHref === viewHref;
-                            return (
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                disabled={viewLoading}
-                                onClick={() => navigate(viewHref)}
-                              >
-                                {viewLoading ? (
-                                  <>
-                                    <Loader2 className="animate-spin" />
-                                    Loading…
-                                  </>
-                                ) : (
-                                  "View"
-                                )}
-                              </Button>
-                            );
-                          })()}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
+
+              {/* Desktop: full columns */}
+              <div className="hidden overflow-x-auto md:block">
+                <table className="w-full min-w-[1100px] text-left text-sm">
+                  <thead className="border-b text-muted-foreground">
+                    <tr>
+                      <th className="px-2 py-1.5 font-medium">Student</th>
+                      <th className="px-2 py-1.5 font-medium">Course</th>
+                      <th className="px-2 py-1.5 font-medium">Year</th>
+                      <th className="px-2 py-1.5 font-medium">Stress</th>
+                      <th className="px-2 py-1.5 font-medium">Workload</th>
+                      <th className="px-2 py-1.5 font-medium">Study</th>
+                      <th className="px-2 py-1.5 font-medium">Sleep</th>
+                      <th className="px-2 py-1.5 font-medium">MFBI</th>
+                      <th className="px-2 py-1.5 font-medium">Risk</th>
+                      <th className="px-2 py-1.5 font-medium">Week</th>
+                      <th className="px-2 py-1.5 font-medium">History</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pageItems.map((row) => {
+                      const viewHref = `/guidance/monitoring/${row.id}`;
+                      const viewLoading =
+                        isPending && pendingHref === viewHref;
+                      return (
+                        <tr key={row.id} className="border-b last:border-0">
+                          <td className="px-2 py-1.5">
+                            <div className="flex items-start gap-2.5">
+                              <Avatar className="size-8 shrink-0">
+                                {row.profile_picture ? (
+                                  <AvatarImage
+                                    src={row.profile_picture}
+                                    alt={row.full_name}
+                                  />
+                                ) : null}
+                                <AvatarFallback className="text-xs">
+                                  {nameInitials(row.full_name) || "?"}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="min-w-0">
+                                <p className="font-medium">{row.full_name}</p>
+                                <p className="truncate text-xs text-muted-foreground">
+                                  {row.email
+                                    ? `${row.student_number || "—"} | ${row.email}`
+                                    : row.student_number || "—"}
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-2 py-1.5 font-medium tabular-nums">
+                            {courseCode(row)}
+                          </td>
+                          <td className="px-2 py-1.5">
+                            {row.year_level ?? "—"}
+                          </td>
+                          <td className="px-2 py-1.5 tabular-nums">
+                            {formatNormalizedFactor(
+                              normalizeFactorScore(row.stress_score, 40)
+                            )}
+                          </td>
+                          <td className="px-2 py-1.5 tabular-nums">
+                            {formatNormalizedFactor(
+                              normalizeFactorScore(row.academic_workload, 10)
+                            )}
+                          </td>
+                          <td className="px-2 py-1.5 tabular-nums">
+                            {formatNormalizedFactor(
+                              normalizeFactorScore(
+                                row.study_time,
+                                STUDY_TIME_SCORE_MAX
+                              )
+                            )}
+                          </td>
+                          <td className="px-2 py-1.5 tabular-nums">
+                            {formatNormalizedFactor(
+                              normalizeFactorScore(row.sleep_hours, 100)
+                            )}
+                          </td>
+                          <td className="px-2 py-1.5">
+                            {row.mfbi_score != null
+                              ? row.mfbi_score.toFixed(2)
+                              : "—"}
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <RiskLevelText
+                              level={row.burnout_level}
+                              score={row.mfbi_score}
+                            />
+                          </td>
+                          <td className="px-2 py-1.5">
+                            {row.submittedThisWeek ? "Submitted" : "Pending"}
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={viewLoading}
+                              onClick={() => navigate(viewHref)}
+                            >
+                              {viewLoading ? (
+                                <>
+                                  <Loader2 className="animate-spin" />
+                                  Loading…
+                                </>
+                              ) : (
+                                "View"
+                              )}
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
               <TablePagination
                 id="monitoring-rows-per-page"
                 page={page}
@@ -441,12 +527,106 @@ export function GuidanceStudentMonitoring({
                 totalItems={totalItems}
                 onPageChange={setPage}
                 onPageSizeChange={setPageSize}
-                className="justify-end gap-4 sm:justify-end"
+                className="border-t border-border/60 pt-3"
               />
             </>
           )}
         </CardContent>
       </Card>
+
+      <AlertDialog
+        open={selectedRow != null}
+        onOpenChange={(open) => {
+          if (!open) setSelectedRow(null);
+        }}
+      >
+        <AlertDialogContent className="max-h-[90vh] gap-3 overflow-y-auto data-[size=default]:max-w-lg data-[size=default]:sm:max-w-lg">
+          {selectedRow ? (
+            <>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{selectedRow.full_name}</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {[
+                    selectedRow.student_number || null,
+                    selectedRow.email || null,
+                    courseCode(selectedRow),
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                <DetailItem label="Year">
+                  {selectedRow.year_level ?? "—"}
+                </DetailItem>
+                <DetailItem label="Stress">
+                  {formatNormalizedFactor(
+                    normalizeFactorScore(selectedRow.stress_score, 40)
+                  )}
+                </DetailItem>
+                <DetailItem label="Workload">
+                  {formatNormalizedFactor(
+                    normalizeFactorScore(selectedRow.academic_workload, 10)
+                  )}
+                </DetailItem>
+                <DetailItem label="Study">
+                  {formatNormalizedFactor(
+                    normalizeFactorScore(
+                      selectedRow.study_time,
+                      STUDY_TIME_SCORE_MAX
+                    )
+                  )}
+                </DetailItem>
+                <DetailItem label="Sleep">
+                  {formatNormalizedFactor(
+                    normalizeFactorScore(selectedRow.sleep_hours, 100)
+                  )}
+                </DetailItem>
+                <DetailItem label="MFBI">
+                  {selectedRow.mfbi_score != null
+                    ? selectedRow.mfbi_score.toFixed(2)
+                    : "—"}
+                </DetailItem>
+                <DetailItem label="Risk">
+                  <RiskLevelText
+                    level={selectedRow.burnout_level}
+                    score={selectedRow.mfbi_score}
+                  />
+                </DetailItem>
+                <DetailItem label="Week">
+                  {selectedRow.submittedThisWeek ? "Submitted" : "Pending"}
+                </DetailItem>
+              </div>
+
+              <AlertDialogFooter className="gap-2 sm:justify-between">
+                <AlertDialogCancel className="rounded-full">
+                  Close
+                </AlertDialogCancel>
+                <Button
+                  type="button"
+                  className="rounded-full"
+                  disabled={historyLoading || !historyHref}
+                  onClick={() => {
+                    if (!historyHref) return;
+                    setSelectedRow(null);
+                    navigate(historyHref);
+                  }}
+                >
+                  {historyLoading ? (
+                    <>
+                      <Loader2 className="animate-spin" />
+                      Loading…
+                    </>
+                  ) : (
+                    "View history"
+                  )}
+                </Button>
+              </AlertDialogFooter>
+            </>
+          ) : null}
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
