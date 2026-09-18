@@ -23,7 +23,6 @@ import {
   type ScaleOption,
 } from "@/lib/student/scale-options";
 import { QuestionScaleOptionsEditor } from "@/components/guidance/question-scale-options-editor";
-import { useNavigationPending } from "@/components/layout/navigation-pending";
 import { ScaleChoice } from "@/components/shared/scale-choice";
 import type { QuestionnaireKey } from "@/lib/student/questionnaires";
 import { resolveScaleOptions } from "@/lib/student/scale-options";
@@ -53,12 +52,13 @@ import {
 } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 const initialState: QuestionnaireActionState = {};
 const selectClassName =
   "h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
-function displayQuestionnaireName(name: string) {
+export function displayQuestionnaireName(name: string) {
   if (/perceived stress|pss/i.test(name)) return "Stress Level";
   return name;
 }
@@ -92,7 +92,7 @@ function displayQuestionnaireDescription(name: string, description: string | nul
   return description;
 }
 
-function questionnaireListOrder(name: string) {
+export function questionnaireListOrder(name: string) {
   if (/perceived stress|pss/i.test(name)) return 0;
   if (/academic workload/i.test(name)) return 1;
   if (/study time/i.test(name)) return 2;
@@ -270,120 +270,32 @@ export function QuestionnairesList({
 }: {
   questionnaires: QuestionnaireRow[];
 }) {
-  const { navigate, isPending, pendingHref } = useNavigationPending();
-  const [toggleState, toggleAction, togglePending] = useActionState(
-    toggleQuestionnaireStatus,
-    initialState
-  );
-  useActionToast(toggleState);
-
-  const orderedQuestionnaires = [...questionnaires].sort(
-    (a, b) =>
-      questionnaireListOrder(a.questionnaire_name) -
-      questionnaireListOrder(b.questionnaire_name)
-  );
-
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Questionnaires</CardTitle>
-        <CardDescription>
-          Manage Stress Level, Academic Workload, Study Time, and Sleep Hours
-          forms used in weekly monitoring.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {questionnaires.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No questionnaires found. Seed questionnaires in the database first.
-          </p>
-        ) : (
-          orderedQuestionnaires.map((item) => {
-            const manageHref = `/guidance/questionnaires/${item.questionnaire_id}`;
-            const manageLoading =
-              isPending && pendingHref === manageHref;
-            const description = displayQuestionnaireDescription(
-              item.questionnaire_name,
-              item.description
-            );
-
-            return (
-            <div
-              key={item.questionnaire_id}
-              className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"
-            >
-              <div>
-                <p className="font-medium">
-                  {displayQuestionnaireName(item.questionnaire_name)}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {item.total_questions}{" "}
-                  {item.total_questions === 1 ? "question" : "questions"} ·{" "}
-                  {item.is_active ? "Enabled" : "Disabled"}
-                </p>
-                {description ? (
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {description}
-                  </p>
-                ) : null}
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={manageLoading}
-                  onClick={() => navigate(manageHref)}
-                >
-                  {manageLoading ? (
-                    <>
-                      <Loader2 className="animate-spin" />
-                      Loading…
-                    </>
-                  ) : (
-                    "Manage"
-                  )}
-                </Button>
-                <form action={toggleAction}>
-                  <input
-                    type="hidden"
-                    name="questionnaire_id"
-                    value={item.questionnaire_id}
-                  />
-                  <input
-                    type="hidden"
-                    name="is_active"
-                    value={item.is_active ? "0" : "1"}
-                  />
-                  <Button
-                    type="submit"
-                    variant="secondary"
-                    disabled={togglePending}
-                  >
-                    {item.is_active ? "Disable" : "Enable"}
-                  </Button>
-                </form>
-              </div>
-            </div>
-            );
-          })
-        )}
-      </CardContent>
-    </Card>
+    <p className="text-sm text-muted-foreground">
+      {questionnaires.length} questionnaire
+      {questionnaires.length === 1 ? "" : "s"} configured.
+    </p>
   );
 }
 
 export function QuestionnaireDetailManager({
   questionnaire,
   questions,
+  embedded = false,
 }: {
   questionnaire: QuestionnaireRow;
   questions: QuestionRow[];
+  embedded?: boolean;
 }) {
-  const { navigate, isPending, pendingHref } = useNavigationPending();
   const [editingId, setEditingId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [preview, setPreview] = useState(false);
+  const [
+    toggleQuestionnaireState,
+    toggleQuestionnaireAction,
+    toggleQuestionnairePending,
+  ] = useActionState(toggleQuestionnaireStatus, initialState);
 
   const [createState, createAction, createPending] = useActionState(
     createQuestion,
@@ -411,6 +323,7 @@ export function QuestionnaireDetailManager({
   useActionToast(toggleState);
   useActionToast(deleteState);
   useActionToast(moveState);
+  useActionToast(toggleQuestionnaireState);
 
   const editing = questions.find((q) => q.question_id === editingId) ?? null;
   const deleting =
@@ -462,41 +375,67 @@ export function QuestionnaireDetailManager({
   }
 
   return (
-    <div className="space-y-6">
+    <div className={cn("space-y-6", embedded && "space-y-4")}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
-            {displayQuestionnaireName(questionnaire.questionnaire_name)}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Add, edit, reorder, and configure reverse-scored items.
-          </p>
+          {embedded ? (
+            <>
+              <h2 className="text-lg font-semibold tracking-tight">
+                {displayQuestionnaireName(questionnaire.questionnaire_name)}
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {questionnaire.total_questions}{" "}
+                {questionnaire.total_questions === 1 ? "question" : "questions"}{" "}
+                · {questionnaire.is_active ? "Enabled" : "Disabled"}
+                {(() => {
+                  const description = displayQuestionnaireDescription(
+                    questionnaire.questionnaire_name,
+                    questionnaire.description
+                  );
+                  return description ? ` · ${description}` : "";
+                })()}
+              </p>
+            </>
+          ) : (
+            <>
+              <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
+                {displayQuestionnaireName(questionnaire.questionnaire_name)}
+              </h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Add, edit, reorder, and configure reverse-scored items.
+              </p>
+            </>
+          )}
         </div>
         <div className="flex flex-wrap gap-2">
           <Button
             type="button"
             variant="outline"
+            size={embedded ? "sm" : "default"}
             onClick={() => setPreview((v) => !v)}
           >
-            {preview ? "Hide preview" : "Preview questionnaire"}
+            {preview ? "Hide preview" : "Preview"}
           </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={
-              isPending && pendingHref === "/guidance/questionnaires"
-            }
-            onClick={() => navigate("/guidance/questionnaires")}
-          >
-            {isPending && pendingHref === "/guidance/questionnaires" ? (
-              <>
-                <Loader2 className="animate-spin" />
-                Loading…
-              </>
-            ) : (
-              "Back to list"
-            )}
-          </Button>
+          <form action={toggleQuestionnaireAction}>
+            <input
+              type="hidden"
+              name="questionnaire_id"
+              value={questionnaire.questionnaire_id}
+            />
+            <input
+              type="hidden"
+              name="is_active"
+              value={questionnaire.is_active ? "0" : "1"}
+            />
+            <Button
+              type="submit"
+              variant="secondary"
+              size={embedded ? "sm" : "default"}
+              disabled={toggleQuestionnairePending}
+            >
+              {questionnaire.is_active ? "Disable" : "Enable"}
+            </Button>
+          </form>
         </div>
       </div>
 

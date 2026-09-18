@@ -27,7 +27,7 @@ function HeadingSkeleton({
         </div>
         <Skeleton className={`h-4 ${descriptionWidth} max-w-full`} />
       </div>
-      {withAction ? <Skeleton className="h-9 w-full sm:w-[240px]" /> : null}
+      {withAction ? <Skeleton className="h-8 w-52 shrink-0" /> : null}
     </div>
   );
 }
@@ -387,6 +387,122 @@ function TablePageSkeleton({
   );
 }
 
+function MonitoringSplitSkeleton({
+  withWeekAction = false,
+}: {
+  withWeekAction?: boolean;
+}) {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+      <HeadingSkeleton
+        titleWidth="w-52"
+        descriptionWidth="w-96"
+        withAction={withWeekAction}
+      />
+      <Card className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden rounded-r-none py-0 ring-0 md:rounded-l-xl md:ring-1 md:ring-foreground/10">
+        <CardHeader className="shrink-0 space-y-3 border-b pt-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-5 w-56" />
+            <Skeleton className="h-4 w-40" />
+          </div>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <Skeleton className="h-8 w-44" />
+            <Skeleton className="h-8 w-20" />
+            <Skeleton className="h-8 w-20" />
+            <Skeleton className="h-8 w-24" />
+            <Skeleton className="h-8 w-16" />
+          </div>
+        </CardHeader>
+        <CardContent className="flex min-h-0 flex-1 flex-col p-0">
+          <div className="flex min-h-[28rem] flex-1 flex-col md:flex-row">
+            <aside className="flex w-full flex-col border-border md:w-80 md:shrink-0 md:border-r lg:w-96">
+              <div className="min-h-0 flex-1 space-y-0 overflow-hidden">
+                {Array.from({ length: 8 }).map((_, index) => (
+                  <div
+                    key={index}
+                    className="flex items-start gap-2.5 border-b border-border/70 px-3 py-3"
+                  >
+                    <Skeleton className="size-9 shrink-0 rounded-full" />
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <Skeleton className="h-4 w-36" />
+                      <Skeleton className="h-3 w-48 max-w-full" />
+                      <Skeleton className="h-3 w-28" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="flex shrink-0 items-center justify-between gap-3 border-t px-3 py-2">
+                <Skeleton className="h-8 w-28" />
+                <Skeleton className="h-8 w-32" />
+              </div>
+            </aside>
+            <section className="hidden min-h-0 min-w-0 flex-1 flex-col p-4 md:flex md:p-5">
+              <div className="flex h-full flex-col items-center justify-center gap-2">
+                <Skeleton className="h-5 w-36" />
+                <Skeleton className="h-4 w-64 max-w-full" />
+              </div>
+            </section>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function QuestionnaireTabsSkeleton() {
+  return (
+    <div className="space-y-6">
+      <HeadingSkeleton titleWidth="w-48" descriptionWidth="w-96" />
+      <div className="space-y-4">
+        <div className="flex flex-wrap gap-1 border-b pb-0">
+          {["w-24", "w-36", "w-24", "w-28"].map((width, index) => (
+            <Skeleton key={index} className={`mb-2 h-7 ${width}`} />
+          ))}
+        </div>
+        <div className="space-y-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div className="space-y-2">
+              <Skeleton className="h-6 w-40" />
+              <Skeleton className="h-4 w-72 max-w-full" />
+            </div>
+            <div className="flex gap-2">
+              <Skeleton className="h-8 w-20" />
+              <Skeleton className="h-8 w-20" />
+            </div>
+          </div>
+          <Card>
+            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="space-y-2">
+                <Skeleton className="h-5 w-28" />
+                <Skeleton className="h-4 w-72 max-w-full" />
+              </div>
+              <Skeleton className="h-9 w-32" />
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="flex items-start justify-between gap-4 rounded-lg border p-3"
+                >
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <Skeleton className="h-4 w-full max-w-md" />
+                    <Skeleton className="h-3 w-40" />
+                  </div>
+                  <div className="flex gap-1">
+                    <Skeleton className="size-8" />
+                    <Skeleton className="size-8" />
+                    <Skeleton className="size-8" />
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ReportsSkeleton({ cards = 3 }: { cards?: number }) {
   return (
     <div className="space-y-6">
@@ -634,62 +750,6 @@ function RecommendationsSkeleton() {
   );
 }
 
-function QuestionnaireListSkeleton() {
-  return (
-    <div className="space-y-6">
-      <HeadingSkeleton titleWidth="w-48" descriptionWidth="w-80" />
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-5 w-40" />
-          <Skeleton className="h-4 w-80 max-w-full" />
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {Array.from({ length: 4 }).map((_, index) => (
-            <div
-              key={index}
-              className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"
-            >
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-48" />
-                <Skeleton className="h-3 w-40" />
-              </div>
-              <Skeleton className="h-9 w-24" />
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-function QuestionnaireDetailSkeleton() {
-  return (
-    <div className="space-y-6">
-      <HeadingSkeleton titleWidth="w-64" descriptionWidth="w-72" />
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <Skeleton className="h-5 w-32" />
-          <Skeleton className="h-9 w-32" />
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {Array.from({ length: 6 }).map((_, index) => (
-            <div
-              key={index}
-              className="flex items-start justify-between gap-4 rounded-lg border p-3"
-            >
-              <div className="min-w-0 flex-1 space-y-2">
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-3 w-24" />
-              </div>
-              <Skeleton className="h-8 w-20" />
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
 function DefaultPageSkeleton() {
   return (
     <div className="space-y-6">
@@ -707,19 +767,14 @@ function normalizePath(href: string) {
   return path;
 }
 
-function isDetailPath(path: string, prefix: string) {
-  return path.startsWith(`${prefix}/`) && path.length > prefix.length + 1;
-}
-
 export function pageSkeletonForPath(href: string) {
   const path = normalizePath(href);
 
   if (path === "/profile") return <ProfileSkeleton />;
   if (path === "/change-password") return <PasswordSkeleton />;
 
-  if (isDetailPath(path, "/instructor/monitoring")) return <HistorySkeleton />;
   if (path.startsWith("/instructor/monitoring")) {
-    return <TablePageSkeleton withFilters />;
+    return <MonitoringSplitSkeleton />;
   }
   if (path.startsWith("/instructor/analytics")) {
     return <InstructorAnalyticsSkeleton />;
@@ -735,9 +790,8 @@ export function pageSkeletonForPath(href: string) {
   }
   if (path === "/instructor") return <InstructorDashboardSkeleton />;
 
-  if (isDetailPath(path, "/guidance/monitoring")) return <HistorySkeleton />;
   if (path.startsWith("/guidance/monitoring")) {
-    return <TablePageSkeleton withFilters withWeekControls />;
+    return <MonitoringSplitSkeleton withWeekAction />;
   }
   if (path.startsWith("/guidance/analytics")) {
     return <GuidanceAnalyticsSkeleton />;
@@ -748,11 +802,8 @@ export function pageSkeletonForPath(href: string) {
   if (path.startsWith("/guidance/announcements")) {
     return <AnnouncementsSkeleton />;
   }
-  if (isDetailPath(path, "/guidance/questionnaires")) {
-    return <QuestionnaireDetailSkeleton />;
-  }
   if (path.startsWith("/guidance/questionnaires")) {
-    return <QuestionnaireListSkeleton />;
+    return <QuestionnaireTabsSkeleton />;
   }
   if (
     path.startsWith("/guidance/students") ||

@@ -22,12 +22,38 @@ type NavigationPendingContextValue = {
 const NavigationPendingContext =
   createContext<NavigationPendingContextValue | null>(null);
 
-function normalizePath(href: string) {
+export function normalizePath(href: string) {
   const path = href.split("?")[0].split("#")[0];
   if (path.length > 1 && path.endsWith("/")) {
     return path.slice(0, -1);
   }
   return path || "/";
+}
+
+/** Stays inside the instructor monitoring split (list + detail pane). */
+export function isInstructorMonitoringShellPath(href: string) {
+  const path = normalizePath(href);
+  return (
+    path === "/instructor/monitoring" ||
+    path.startsWith("/instructor/monitoring/")
+  );
+}
+
+/** Stays inside the guidance/admin monitoring split (list + detail pane). */
+export function isGuidanceMonitoringShellPath(href: string) {
+  const path = normalizePath(href);
+  return (
+    path === "/guidance/monitoring" ||
+    path.startsWith("/guidance/monitoring/")
+  );
+}
+
+/** Instructor or guidance monitoring master–detail shell. */
+export function isMonitoringShellPath(href: string) {
+  return (
+    isInstructorMonitoringShellPath(href) ||
+    isGuidanceMonitoringShellPath(href)
+  );
 }
 
 function currentUrl(pathname: string) {

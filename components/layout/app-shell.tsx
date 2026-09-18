@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 
 import type { Profile } from "@/lib/auth/roles";
 import {
@@ -13,6 +14,7 @@ import { ChumTheme } from "@/components/chum-theme";
 import { AppBreadcrumb } from "@/components/layout/app-breadcrumb";
 import { AppPageSkeleton } from "@/components/layout/app-page-skeleton";
 import {
+  isMonitoringShellPath,
   NavigationPendingProvider,
   useNavigationPending,
 } from "@/components/layout/navigation-pending";
@@ -30,6 +32,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { cn } from "@/lib/utils";
 
 function AppShellContent({
   profile,
@@ -42,6 +45,7 @@ function AppShellContent({
   notifications: NavNotification[];
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
   const dashboardHref = getDashboardPath(profile.role);
   const { isPending, isBusy, pendingHref } = useNavigationPending();
   const { setOpenMobile } = useSidebar();
@@ -52,14 +56,21 @@ function AppShellContent({
       : isGuidanceRole(profile.role)
         ? "/guidance/notifications"
         : null;
+  const isMonitoringShell = isMonitoringShellPath(pathname);
+  const preserveMonitoringShell =
+    isPending &&
+    Boolean(pendingHref) &&
+    isMonitoringShell &&
+    isMonitoringShellPath(pendingHref!);
+  const lockChrome = isBusy && !preserveMonitoringShell;
 
   useEffect(() => {
-    if (!isBusy) return;
+    if (!lockChrome) return;
     setOpenMobile(false);
-  }, [isBusy, setOpenMobile]);
+  }, [lockChrome, setOpenMobile]);
 
   useEffect(() => {
-    if (isBusy) {
+    if (lockChrome) {
       document.body.dataset.appBusy = "true";
     } else {
       delete document.body.dataset.appBusy;
@@ -67,19 +78,27 @@ function AppShellContent({
     return () => {
       delete document.body.dataset.appBusy;
     };
-  }, [isBusy]);
+  }, [lockChrome]);
 
   return (
     <>
-      <TopProgressBar show={isBusy} />
+      <TopProgressBar show={lockChrome} />
       <AppSidebar profile={profile} />
-      <SidebarInset>
+      <SidebarInset
+        className={cn(
+          "min-h-0 overflow-hidden",
+          isMonitoringShell && "md:mr-0 md:rounded-none md:shadow-none"
+        )}
+      >
         <header
           data-slot="app-topbar"
-          className="flex h-14 shrink-0 items-center justify-between gap-2 border-b px-3"
+          className={cn(
+            "flex h-14 shrink-0 items-center justify-between gap-2 border-b",
+            isMonitoringShell ? "pr-2 pl-3" : "px-3"
+          )}
         >
           <div className="flex min-w-0 items-center gap-2">
-            <SidebarTrigger disabled={isBusy} />
+            <SidebarTrigger disabled={lockChrome} />
             <Separator
               orientation="vertical"
               className="mr-1 data-vertical:h-4 data-vertical:self-auto"
@@ -87,7 +106,7 @@ function AppShellContent({
             <AppBreadcrumb dashboardHref={dashboardHref} />
           </div>
           <div className="flex items-center gap-2">
-            <ModeToggle disabled={isBusy} />
+            <ModeToggle disabled={lockChrome} />
             <NavNotifications
               notifications={notifications}
               viewAllHref={viewAllHref}
@@ -95,8 +114,19 @@ function AppShellContent({
             <NavUser profile={profile} email={email} />
           </div>
         </header>
-        <div className="flex min-w-0 flex-1 flex-col gap-4 overflow-x-hidden p-4 md:p-6">
-          {isPending ? <AppPageSkeleton href={pendingHref} /> : children}
+        <div
+          className={cn(
+            "flex min-h-0 min-w-0 flex-1 flex-col gap-4",
+            isMonitoringShell
+              ? "overflow-hidden pt-4 pr-0 pb-0 pl-4 md:pt-6 md:pl-6"
+              : "overflow-x-hidden overflow-y-auto p-4 md:p-6"
+          )}
+        >
+          {isPending && !preserveMonitoringShell ? (
+            <AppPageSkeleton href={pendingHref} />
+          ) : (
+            children
+          )}
         </div>
       </SidebarInset>
     </>
@@ -115,8 +145,8 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   return (
-    <ChumTheme className="min-h-svh">
-      <SidebarProvider className="min-h-svh">
+    <ChumTheme className="h-svh overflow-hidden">
+      <SidebarProvider className="h-svh min-h-0 overflow-hidden">
         <NavigationPendingProvider>
           <AppShellContent
             profile={profile}

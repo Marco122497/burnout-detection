@@ -1,8 +1,12 @@
+import { Suspense } from "react";
 
-import { QuestionnairesList } from "@/components/guidance/questionnaires-manager";
+import { QuestionnairesTabs } from "@/components/guidance/questionnaires-tabs";
 import { PageHeading } from "@/components/layout/page-heading";
 import { requireRole } from "@/lib/auth/session";
-import { getQuestionnaires } from "@/lib/guidance/questionnaires";
+import {
+  getQuestionnaires,
+  getQuestionsForQuestionnaire,
+} from "@/lib/guidance/questionnaires";
 
 export const metadata = {
   title: "Questionnaires",
@@ -11,6 +15,15 @@ export const metadata = {
 export default async function GuidanceQuestionnairesPage() {
   const { supabase } = await requireRole(["Guidance Counselor"]);
   const questionnaires = await getQuestionnaires(supabase);
+  const items = await Promise.all(
+    questionnaires.map(async (questionnaire) => ({
+      questionnaire,
+      questions: await getQuestionsForQuestionnaire(
+        supabase,
+        questionnaire.questionnaire_id
+      ),
+    }))
+  );
 
   return (
     <div className="space-y-6">
@@ -18,7 +31,13 @@ export default async function GuidanceQuestionnairesPage() {
         title="Questionnaires"
         description="Configure Stress Level, Academic Workload, Study Time, and Sleep Hours forms."
       />
-      <QuestionnairesList questionnaires={questionnaires} />
+      <Suspense
+        fallback={
+          <div className="h-40 animate-pulse rounded-xl bg-muted/60" />
+        }
+      >
+        <QuestionnairesTabs items={items} />
+      </Suspense>
     </div>
   );
 }

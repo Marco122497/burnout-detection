@@ -1,43 +1,15 @@
-import { Suspense } from "react";
-
-import { StudentMonitoringTable } from "@/components/instructor/student-monitoring-table";
-import { PageHeading } from "@/components/layout/page-heading";
-import { requireRole } from "@/lib/auth/session";
-import { getUserEmails } from "@/lib/guidance/queries";
-import {
-  getDepartmentName,
-  getInstructorStudentRows,
-} from "@/lib/instructor/queries";
-
 export const metadata = {
   title: "Student Monitoring",
 };
 
-export default async function InstructorMonitoringPage() {
-  const { supabase, profile } = await requireRole(["Instructor"]);
-  const [studentRows, departmentName, emails] = await Promise.all([
-    getInstructorStudentRows(supabase, profile.department_id),
-    getDepartmentName(supabase, profile.department_id),
-    getUserEmails(),
-  ]);
-  const rows = studentRows.map((row) => ({
-    ...row,
-    email: emails[row.id] ?? null,
-  }));
-
+export default function InstructorMonitoringPage() {
   return (
-    <div className="space-y-6">
-      <PageHeading
-        title="Student Monitoring"
-        description={`Monitor students in your assigned department${departmentName ? ` (${departmentName})` : ""} only.`}
-      />
-      <Suspense
-        fallback={
-          <div className="h-64 animate-pulse rounded-xl bg-muted/60" />
-        }
-      >
-        <StudentMonitoringTable rows={rows} />
-      </Suspense>
+    <div className="flex h-full min-h-full flex-col items-center justify-center px-4 text-center">
+      <p className="text-base font-medium">Select a student</p>
+      <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+        Choose a name from the list to open their weekly monitoring assessment
+        history on this side.
+      </p>
     </div>
   );
 }

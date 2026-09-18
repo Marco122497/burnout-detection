@@ -94,11 +94,13 @@ export function StudentAssessmentHistoryView({
   history,
   answers = {},
   backHref = "/instructor/monitoring",
+  embedded = false,
 }: {
   student: StudentMonitorRow & { department_name?: string | null };
   history: StudentHistoryRow[];
   answers?: MonitoringAnswersMap;
   backHref?: string;
+  embedded?: boolean;
 }) {
   const { navigate, isPending, pendingHref } = useNavigationPending();
   const [openId, setOpenId] = useState<number | null>(null);
@@ -165,41 +167,67 @@ export function StudentAssessmentHistoryView({
   );
 
   return (
-    <div className="space-y-6">
+    <div className={cn("space-y-6", embedded && "space-y-5")}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm font-medium text-primary">Student monitoring</p>
-          <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
+          {!embedded ? (
+            <p className="text-sm font-medium text-primary">Student monitoring</p>
+          ) : null}
+          <h1
+            className={cn(
+              "font-[family-name:var(--font-display)] font-semibold tracking-tight break-words",
+              embedded ? "text-2xl" : "text-3xl"
+            )}
+          >
             {student.full_name}
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-1 text-sm text-muted-foreground break-words">
             {[
               student.student_number,
-              student.department_name || student.course,
+              student.course || student.department_name,
               student.year_level != null
                 ? formatYearLevel(student.year_level)
                 : null,
-              student.section ? `Section ${student.section}` : null,
             ]
               .filter(Boolean)
               .join(" · ")}
           </p>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={backLoading}
-          onClick={() => navigate(backHref)}
-        >
-          {backLoading ? (
-            <>
-              <Loader2 className="animate-spin" />
-              Loading…
-            </>
-          ) : (
-            "Back to student list"
-          )}
-        </Button>
+        {embedded ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="md:hidden"
+            disabled={backLoading}
+            onClick={() => navigate(backHref)}
+          >
+            {backLoading ? (
+              <>
+                <Loader2 className="animate-spin" />
+                Loading…
+              </>
+            ) : (
+              "Back to list"
+            )}
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={backLoading}
+            onClick={() => navigate(backHref)}
+          >
+            {backLoading ? (
+              <>
+                <Loader2 className="animate-spin" />
+                Loading…
+              </>
+            ) : (
+              "Back to student list"
+            )}
+          </Button>
+        )}
       </div>
 
       <BurnoutHero

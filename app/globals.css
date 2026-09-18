@@ -144,7 +144,6 @@
   html {
     @apply font-sans;
     font-family: var(--font-nunito), "Nunito", system-ui, sans-serif;
-    scrollbar-gutter: stable;
   }
 }
 

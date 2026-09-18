@@ -82,10 +82,9 @@ export function AppBreadcrumb({ dashboardHref }: { dashboardHref: string }) {
 
   if (
     (segments[0] === "guidance" || segments[0] === "instructor") &&
-    segments[1] === "monitoring" &&
-    segments.length > 2
+    segments[1] === "monitoring"
   ) {
-    pageLabel = "Student history";
+    pageLabel = "Student Monitoring";
   }
 
   return (

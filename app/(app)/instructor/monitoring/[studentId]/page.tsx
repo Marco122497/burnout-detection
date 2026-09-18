@@ -40,6 +40,7 @@ export default async function InstructorStudentHistoryPage({
       student={{ ...student, department_name: departmentName }}
       history={history}
       answers={answers}
+      embedded
     />
   );
 }
