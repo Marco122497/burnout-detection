@@ -974,6 +974,9 @@ export async function generateDepartmentMonitoring(
     const departmentId = Number(formData.get("department_id"));
     const skipExisting = formData.get("skip_existing") === "1";
     const studentIdsRaw = String(formData.get("student_ids") || "").trim();
+    const lowPercent = Number(formData.get("risk_low_percent"));
+    const moderatePercent = Number(formData.get("risk_moderate_percent"));
+    const highPercent = Number(formData.get("risk_high_percent"));
 
     let studentIds: string[] | undefined;
     if (studentIdsRaw) {
@@ -998,11 +1001,32 @@ export async function generateDepartmentMonitoring(
       return { error: "Select a department first." };
     }
 
+    const hasRiskMix =
+      Number.isFinite(lowPercent) &&
+      Number.isFinite(moderatePercent) &&
+      Number.isFinite(highPercent);
+    const riskPercents = hasRiskMix
+      ? {
+          low: Math.max(0, lowPercent),
+          moderate: Math.max(0, moderatePercent),
+          high: Math.max(0, highPercent),
+        }
+      : undefined;
+
+    if (riskPercents) {
+      const mixTotal =
+        riskPercents.low + riskPercents.moderate + riskPercents.high;
+      if (mixTotal <= 0) {
+        return { error: "Set Low, Moderate, and High risk percentages." };
+      }
+    }
+
     const fill = await fillDepartmentMonitoring({
       supabase,
       departmentId,
       skipExisting,
       studentIds,
+      riskPercents,
     });
 
     if (!fill.ok) {

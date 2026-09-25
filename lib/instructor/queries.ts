@@ -910,7 +910,6 @@ export async function getInstructorDashboardData(
   const earlyWarningStudents = rows
     .filter((r) => r.early_warning_attention)
     .sort((a, b) => (b.mfbi_score ?? 0) - (a.mfbi_score ?? 0))
-    .slice(0, 15)
     .map((row) => ({
       id: row.id,
       full_name: row.full_name,
@@ -1281,7 +1280,6 @@ export function getInstructorAnalytics(
   const earlyWarningStudents = rows
     .filter((r) => r.early_warning_attention)
     .sort((a, b) => (b.mfbi_score ?? 0) - (a.mfbi_score ?? 0))
-    .slice(0, 15)
     .map((row) => ({
       id: row.id,
       full_name: row.full_name,

@@ -4,6 +4,7 @@ import {
   FIRST_WEEK_BASELINE_LEVEL,
   FIRST_WEEK_BASELINE_MFBI,
   FIRST_WEEK_BASELINE_PRIOR,
+  predictBurnoutRisk,
   predictBurnoutRiskWithAi,
   type PriorWeekScores,
 } from "@/lib/student/predict";
@@ -49,6 +50,8 @@ export async function persistGeneratedMonitoringRow(input: {
   historyLevels: string[];
   skipExisting: boolean;
   departmentCode?: string | null;
+  /** Prefer for bulk auto-fill — avoids per-student AI round-trips that time out. */
+  useRuleBasedPrediction?: boolean;
 }) {
   const { admin, termId, studentId, weekNumber, scores, answers, skipExisting } =
     input;
@@ -159,12 +162,14 @@ export async function persistGeneratedMonitoringRow(input: {
       ? [...input.historyMfbi, Number(mfbiRow.mfbi_score)]
       : [FIRST_WEEK_BASELINE_MFBI, Number(mfbiRow.mfbi_score)];
 
-  const prediction = await predictBurnoutRiskWithAi(mfbi, scores, {
-    studentId: input.studentId,
-    priorWeek: input.priorWeek ?? FIRST_WEEK_BASELINE_PRIOR,
-    historyLevels,
-    historyMfbi,
-  });
+  const prediction = input.useRuleBasedPrediction
+    ? predictBurnoutRisk(mfbi, scores)
+    : await predictBurnoutRiskWithAi(mfbi, scores, {
+        studentId: input.studentId,
+        priorWeek: input.priorWeek ?? FIRST_WEEK_BASELINE_PRIOR,
+        historyLevels,
+        historyMfbi,
+      });
   const { error: predictionError } = await admin.from("ml_predictions").insert({
     mfbi_id: mfbiRow.mfbi_id,
     ...prediction,

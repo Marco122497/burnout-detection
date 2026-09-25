@@ -726,7 +726,6 @@ export function getGuidanceAnalytics(
         rowMfbiRiskBucket(r) === "High" || r.early_warning_attention
     )
     .sort((a, b) => (b.mfbi_score ?? 0) - (a.mfbi_score ?? 0))
-    .slice(0, 15)
     .map((r) => ({
       id: r.id,
       student_number: r.student_number,
@@ -747,7 +746,6 @@ export function getGuidanceAnalytics(
   const earlyWarningStudents = rows
     .filter((r) => r.early_warning_attention)
     .sort((a, b) => (b.mfbi_score ?? 0) - (a.mfbi_score ?? 0))
-    .slice(0, 15)
     .map((r) => ({
       id: r.id,
       student_number: r.student_number,

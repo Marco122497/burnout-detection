@@ -228,83 +228,107 @@ export function GuidanceMonitoringSplit({
           Showing {filtered.length} of {rows.length} students.
         </CardDescription>
         <CardAction className="@max-3xl/card-header:w-full @max-3xl/card-header:justify-self-stretch">
-          <form
-            onSubmit={applyFilters}
-            className="flex flex-wrap items-center justify-end gap-2"
-          >
-            <Label htmlFor="q" className="sr-only">
-              Student
-            </Label>
-            <Input
-              id="q"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Name, student number, or email"
-              className="h-8 w-full min-w-[12rem] sm:w-52"
-            />
-            <Label htmlFor="department_id" className="sr-only">
-              Department
-            </Label>
-            <select
-              id="department_id"
-              value={departmentId}
-              onChange={(e) => setDepartmentId(e.target.value)}
-              className={cn(selectClassName, "w-auto min-w-[9rem] max-w-[14rem]")}
-              aria-label="Department"
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <form
+              onSubmit={applyFilters}
+              className="flex flex-wrap items-center justify-end gap-2"
             >
-              <option value="">Department</option>
-              {departments.map((dept) => (
-                <option key={dept.department_id} value={dept.department_id}>
-                  {dept.department_code}
-                </option>
-              ))}
-            </select>
-            <Label htmlFor="year_level" className="sr-only">
-              Year Level
-            </Label>
-            <select
-              id="year_level"
-              value={yearLevel}
-              onChange={(e) => setYearLevel(e.target.value)}
-              className={cn(selectClassName, "w-auto min-w-[6.5rem]")}
-              aria-label="Year level"
-            >
-              <option value="">Year</option>
-              {[1, 2, 3, 4].map((year) => (
-                <option key={year} value={year}>
-                  {year}
-                </option>
-              ))}
-            </select>
-            <Label htmlFor="risk" className="sr-only">
-              Burnout risk
-            </Label>
-            <select
-              id="risk"
-              value={risk}
-              onChange={(e) => setRisk(e.target.value)}
-              className={cn(selectClassName, "w-auto min-w-[7rem]")}
-              aria-label="Burnout risk"
-            >
-              <option value="">Risk</option>
-              <option value="Low">Low</option>
-              <option value="Moderate">Moderate</option>
-              <option value="High">High</option>
-            </select>
-            <Label htmlFor="submission" className="sr-only">
-              This week
-            </Label>
-            <select
-              id="submission"
-              value={submission}
-              onChange={(e) => setSubmission(e.target.value)}
-              className={cn(selectClassName, "w-auto min-w-[8rem]")}
-              aria-label="Submission status"
-            >
-              <option value="">This week</option>
-              <option value="submitted">Submitted</option>
-              <option value="pending">Not submitted</option>
-            </select>
+              <Label htmlFor="q" className="sr-only">
+                Student
+              </Label>
+              <Input
+                id="q"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Name, student number, or email"
+                className="h-8 w-full min-w-[12rem] sm:w-52"
+              />
+              <Label htmlFor="department_id" className="sr-only">
+                Department
+              </Label>
+              <select
+                id="department_id"
+                value={departmentId}
+                onChange={(e) => setDepartmentId(e.target.value)}
+                className={cn(selectClassName, "w-auto min-w-[9rem] max-w-[14rem]")}
+                aria-label="Department"
+              >
+                <option value="">Department</option>
+                {departments.map((dept) => (
+                  <option key={dept.department_id} value={dept.department_id}>
+                    {dept.department_code}
+                  </option>
+                ))}
+              </select>
+              <Label htmlFor="year_level" className="sr-only">
+                Year Level
+              </Label>
+              <select
+                id="year_level"
+                value={yearLevel}
+                onChange={(e) => setYearLevel(e.target.value)}
+                className={cn(selectClassName, "w-auto min-w-[6.5rem]")}
+                aria-label="Year level"
+              >
+                <option value="">Year</option>
+                {[1, 2, 3, 4].map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </select>
+              <Label htmlFor="risk" className="sr-only">
+                Burnout risk
+              </Label>
+              <select
+                id="risk"
+                value={risk}
+                onChange={(e) => setRisk(e.target.value)}
+                className={cn(selectClassName, "w-auto min-w-[7rem]")}
+                aria-label="Burnout risk"
+              >
+                <option value="">Risk</option>
+                <option value="Low">Low</option>
+                <option value="Moderate">Moderate</option>
+                <option value="High">High</option>
+              </select>
+              <Label htmlFor="submission" className="sr-only">
+                This week
+              </Label>
+              <select
+                id="submission"
+                value={submission}
+                onChange={(e) => setSubmission(e.target.value)}
+                className={cn(selectClassName, "w-auto min-w-[8rem]")}
+                aria-label="Submission status"
+              >
+                <option value="">This week</option>
+                <option value="submitted">Submitted</option>
+                <option value="pending">Not submitted</option>
+              </select>
+              <Button type="submit" size="sm">
+                Apply
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setQ("");
+                  setDepartmentId("");
+                  setYearLevel("");
+                  setRisk("");
+                  setSubmission("");
+                  router.push(
+                    activeId
+                      ? `/guidance/monitoring/${activeId}`
+                      : "/guidance/monitoring"
+                  );
+                }}
+              >
+                Reset
+              </Button>
+            </form>
             {departmentId ? (
               <GenerateMonitoringButton
                 departmentId={departmentId}
@@ -318,29 +342,7 @@ export function GuidanceMonitoringSplit({
                 students={departmentStudents}
               />
             ) : null}
-            <Button type="submit" size="sm">
-              Apply
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setQ("");
-                setDepartmentId("");
-                setYearLevel("");
-                setRisk("");
-                setSubmission("");
-                router.push(
-                  activeId
-                    ? `/guidance/monitoring/${activeId}`
-                    : "/guidance/monitoring"
-                );
-              }}
-            >
-              Reset
-            </Button>
-          </form>
+          </div>
         </CardAction>
       </CardHeader>
       <CardContent className="flex min-h-0 flex-1 flex-col p-0">

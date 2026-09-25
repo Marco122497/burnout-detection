@@ -165,48 +165,59 @@ export function InstructorDashboard({
   const { navigate, isPending, pendingHref } = useNavigationPending();
   const [yearFilter, setYearFilter] = React.useState("all");
 
-  const scoped =
-    yearFilter === "all"
-      ? {
-          totalStudents: data.totalStudents,
-          monitoredCount: data.monitoredCount,
-          submittedCount: data.submittedCount,
-          pendingCount: data.pendingCount,
-          completionPercent: data.completionPercent,
-          lowRiskCount: data.lowRiskCount,
-          moderateRiskCount: data.moderateRiskCount,
-          highRiskCount: data.highRiskCount,
-          lowRiskPercent: data.lowRiskPercent,
-          moderateRiskPercent: data.moderateRiskPercent,
-          highRiskPercent: data.highRiskPercent,
-          earlyWarningCount: data.earlyWarningCount,
-          nextWeekHighCount: data.nextWeekHighCount,
-          week2HighCount: data.week2HighCount,
-        }
-      : (() => {
-          const year = Number(yearFilter);
-          const stats = data.yearStats.find((c) => c.year_level === year);
-          const total = stats?.total ?? 0;
-          const pct = (count: number) =>
-            total > 0 ? Math.round((count / total) * 1000) / 10 : 0;
-          const submitted = stats?.submitted ?? 0;
-          return {
-            totalStudents: total,
-            monitoredCount: stats?.monitored ?? 0,
-            submittedCount: submitted,
-            pendingCount: Math.max(total - submitted, 0),
-            completionPercent: pct(submitted),
-            lowRiskCount: stats?.low ?? 0,
-            moderateRiskCount: stats?.moderate ?? 0,
-            highRiskCount: stats?.high ?? 0,
-            lowRiskPercent: pct(stats?.low ?? 0),
-            moderateRiskPercent: pct(stats?.moderate ?? 0),
-            highRiskPercent: pct(stats?.high ?? 0),
-            earlyWarningCount: stats?.earlyWarningCount ?? 0,
-            nextWeekHighCount: stats?.nextWeekHighCount ?? 0,
-            week2HighCount: stats?.week2HighCount ?? 0,
-          };
-        })();
+  const YEAR_FILTER_LABELS: Record<string, string> = {
+    all: "All years",
+    "1": "1st Year",
+    "2": "2nd Year",
+    "3": "3rd Year",
+    "4": "4th Year",
+  };
+
+  const scoped = React.useMemo(() => {
+    if (yearFilter === "all") {
+      return {
+        totalStudents: data.totalStudents,
+        monitoredCount: data.submittedCount,
+        submittedCount: data.submittedCount,
+        pendingCount: data.pendingCount,
+        completionPercent: data.completionPercent,
+        lowRiskCount: data.lowRiskCount,
+        moderateRiskCount: data.moderateRiskCount,
+        highRiskCount: data.highRiskCount,
+        lowRiskPercent: data.lowRiskPercent,
+        moderateRiskPercent: data.moderateRiskPercent,
+        highRiskPercent: data.highRiskPercent,
+        earlyWarningCount: data.earlyWarningCount,
+        nextWeekHighCount: data.nextWeekHighCount,
+        week2HighCount: data.week2HighCount,
+      };
+    }
+
+    const year = Number(yearFilter);
+    const stats = data.yearStats.find((c) => c.year_level === year);
+    const total = stats?.total ?? 0;
+    const pct = (count: number) =>
+      total > 0 ? Math.round((count / total) * 1000) / 10 : 0;
+    const submitted = stats?.submitted ?? 0;
+    return {
+      totalStudents: total,
+      monitoredCount: submitted,
+      submittedCount: submitted,
+      pendingCount: Math.max(total - submitted, 0),
+      completionPercent: pct(submitted),
+      lowRiskCount: stats?.low ?? 0,
+      moderateRiskCount: stats?.moderate ?? 0,
+      highRiskCount: stats?.high ?? 0,
+      lowRiskPercent: pct(stats?.low ?? 0),
+      moderateRiskPercent: pct(stats?.moderate ?? 0),
+      highRiskPercent: pct(stats?.high ?? 0),
+      earlyWarningCount: stats?.earlyWarningCount ?? 0,
+      nextWeekHighCount: stats?.nextWeekHighCount ?? 0,
+      week2HighCount: stats?.week2HighCount ?? 0,
+    };
+  }, [yearFilter, data]);
+
+  const yearFilterLabel = YEAR_FILTER_LABELS[yearFilter] ?? `Year ${yearFilter}`;
 
   const monitoredPercent =
     scoped.totalStudents > 0
@@ -303,7 +314,11 @@ export function InstructorDashboard({
         </div>
       </div>
 
-      <section className="min-w-0">
+      <section className="min-w-0 space-y-2">
+        <p className="text-xs text-muted-foreground">
+          Summary totals for{" "}
+          <span className="font-medium text-foreground">{yearFilterLabel}</span>
+        </p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <OverviewCard
             label="High Risk"

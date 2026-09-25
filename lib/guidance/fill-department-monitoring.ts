@@ -1,7 +1,9 @@
 import type { createClient } from "@/lib/supabase/server";
 import {
   buildBalancedRiskTargets,
+  buildRiskTargetsFromPercents,
   generateMonitoringAnswersForRisk,
+  type RiskPercentMix,
 } from "@/lib/guidance/generate-monitoring";
 import {
   persistGeneratedMonitoringRow,
@@ -88,6 +90,7 @@ export async function fillDepartmentMonitoring(input: {
   departmentId: number;
   skipExisting: boolean;
   studentIds?: string[];
+  riskPercents?: RiskPercentMix;
 }): Promise<
   | { ok: true; result: FillDepartmentResult }
   | { ok: false; error: string; result?: Partial<FillDepartmentResult> }
@@ -178,7 +181,9 @@ export async function fillDepartmentMonitoring(input: {
   let created = 0;
   let skipped = 0;
   const failures: string[] = [];
-  const riskTargets = buildBalancedRiskTargets(students.length);
+  const riskTargets = input.riskPercents
+    ? buildRiskTargetsFromPercents(students.length, input.riskPercents)
+    : buildBalancedRiskTargets(students.length);
 
   for (let index = 0; index < students.length; index += 1) {
     const student = students[index];
@@ -216,6 +221,7 @@ export async function fillDepartmentMonitoring(input: {
       historyLevels: context.historyLevels,
       skipExisting: input.skipExisting,
       departmentCode: department.department_code,
+      useRuleBasedPrediction: true,
     });
 
     if (result.status === "created") {

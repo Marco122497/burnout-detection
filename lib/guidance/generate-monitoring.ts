@@ -39,6 +39,63 @@ export function buildBalancedRiskTargets(count: number): TargetRiskLevel[] {
   return targets;
 }
 
+export type RiskPercentMix = {
+  low: number;
+  moderate: number;
+  high: number;
+};
+
+/** Distribute targets by Low / Moderate / High percentages, then shuffle. */
+export function buildRiskTargetsFromPercents(
+  count: number,
+  percents: RiskPercentMix
+): TargetRiskLevel[] {
+  if (count <= 0) return [];
+
+  const low = Math.max(0, Number(percents.low) || 0);
+  const moderate = Math.max(0, Number(percents.moderate) || 0);
+  const high = Math.max(0, Number(percents.high) || 0);
+  const sum = low + moderate + high;
+
+  if (sum <= 0) {
+    return buildBalancedRiskTargets(count);
+  }
+
+  const weights: Array<{ level: TargetRiskLevel; share: number }> = [
+    { level: "Low", share: (count * low) / sum },
+    { level: "Moderate", share: (count * moderate) / sum },
+    { level: "High", share: (count * high) / sum },
+  ];
+
+  const floors = weights.map((item) => ({
+    level: item.level,
+    count: Math.floor(item.share),
+    frac: item.share - Math.floor(item.share),
+  }));
+
+  let remaining = count - floors.reduce((total, item) => total + item.count, 0);
+  const byFrac = [...floors].sort((a, b) => b.frac - a.frac);
+  for (const item of byFrac) {
+    if (remaining <= 0) break;
+    item.count += 1;
+    remaining -= 1;
+  }
+
+  const targets: TargetRiskLevel[] = [];
+  for (const item of floors) {
+    for (let i = 0; i < item.count; i += 1) {
+      targets.push(item.level);
+    }
+  }
+
+  for (let index = targets.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [targets[index], targets[swapIndex]] = [targets[swapIndex], targets[index]];
+  }
+
+  return targets;
+}
+
 function biasForTarget(target: TargetRiskLevel): RiskBias {
   if (target === "Low") return "low";
   if (target === "High") return "high";

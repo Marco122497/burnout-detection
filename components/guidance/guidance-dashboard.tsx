@@ -173,42 +173,50 @@ export function GuidanceDashboard({
   const allHigh =
     data.riskOverview.find((item) => item.label === "High")?.count ?? 0;
 
-  const scoped =
+  const scoped = React.useMemo(() => {
+    if (yearFilter === "all") {
+      return {
+        totalStudents: data.totalStudents,
+        monitoredCount: data.submittedCount,
+        submittedCount: data.submittedCount,
+        pendingCount: Math.max(data.totalStudents - data.submittedCount, 0),
+        completionPercent: data.completionPercent,
+        low: allLow,
+        moderate: allModerate,
+        high: allHigh,
+        earlyWarningCount: data.earlyWarningCount,
+        nextWeekHighCount: data.nextWeekHighCount,
+        week2HighCount: data.week2HighCount,
+      };
+    }
+
+    const year = Number(yearFilter);
+    const stats = data.yearStats.find((c) => c.year_level === year);
+    const total = stats?.total ?? 0;
+    const submitted = stats?.submitted ?? 0;
+    const pct = (count: number) =>
+      total > 0 ? Math.round((count / total) * 1000) / 10 : 0;
+
+    return {
+      totalStudents: total,
+      monitoredCount: submitted,
+      submittedCount: submitted,
+      pendingCount: Math.max(total - submitted, 0),
+      completionPercent: pct(submitted),
+      low: stats?.low ?? 0,
+      moderate: stats?.moderate ?? 0,
+      high: stats?.high ?? 0,
+      earlyWarningCount: stats?.earlyWarningCount ?? 0,
+      nextWeekHighCount: stats?.nextWeekHighCount ?? 0,
+      week2HighCount: stats?.week2HighCount ?? 0,
+    };
+  }, [yearFilter, data, allLow, allModerate, allHigh]);
+
+  const yearFilterLabel =
     yearFilter === "all"
-      ? {
-          totalStudents: data.totalStudents,
-          monitoredCount: data.classifiedCount,
-          submittedCount: data.submittedCount,
-          pendingCount: Math.max(data.totalStudents - data.submittedCount, 0),
-          completionPercent: data.completionPercent,
-          low: allLow,
-          moderate: allModerate,
-          high: allHigh,
-          earlyWarningCount: data.earlyWarningCount,
-          nextWeekHighCount: data.nextWeekHighCount,
-          week2HighCount: data.week2HighCount,
-        }
-      : (() => {
-          const year = Number(yearFilter);
-          const stats = data.yearStats.find((c) => c.year_level === year);
-          const total = stats?.total ?? 0;
-          const submitted = stats?.submitted ?? 0;
-          const pct = (count: number) =>
-            total > 0 ? Math.round((count / total) * 1000) / 10 : 0;
-          return {
-            totalStudents: total,
-            monitoredCount: stats?.monitored ?? 0,
-            submittedCount: submitted,
-            pendingCount: Math.max(total - submitted, 0),
-            completionPercent: pct(submitted),
-            low: stats?.low ?? 0,
-            moderate: stats?.moderate ?? 0,
-            high: stats?.high ?? 0,
-            earlyWarningCount: stats?.earlyWarningCount ?? 0,
-            nextWeekHighCount: stats?.nextWeekHighCount ?? 0,
-            week2HighCount: stats?.week2HighCount ?? 0,
-          };
-        })();
+      ? "All years"
+      : (YEAR_FILTER_OPTIONS.find((o) => o.value === yearFilter)?.label ??
+        `Year ${yearFilter}`);
 
   const classifiedTotal = scoped.low + scoped.moderate + scoped.high || 1;
   const pieData = (
@@ -327,7 +335,11 @@ export function GuidanceDashboard({
         </div>
       </div>
 
-      <section>
+      <section className="space-y-2">
+        <p className="text-xs text-muted-foreground">
+          Summary totals for{" "}
+          <span className="font-medium text-foreground">{yearFilterLabel}</span>
+        </p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <OverviewCard
             label="High Risk"

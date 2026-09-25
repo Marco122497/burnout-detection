@@ -12,6 +12,9 @@ import {
   isMonitoringOpen,
 } from "@/lib/student/terms";
 
+/** Bulk auto-fill can write many monitoring rows in one request. */
+export const maxDuration = 120;
+
 export default async function GuidanceMonitoringLayout({
   children,
 }: {
