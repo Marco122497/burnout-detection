@@ -124,13 +124,30 @@ function recommendationUrl() {
   return aiBaseUrl();
 }
 
+function isRenderAiHost(url: string) {
+  try {
+    return /onrender\.com$/i.test(new URL(url).hostname);
+  } catch {
+    return false;
+  }
+}
+
+function aiRequestTimeoutMs(kind: "health" | "warm" | "predict") {
+  const baseUrl = aiBaseUrl();
+  const render = Boolean(baseUrl && isRenderAiHost(baseUrl));
+  // Free-tier Render often needs ~45–60s to wake from sleep.
+  if (kind === "warm") return render ? 60000 : 8000;
+  if (kind === "predict") return render ? 60000 : 8000;
+  return render ? 60000 : 2000;
+}
+
 export async function checkBurnoutAiHealth(): Promise<boolean> {
   const baseUrl = aiBaseUrl();
   if (!baseUrl) return false;
   try {
     const response = await fetch(`${baseUrl}/health`, {
       next: { revalidate: 60 },
-      signal: AbortSignal.timeout(2000),
+      signal: AbortSignal.timeout(aiRequestTimeoutMs("health")),
     });
     if (!response.ok) return false;
     const data = (await response.json()) as { models_ready?: boolean };
@@ -150,8 +167,7 @@ export async function warmBurnoutAi(): Promise<boolean> {
   try {
     const response = await fetch(`${baseUrl}/health`, {
       cache: "no-store",
-      // Cold starts on free Render can take 30–60s.
-      signal: AbortSignal.timeout(45000),
+      signal: AbortSignal.timeout(aiRequestTimeoutMs("warm")),
     });
     if (!response.ok) return false;
     const data = (await response.json()) as { models_ready?: boolean };
@@ -167,7 +183,7 @@ export async function fetchBurnoutAiMetrics(): Promise<unknown | null> {
   try {
     const response = await fetch(`${baseUrl}/metrics`, {
       next: { revalidate: 300 },
-      signal: AbortSignal.timeout(2000),
+      signal: AbortSignal.timeout(aiRequestTimeoutMs("health")),
     });
     if (!response.ok) return null;
     return response.json();
@@ -195,7 +211,10 @@ export async function callBurnoutAiEarlyWarning(
   if (!baseUrl) return null;
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
+  const timeout = setTimeout(
+    () => controller.abort(),
+    aiRequestTimeoutMs("predict")
+  );
 
   try {
     const response = await fetch(`${baseUrl}/predict/early-warning`, {

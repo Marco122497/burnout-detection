@@ -23,6 +23,7 @@ import {
   type NavNotification,
 } from "@/components/layout/nav-notifications";
 import { NavUser } from "@/components/layout/nav-user";
+import { StudentBottomNav } from "@/components/student/student-bottom-nav";
 import { TopProgressBar } from "@/components/layout/top-progress-bar";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Separator } from "@/components/ui/separator";
@@ -48,8 +49,9 @@ function AppShellContent({
   const pathname = usePathname();
   const dashboardHref = getDashboardPath(profile.role);
   const { isPending, isBusy, pendingHref } = useNavigationPending();
-  const { setOpenMobile } = useSidebar();
-  const viewAllHref = isStudentRole(profile.role)
+  const { isMobile, setOpenMobile } = useSidebar();
+  const isStudent = isStudentRole(profile.role);
+  const viewAllHref = isStudent
     ? "/student/notifications"
     : profile.role === "Instructor"
       ? "/instructor/notifications"
@@ -83,7 +85,7 @@ function AppShellContent({
   return (
     <>
       <TopProgressBar show={lockChrome} />
-      <AppSidebar profile={profile} />
+      {isStudent && isMobile ? null : <AppSidebar profile={profile} />}
       <SidebarInset
         className={cn(
           "min-h-0 overflow-hidden",
@@ -98,11 +100,25 @@ function AppShellContent({
           )}
         >
           <div className="flex min-w-0 items-center gap-2">
-            <SidebarTrigger disabled={lockChrome} />
-            <Separator
-              orientation="vertical"
-              className="mr-1 data-vertical:h-4 data-vertical:self-auto"
-            />
+            {isStudent ? (
+              <SidebarTrigger
+                disabled={lockChrome}
+                className="hidden md:inline-flex"
+              />
+            ) : (
+              <SidebarTrigger disabled={lockChrome} />
+            )}
+            {isStudent ? (
+              <Separator
+                orientation="vertical"
+                className="mr-1 hidden data-vertical:h-4 data-vertical:self-auto md:block"
+              />
+            ) : (
+              <Separator
+                orientation="vertical"
+                className="mr-1 data-vertical:h-4 data-vertical:self-auto"
+              />
+            )}
             <AppBreadcrumb dashboardHref={dashboardHref} />
           </div>
           <div className="flex items-center gap-2">
@@ -119,7 +135,10 @@ function AppShellContent({
             "flex min-h-0 min-w-0 flex-1 flex-col gap-4",
             isMonitoringShell
               ? "overflow-hidden pt-4 pr-0 pb-0 pl-4 md:pt-6 md:pl-6"
-              : "overflow-x-hidden overflow-y-auto p-4 md:p-6"
+              : cn(
+                  "overflow-x-hidden overflow-y-auto p-4 md:p-6",
+                  isStudent && "pb-24 md:pb-6"
+                )
           )}
         >
           {isPending && !preserveMonitoringShell ? (
@@ -128,6 +147,7 @@ function AppShellContent({
             children
           )}
         </div>
+        {isStudent ? <StudentBottomNav profile={profile} /> : null}
       </SidebarInset>
     </>
   );

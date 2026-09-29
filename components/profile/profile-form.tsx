@@ -60,7 +60,6 @@ function profileToForm(profile: Profile) {
     address: profile.address ?? "",
     course: profile.course ?? "",
     year_level: profile.year_level?.toString() ?? "",
-    section: profile.section ?? "",
     department_id: profile.department_id?.toString() ?? "",
     designation: profile.designation ?? "",
   };
@@ -501,15 +500,6 @@ export function ProfileForm({
                           ? formatYearLevel(profile.year_level)
                           : "—"
                       }
-                      readOnly
-                      className={readOnlyClassName}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="section">Section</Label>
-                    <Input
-                      id="section"
-                      value={form.section || "—"}
                       readOnly
                       className={readOnlyClassName}
                     />

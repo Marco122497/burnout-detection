@@ -57,9 +57,24 @@ type RecommendationResponse = {
   message?: string;
 };
 
+/** Drop Q1:/Q2: prefixes copied from knowledge files. */
+export function stripQuestionnaireItemLabel(text: string): string {
+  let cleaned = text.trim();
+  const prefix =
+    /^(?:Q(?:uestion)?\s*\d+|ST\d+|PSS-?\d+)\s*[:.)\-]\s*/i;
+  for (let i = 0; i < 4; i += 1) {
+    const next = cleaned.replace(prefix, "").trim();
+    if (next === cleaned) break;
+    cleaned = next;
+  }
+  return cleaned;
+}
+
 function asStringList(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
-  return value.map((item) => String(item)).filter((item) => item.trim().length > 0);
+  return value
+    .map((item) => stripQuestionnaireItemLabel(String(item)))
+    .filter((item) => item.length > 0);
 }
 
 export async function saveRagRecommendation(

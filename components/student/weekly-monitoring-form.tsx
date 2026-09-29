@@ -30,7 +30,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { useSidebar } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 
 const initialState: StudentActionState = {};
@@ -118,7 +117,6 @@ export function WeeklyMonitoringForm({
   sections: QuestionnaireSection[];
 }) {
   const { navigate, setLockChrome } = useNavigationPending();
-  const { state: sidebarState, isMobile } = useSidebar();
   const formRef = useRef<HTMLFormElement>(null);
   const [state, formAction, pending] = useActionState(
     submitWeeklyMonitoring,
@@ -217,7 +215,7 @@ export function WeeklyMonitoringForm({
   }
 
   return (
-    <div className="relative space-y-6 pb-28 sm:pb-24">
+    <div className="relative space-y-6">
       <Card id="weekly-monitoring-status" className="overflow-visible">
         <CardHeader>
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -371,26 +369,15 @@ export function WeeklyMonitoringForm({
         ))}
       </form>
 
-      {/* Fixed to the main content column only (not over the sidebar). */}
-      <div
-        className={cn(
-          "fixed bottom-0 right-0 z-30 border-t border-[color:var(--border)]",
-          "bg-[color:var(--card)]/95 backdrop-blur-md",
-          "px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-8px_24px_rgb(20_60_40_/_10%)] sm:px-8",
-          isMobile
-            ? "left-0"
-            : sidebarState === "collapsed"
-              ? "left-[var(--sidebar-width-icon)]"
-              : "left-[var(--sidebar-width)]"
-        )}
-      >
-        <div className="mx-auto flex w-full max-w-5xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-end sm:gap-4">
+      {/* Actions sit at the end of the form, not pinned to the viewport. */}
+      <div className="border-t border-[color:var(--border)] pt-4">
+        <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-end sm:gap-4">
           {!alreadySubmitted && monitoringEnabled && ready ? (
             <Button
               type="button"
               variant="outline"
               size="lg"
-              className="order-2 mx-0.5 w-[calc(100%-0.25rem)] rounded-full px-6 py-3 sm:order-1 sm:mx-0 sm:w-auto sm:min-w-[9.5rem]"
+              className="order-2 w-full rounded-full px-6 py-3 sm:order-1 sm:w-auto sm:min-w-[9.5rem]"
               disabled={disabled}
               onClick={clearAnswers}
             >
@@ -401,7 +388,7 @@ export function WeeklyMonitoringForm({
             type="submit"
             form="weekly-monitoring-form"
             size="lg"
-            className="order-1 mx-0.5 w-[calc(100%-0.25rem)] rounded-full px-7 py-3 text-base sm:order-2 sm:mx-0 sm:w-auto"
+            className="order-1 w-full rounded-full px-7 py-3 text-base sm:order-2 sm:w-auto"
             disabled={disabled}
           >
             {redirecting ? (

@@ -5,7 +5,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import type { StoredRagRecommendation } from "@/lib/student/rag";
+import {
+  stripQuestionnaireItemLabel,
+  type StoredRagRecommendation,
+} from "@/lib/student/rag";
 import { cn } from "@/lib/utils";
 
 function riskTone(level: string | null | undefined) {
@@ -42,12 +45,14 @@ export function RagRecommendationPanel({
   nextWeekRisk?: string | null;
   nextWeekScore?: number | null;
 }) {
-  const actions = compact
+  const actions = (compact
     ? recommendation.recommended_actions.slice(0, 4)
-    : recommendation.recommended_actions;
-  const factors = compact
+    : recommendation.recommended_actions
+  ).map(stripQuestionnaireItemLabel);
+  const factors = (compact
     ? recommendation.contributing_factors.slice(0, 4)
-    : recommendation.contributing_factors;
+    : recommendation.contributing_factors
+  ).map(stripQuestionnaireItemLabel);
   const shownRisk = nextWeekRisk ?? recommendation.risk_level;
   const shownScore =
     nextWeekScore != null ? nextWeekScore : recommendation.mfbi_score;

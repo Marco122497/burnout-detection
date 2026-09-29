@@ -18,7 +18,6 @@ import {
 import { Button } from "@/components/ui/button";
 import {
   Card,
-  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -608,11 +607,10 @@ export function BurnoutRiskTrendChart({
 
   return (
     <Card className={className}>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{TREND_RANGE_DESCRIPTION[range]}</CardDescription>
-        <CardAction>
-          <div className="flex rounded-lg border border-border p-0.5">
+      <CardHeader className="grid-cols-1">
+        <div className="flex items-center justify-between gap-3">
+          <CardTitle>{title}</CardTitle>
+          <div className="flex shrink-0 rounded-lg border border-border p-0.5">
             {TREND_RANGE_OPTIONS.map((option) => (
               <Button
                 key={option.id}
@@ -626,7 +624,10 @@ export function BurnoutRiskTrendChart({
               </Button>
             ))}
           </div>
-        </CardAction>
+        </div>
+        <CardDescription className="max-w-none text-pretty leading-snug hyphens-none">
+          {TREND_RANGE_DESCRIPTION[range]}
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {chartData.length === 0 ? (
