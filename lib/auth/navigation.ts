@@ -7,7 +7,7 @@ import {
   ChartColumnIcon,
   ClipboardListIcon,
   FileTextIcon,
-  HeartPulseIcon,
+  FlameIcon,
   HistoryIcon,
   LayoutDashboardIcon,
   ShieldIcon,
@@ -30,7 +30,7 @@ export function getNavItems(role: UserRole, home: string): NavItem[] {
       {
         title: "Weekly Monitoring",
         url: `${home}/monitoring`,
-        icon: HeartPulseIcon,
+        icon: FlameIcon,
       },
       {
         title: "Assessment History",

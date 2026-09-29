@@ -3,7 +3,7 @@
 import Link from "next/link";
 import {
   CheckCircle2Icon,
-  HeartPulseIcon,
+  FlameIcon,
   LightbulbIcon,
   MegaphoneIcon,
 } from "lucide-react";
@@ -87,7 +87,7 @@ export function StudentDashboard({
                 "mt-2 w-full rounded-full px-5 font-bold"
               )}
             >
-              <HeartPulseIcon />
+              <FlameIcon />
               Complete Week {data.currentWeek ?? "—"} monitoring →
             </Link>
           </div>
