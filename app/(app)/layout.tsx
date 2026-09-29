@@ -3,6 +3,7 @@ import type { NavNotification } from "@/components/layout/nav-notifications";
 import { StudentGenderDialog } from "@/components/student/student-gender-dialog";
 import { StudentResearchConsentGate } from "@/components/student/student-research-consent-gate";
 import { requireUser } from "@/lib/auth/session";
+import { isWeeklyMonitoringDue } from "@/lib/student/queries";
 import { resolveStudentResearchConsent } from "@/lib/student/research-consent";
 
 export const dynamic = "force-dynamic";
@@ -58,6 +59,9 @@ export default async function AppLayout({
     !needsConsent &&
     profile.sex !== "Male" &&
     profile.sex !== "Female";
+  const monitoringDue = isStudent
+    ? await isWeeklyMonitoringDue(supabase, user.id)
+    : false;
 
   return (
     <>
@@ -65,6 +69,7 @@ export default async function AppLayout({
         profile={profile}
         email={user.email ?? null}
         notifications={notifications}
+        monitoringDue={monitoringDue}
       >
         {children}
       </AppShell>

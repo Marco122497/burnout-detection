@@ -39,11 +39,13 @@ function AppShellContent({
   profile,
   email,
   notifications,
+  monitoringDue = false,
   children,
 }: {
   profile: Profile;
   email: string | null;
   notifications: NavNotification[];
+  monitoringDue?: boolean;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -147,7 +149,9 @@ function AppShellContent({
             children
           )}
         </div>
-        {isStudent ? <StudentBottomNav profile={profile} /> : null}
+        {isStudent ? (
+          <StudentBottomNav profile={profile} monitoringDue={monitoringDue} />
+        ) : null}
       </SidebarInset>
     </>
   );
@@ -157,11 +161,13 @@ export function AppShell({
   profile,
   email,
   notifications = [],
+  monitoringDue = false,
   children,
 }: {
   profile: Profile;
   email: string | null;
   notifications?: NavNotification[];
+  monitoringDue?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -172,6 +178,7 @@ export function AppShell({
             profile={profile}
             email={email}
             notifications={notifications}
+            monitoringDue={monitoringDue}
           >
             {children}
           </AppShellContent>

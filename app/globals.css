@@ -147,6 +147,16 @@
   }
 }
 
+@keyframes monitor-tap {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  45% {
+    transform: translateY(-4px) scale(1.08);
+  }
+}
+
 @keyframes splash-pop {
   from {
     opacity: 0;

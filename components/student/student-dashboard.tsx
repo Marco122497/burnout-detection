@@ -79,16 +79,18 @@ export function StudentDashboard({
           </div>
         ) : null}
         {data.monitoringStatus === "Pending" ? (
-          <Link
-            href="/student/monitoring"
-            className={cn(
-              buttonVariants({ size: "lg" }),
-              "mt-2 w-full rounded-full px-5 font-bold"
-            )}
-          >
-            <HeartPulseIcon />
-            Complete Week {data.currentWeek ?? "—"} monitoring →
-          </Link>
+          <div className="hidden md:block">
+            <Link
+              href="/student/monitoring"
+              className={cn(
+                buttonVariants({ size: "lg" }),
+                "mt-2 w-full rounded-full px-5 font-bold"
+              )}
+            >
+              <HeartPulseIcon />
+              Complete Week {data.currentWeek ?? "—"} monitoring →
+            </Link>
+          </div>
         ) : (
           <p className="flex items-center gap-1.5 pt-1 text-xs text-muted-foreground">
             <CheckCircle2Icon className="size-3.5 text-[color:var(--chum-green-deep)]" />

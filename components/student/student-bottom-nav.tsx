@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
 import { getDashboardPath, type Profile } from "@/lib/auth/roles";
-import { getNavItems } from "@/lib/auth/navigation";
+import { getNavItems, type NavItem } from "@/lib/auth/navigation";
 import { useNavigationPending } from "@/components/layout/navigation-pending";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +21,18 @@ const SHORT_LABELS: Record<string, string> = {
   Notifications: "Alerts",
   Recommendations: "Tips",
 };
+
+function withMonitoringCentered(items: NavItem[]) {
+  const centerIndex = items.findIndex((item) =>
+    item.url.endsWith("/monitoring")
+  );
+  if (centerIndex < 0 || items.length < 3) return items;
+
+  const center = items[centerIndex];
+  const rest = items.filter((_, index) => index !== centerIndex);
+  const leftCount = Math.floor(rest.length / 2);
+  return [...rest.slice(0, leftCount), center, ...rest.slice(leftCount)];
+}
 
 const ICON_COLOR: Record<string, { icon: string; wash: string }> = {
   Dashboard: {
@@ -45,11 +57,19 @@ const ICON_COLOR: Record<string, { icon: string; wash: string }> = {
   },
 };
 
-export function StudentBottomNav({ profile }: { profile: Profile }) {
+export function StudentBottomNav({
+  profile,
+  monitoringDue = false,
+}: {
+  profile: Profile;
+  monitoringDue?: boolean;
+}) {
   const pathname = usePathname();
   const { isPending, isBusy, pendingHref, navigate } = useNavigationPending();
   const home = getDashboardPath(profile.role);
-  const items = getNavItems(profile.role, home);
+  const items = monitoringDue
+    ? withMonitoringCentered(getNavItems(profile.role, home))
+    : getNavItems(profile.role, home);
   const activePath = pendingHref ?? pathname;
 
   return (
@@ -67,12 +87,17 @@ export function StudentBottomNav({ profile }: { profile: Profile }) {
               isItemActive(pendingHref, item.url, home);
             const Icon = item.icon;
             const tone = ICON_COLOR[item.title];
+            const isMonitoring = item.url.endsWith("/monitoring");
+            const needsTap = monitoringDue && isMonitoring && !isActive;
 
             return (
               <button
                 key={item.url}
                 type="button"
                 disabled={isBusy}
+                aria-label={
+                  needsTap ? "Weekly monitoring is open. Tap to answer." : undefined
+                }
                 onClick={() => {
                   if (isBusy) return;
                   if (
@@ -85,32 +110,52 @@ export function StudentBottomNav({ profile }: { profile: Profile }) {
                 }}
                 className={cn(
                   "flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-2xl px-1 py-1.5 text-[10px] font-semibold tracking-tight transition-colors",
-                  isActive
+                  needsTap && "-mt-3",
+                  isActive || needsTap
                     ? "text-foreground"
                     : "text-muted-foreground"
                 )}
               >
                 <span
                   className={cn(
-                    "flex size-8 items-center justify-center rounded-full transition-colors",
-                    isActive ? tone?.wash : "bg-transparent"
+                    "relative flex items-center justify-center rounded-full transition-colors",
+                    needsTap ? "size-12" : "size-8",
+                    needsTap
+                      ? "bg-rose-500 text-white shadow-md [animation:monitor-tap_1.4s_ease-in-out_infinite]"
+                      : isActive
+                        ? tone?.wash
+                        : "bg-transparent"
                   )}
                 >
+                  {needsTap ? (
+                    <span
+                      aria-hidden
+                      className="absolute inset-0 animate-ping rounded-full bg-rose-400/80"
+                    />
+                  ) : null}
                   {isLoading ? (
                     <Loader2
-                      className={cn("size-5 animate-spin", tone?.icon)}
+                      className={cn(
+                        "relative size-5 animate-spin",
+                        needsTap ? "text-white" : tone?.icon
+                      )}
                     />
                   ) : (
                     <Icon
                       className={cn(
-                        "size-5",
-                        tone?.icon,
-                        isActive ? "opacity-100" : "opacity-70"
+                        "relative size-5",
+                        needsTap ? "text-white" : tone?.icon,
+                        !needsTap && (isActive ? "opacity-100" : "opacity-70")
                       )}
                     />
                   )}
                 </span>
-                <span className="w-full truncate text-center">
+                <span
+                  className={cn(
+                    "w-full truncate text-center",
+                    needsTap && "text-rose-600 dark:text-rose-400"
+                  )}
+                >
                   {SHORT_LABELS[item.title] ?? item.title}
                 </span>
               </button>

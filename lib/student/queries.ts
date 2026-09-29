@@ -178,6 +178,26 @@ export const getWeeklyMonitoringHistory = cache(async function getWeeklyMonitori
   });
 });
 
+/** True when Guidance has the week open and this student has not submitted it. */
+export const isWeeklyMonitoringDue = cache(async function isWeeklyMonitoringDue(
+  supabase: SupabaseClient,
+  studentId: string
+) {
+  const term = await getActiveTerm(supabase);
+  if (!term?.monitoring_enabled) return false;
+
+  const week = getCurrentWeekNumber(term);
+  const { data, error } = await supabase
+    .from("weekly_monitoring")
+    .select("monitoring_id")
+    .eq("student_id", studentId)
+    .eq("week_number", week)
+    .limit(1);
+
+  if (error) return false;
+  return (data?.length ?? 0) === 0;
+});
+
 export const getLatestBurnoutSnapshot = cache(async function getLatestBurnoutSnapshot(
   supabase: SupabaseClient,
   studentId: string
