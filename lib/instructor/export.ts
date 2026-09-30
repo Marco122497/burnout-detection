@@ -102,13 +102,14 @@ export function openPrintReport(
 <head>
   <meta charset="utf-8" />
   <title>${escapeHtml(title)}</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" />
   <style>
     * { box-sizing: border-box; }
     body {
       margin: 0;
       background: #e5e7eb;
       color: #111111;
-      font-family: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+      font-family: "Plus Jakarta Sans", system-ui, sans-serif;
     }
     .toolbar {
       position: sticky;
@@ -164,7 +165,7 @@ export function openPrintReport(
     .brand-text { text-align: center; }
     .brand-name {
       margin: 0;
-      font-family: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+      font-family: "Plus Jakarta Sans", system-ui, sans-serif;
       font-size: 17px;
       font-weight: 700;
       letter-spacing: 0.02em;

@@ -3,7 +3,9 @@ function escapeCssString(value: string) {
 }
 
 const PRINT_MARGIN_FONT =
-  '"Nunito", system-ui, -apple-system, "Segoe UI", sans-serif';
+  '"Plus Jakarta Sans", system-ui, sans-serif';
+const PRINT_NUMBER_FONT =
+  '"SFMono-Regular", "SF Mono", Menlo, Monaco, Consolas, ui-monospace, monospace';
 
 /** Fixed print margin footer (left) + page numbers (right) on every printed page. */
 export function reportPrintPageCss(footerLabel: string) {
@@ -25,7 +27,7 @@ export function reportPrintPageCss(footerLabel: string) {
 
     @bottom-right {
       content: "Page " counter(page) " of " counter(pages);
-      font-family: ${PRINT_MARGIN_FONT};
+      font-family: ${PRINT_NUMBER_FONT};
       font-size: 9px;
       color: #6b7280;
       vertical-align: top;

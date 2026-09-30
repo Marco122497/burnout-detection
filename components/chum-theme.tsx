@@ -1,4 +1,4 @@
-/** Shared app theme shell. Font comes from root layout (Nunito). */
+/** Shared app theme shell. Font comes from root layout (Plus Jakarta Sans). */
 export function ChumTheme({
   children,
   className = "",

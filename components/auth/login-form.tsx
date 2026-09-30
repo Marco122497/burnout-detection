@@ -7,13 +7,13 @@ import { toast } from "sonner";
 
 import { login, type AuthActionState } from "@/app/actions/auth";
 import { useAuthBusy } from "@/components/auth/auth-busy";
+import { DEFAULT_INITIAL_PASSWORD } from "@/lib/auth/defaults";
 import { useActionRedirect } from "@/hooks/use-action-redirect";
 import { useActionToast } from "@/hooks/use-action-toast";
 import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
@@ -76,24 +76,24 @@ export function LoginForm() {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold">Sign in</CardTitle>
-          <CardDescription>
-            Sign in with your school email or student ID number.
-          </CardDescription>
         </CardHeader>
         <form action={formAction} aria-busy={busy}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="identifier">Email or ID number</Label>
+              <Label htmlFor="identifier">ID Number or Institutional email</Label>
               <Input
                 id="identifier"
                 name="identifier"
                 type="text"
                 autoComplete="username"
-                placeholder="enter your email or student ID"
+                placeholder="student ID | example@ckcm.edu.ph"
                 required
                 disabled={busy}
                 className="h-10 rounded-xl"
               />
+              <p className="text-xs text-muted-foreground">
+                Use the institutional email your school assigned.
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
@@ -108,6 +108,9 @@ export function LoginForm() {
                   className="h-10 rounded-xl"
                 />
               </div>
+              <p className="text-xs text-muted-foreground">
+                The default password is {DEFAULT_INITIAL_PASSWORD}.
+              </p>
               <p className="text-center text-xs text-muted-foreground">
                 Forgot password? Contact the administrator.
               </p>
@@ -131,7 +134,7 @@ export function LoginForm() {
                   Signing in…
                 </>
               ) : (
-                "Sign in"
+                "Login Now"
               )}
             </Button>
           </CardFooter>
