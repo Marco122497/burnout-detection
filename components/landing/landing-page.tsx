@@ -1,4 +1,3 @@
-import Link from "next/link";
 import {
   BellIcon,
   ClipboardListIcon,
@@ -8,10 +7,12 @@ import {
 } from "lucide-react";
 
 import { AuthBackground } from "@/components/auth/auth-background";
+import {
+  LandingForeground,
+  LoginNowLink,
+} from "@/components/landing/login-now-link";
 import { AppMetaFooter } from "@/components/layout/sidebar-app-footer";
 import { ModeToggle } from "@/components/mode-toggle";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 const purposes = [
   {
@@ -45,7 +46,7 @@ export function LandingPage() {
   return (
     <div className="relative min-h-svh lg:h-svh lg:overflow-hidden">
       <AuthBackground />
-      <div className="relative z-10 flex min-h-svh w-full flex-col px-5 py-3 sm:px-8 xl:px-14 lg:h-full">
+      <LandingForeground>
         <header className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
             <img
@@ -86,15 +87,7 @@ export function LandingPage() {
             </p>
           </div>
           <div className="mt-10 flex w-full flex-col items-center gap-2 text-center lg:mt-14">
-            <Link
-              href="/login"
-              className={cn(
-                buttonVariants({ size: "lg" }),
-                "h-14 rounded-full px-12 text-lg font-bold shadow-[0_12px_28px_rgb(45_190_120_/_0.4)]"
-              )}
-            >
-              Login Now
-            </Link>
+            <LoginNowLink />
             <p className="mt-3 text-sm text-muted-foreground">
               Use the account your school already created.
             </p>
@@ -144,7 +137,7 @@ export function LandingPage() {
         <footer className="pb-2 text-center">
           <AppMetaFooter className="text-[11px] leading-tight text-muted-foreground/80" />
         </footer>
-      </div>
+      </LandingForeground>
     </div>
   );
 }

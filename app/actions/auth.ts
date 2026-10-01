@@ -3,6 +3,8 @@
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 
+import { activateBurnoutAi } from "@/lib/student/activate-ai";
+
 import {
   getDashboardPath,
   type RegisterableRole,
@@ -348,6 +350,13 @@ export async function login(
     // Return redirectTo (don't call redirect()) so Set-Cookie from sign-in
     // is applied on the action response before the client navigates.
     revalidatePath("/", "layout");
+    if (
+      profile.role === "Student" ||
+      profile.role === "Instructor" ||
+      profile.role === "Guidance Counselor"
+    ) {
+      activateBurnoutAi();
+    }
     return { redirectTo: getDashboardPath(profile.role as UserRole) };
   } catch (error) {
     return {

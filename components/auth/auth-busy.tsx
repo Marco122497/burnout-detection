@@ -34,26 +34,28 @@ export function AuthChrome({ children }: { children: React.ReactNode }) {
         <ModeToggle disabled={Boolean(authBusy?.busy)} />
       </div>
       <AuthBackground />
-      <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-4 py-12">
-        <div className="mb-8 flex flex-col items-center text-center">
-          <img
-            src="/logo.png"
-            alt="Burnout Monitor"
-            width={128}
-            height={128}
-            className="mb-4 size-28 object-contain sm:size-32"
-          />
-          <p className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            BURNOUT SYSTEM
-          </p>
-          <p className="mt-2 max-w-sm text-sm font-medium tracking-wide text-muted-foreground sm:text-base">
-            Detect Early. Act Wisely. Stay Strong.
-          </p>
+      <div className="login-arrive relative z-10 flex min-h-0 flex-1 flex-col">
+        <div className="flex flex-1 flex-col items-center justify-center px-4 py-12">
+          <div className="mb-8 flex flex-col items-center text-center">
+            <img
+              src="/logo.png"
+              alt="Burnout Monitor"
+              width={128}
+              height={128}
+              className="mb-4 size-28 object-contain sm:size-32"
+            />
+            <p className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+              BURNOUT SYSTEM
+            </p>
+            <p className="mt-2 max-w-sm text-sm font-medium tracking-wide text-muted-foreground sm:text-base">
+              Detect Early. Act Wisely. Stay Strong.
+            </p>
+          </div>
+          {children}
         </div>
-        {children}
-      </div>
-      <div className="relative z-10 px-4 pb-3 text-center">
-        <AppMetaFooter className="text-[11px] leading-tight text-muted-foreground/70" />
+        <div className="px-4 pb-3 text-center">
+          <AppMetaFooter className="text-[11px] leading-tight text-muted-foreground/70" />
+        </div>
       </div>
     </div>
   );

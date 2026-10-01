@@ -1,5 +1,5 @@
 import { GuidanceDashboard } from "@/components/guidance/guidance-dashboard";
-import { isPrimaryGuidanceEmail } from "@/lib/auth/protected-accounts";
+import { canViewAiModelStatus } from "@/lib/auth/protected-accounts";
 import { requireRole } from "@/lib/auth/session";
 import { getAiModelStatus } from "@/lib/guidance/model-metrics";
 import {
@@ -31,7 +31,7 @@ export default async function GuidanceDashboardPage() {
       modelEvaluation={aiStatus.modelEvaluation}
       aiHealthy={aiStatus.aiHealthy}
       metricsSource={aiStatus.metricsSource}
-      showAiModelStatus={isPrimaryGuidanceEmail(user.email)}
+      showAiModelStatus={canViewAiModelStatus(user.email)}
     />
   );
 }

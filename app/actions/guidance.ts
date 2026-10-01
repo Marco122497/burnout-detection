@@ -2087,6 +2087,12 @@ export async function updateOpenaiLlmEnabled(
       "Guidance Counselor",
     ]);
 
+    if (!isSuperadminEmail(user.email)) {
+      return {
+        error: "Only superadmin@school.edu can change the OpenAI LLM setting.",
+      };
+    }
+
     const raw = String(formData.get("openai_llm_enabled") ?? "").trim().toLowerCase();
     const enabled = raw === "1" || raw === "true" || raw === "on";
 

@@ -174,10 +174,12 @@ async function loadAiModelStatus(): Promise<AiModelStatus> {
   };
 }
 
+export const AI_STATUS_CACHE_TAG = "burnout-ai-model-status";
+
 export const getAiModelStatus = unstable_cache(
   loadAiModelStatus,
   ["burnout-ai-model-status"],
-  { revalidate: 300 }
+  { revalidate: 300, tags: [AI_STATUS_CACHE_TAG] }
 );
 
 export async function getModelEvaluation(): Promise<ModelEvaluationSnapshot> {

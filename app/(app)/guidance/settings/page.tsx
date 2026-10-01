@@ -6,6 +6,7 @@ import {
   getOpenaiLlmEnabled,
   getSchoolAdministratorSignatory,
 } from "@/lib/app-settings";
+import { isSuperadminEmail } from "@/lib/auth/protected-accounts";
 import { requireRole } from "@/lib/auth/session";
 
 export const metadata = {
@@ -13,19 +14,26 @@ export const metadata = {
 };
 
 export default async function GuidanceSettingsPage() {
-  const { supabase } = await requireRole(["Guidance Counselor"]);
+  const { supabase, user } = await requireRole(["Guidance Counselor"]);
+  const canManageOpenaiLlm = isSuperadminEmail(user.email);
   const [schoolAdministrator, openaiLlmEnabled] = await Promise.all([
     getSchoolAdministratorSignatory(supabase),
-    getOpenaiLlmEnabled(supabase),
+    canManageOpenaiLlm ? getOpenaiLlmEnabled(supabase) : Promise.resolve(false),
   ]);
 
   return (
     <div className="space-y-6">
       <PageHeading
         title="Settings"
-        description="Configure report signatories, OpenAI LLM wording, and other Guidance preferences."
+        description={
+          canManageOpenaiLlm
+            ? "Configure report signatories, OpenAI LLM wording, and other Guidance preferences."
+            : "Configure report signatories and other Guidance preferences."
+        }
       />
-      <OpenaiLlmSettings enabled={openaiLlmEnabled} />
+      {canManageOpenaiLlm ? (
+        <OpenaiLlmSettings enabled={openaiLlmEnabled} />
+      ) : null}
       <ReportSignatorySettings schoolAdministrator={schoolAdministrator} />
     </div>
   );

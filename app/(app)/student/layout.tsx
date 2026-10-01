@@ -17,7 +17,12 @@ export default async function StudentLayout({
     void (async () => {
       try {
         const { warmBurnoutAi } = await import("@/lib/student/ai-client");
-        await warmBurnoutAi();
+        const { AI_STATUS_CACHE_TAG } = await import(
+          "@/lib/guidance/model-metrics"
+        );
+        const { revalidateTag } = await import("next/cache");
+        const ready = await warmBurnoutAi();
+        if (ready) revalidateTag(AI_STATUS_CACHE_TAG, "max");
       } catch (error) {
         console.error("warmBurnoutAi:", error);
       }

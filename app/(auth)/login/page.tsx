@@ -6,6 +6,8 @@ export const metadata = {
   title: "Login",
 };
 
+export const maxDuration = 60;
+
 export default function LoginPage() {
   return (
     <Suspense

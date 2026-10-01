@@ -12,6 +12,11 @@ export function isSuperadminEmail(email: string | null | undefined) {
   return email?.trim().toLowerCase() === SUPERADMIN_EMAIL;
 }
 
+/** Guidance dashboard AI health, accuracy, and related model metrics. */
+export function canViewAiModelStatus(email: string | null | undefined) {
+  return isSuperadminEmail(email) || isPrimaryGuidanceEmail(email);
+}
+
 /**
  * Other Guidance admins cannot edit, deactivate, reset, or delete the
  * primary Guidance account. Only that account’s owner can manage it.
