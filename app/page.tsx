@@ -1,5 +1,4 @@
 import { ChumTheme } from "@/components/chum-theme";
-import { LandingGate } from "@/components/landing/landing-gate";
 import { LandingPage } from "@/components/landing/landing-page";
 
 export const metadata = {
@@ -11,9 +10,7 @@ export const metadata = {
 export default function HomePage() {
   return (
     <ChumTheme className="min-h-svh">
-      <LandingGate>
-        <LandingPage />
-      </LandingGate>
+      <LandingPage />
     </ChumTheme>
   );
 }
