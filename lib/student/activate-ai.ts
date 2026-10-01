@@ -1,20 +1,25 @@
-import { revalidateTag } from "next/cache";
 import { after } from "next/server";
 
-import { AI_STATUS_CACHE_TAG } from "@/lib/guidance/model-metrics";
+let warming = false;
 
-/** Wake the burnout AI after the response, for Student, Instructor, and Guidance sign-in. */
+/** Wake the burnout AI after the response, without reloading the signed-in page. */
 export function activateBurnoutAi() {
+  if (warming) return;
+  warming = true;
+
   after(() => {
     void (async () => {
       try {
         const { warmBurnoutAi } = await import("@/lib/student/ai-client");
-        const ready = await warmBurnoutAi();
-        if (ready) {
-          revalidateTag(AI_STATUS_CACHE_TAG, "max");
-        }
+        await warmBurnoutAi();
       } catch (error) {
         console.error("activateBurnoutAi:", error);
+      } finally {
+        // Layouts call this on every navigation. Hold the lock so a slow
+        // health check cannot stack and rotate the auth session.
+        setTimeout(() => {
+          warming = false;
+        }, 60_000);
       }
     })();
   });

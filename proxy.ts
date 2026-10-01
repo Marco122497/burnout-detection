@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { getDashboardPath, type UserRole } from "@/lib/auth/roles";
-import { updateSession } from "@/lib/supabase/proxy";
+import { updateSession, type SessionCookieJar } from "@/lib/supabase/proxy";
 
 const GUEST_ONLY_ROUTES = ["/login", "/forgot-password", "/register"];
 const PUBLIC_ROUTES = [
@@ -14,17 +14,21 @@ const PUBLIC_ROUTES = [
 ];
 
 /** Redirect while preserving Supabase session cookies from updateSession. */
-function redirectWithSession(url: URL, supabaseResponse: NextResponse) {
+function redirectWithSession(url: URL, cookieJar: SessionCookieJar) {
   const response = NextResponse.redirect(url);
-  // Must copy cookies — a bare redirect drops refreshed auth tokens.
-  supabaseResponse.cookies.getAll().forEach((cookie) => {
-    response.cookies.set(cookie.name, cookie.value);
+  cookieJar.current.forEach(({ name, value, options }) => {
+    if (options) {
+      response.cookies.set(name, value, options);
+    } else {
+      response.cookies.set(name, value);
+    }
   });
   return response;
 }
 
 export async function proxy(request: NextRequest) {
-  const { user, supabase, supabaseResponse } = await updateSession(request);
+  const { user, supabase, supabaseResponse, cookieJar } =
+    await updateSession(request);
   const { pathname } = request.nextUrl;
 
   // Server Actions POST to the page URL. Auth redirects here return HTML/empty
@@ -42,18 +46,22 @@ export async function proxy(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("next", pathname);
-    return redirectWithSession(url, supabaseResponse);
+    return redirectWithSession(url, cookieJar);
   }
 
   if (!user) {
     return supabaseResponse;
   }
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("role, is_active")
     .eq("id", user.id)
     .maybeSingle();
+
+  if (profileError) {
+    return supabaseResponse;
+  }
 
   if (pathname === "/reset-password" || pathname.startsWith("/reset-password/")) {
     return supabaseResponse;
@@ -64,7 +72,7 @@ export async function proxy(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("error", profile ? "inactive" : "noprofile");
-    return redirectWithSession(url, supabaseResponse);
+    return redirectWithSession(url, cookieJar);
   }
 
   const roleHome = getDashboardPath(profile.role as UserRole);
@@ -73,7 +81,7 @@ export async function proxy(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = roleHome;
     url.search = "";
-    return redirectWithSession(url, supabaseResponse);
+    return redirectWithSession(url, cookieJar);
   }
 
   const rolePrefixes = [
@@ -91,7 +99,7 @@ export async function proxy(request: NextRequest) {
   if (visitingOtherRole) {
     const url = request.nextUrl.clone();
     url.pathname = roleHome;
-    return redirectWithSession(url, supabaseResponse);
+    return redirectWithSession(url, cookieJar);
   }
 
   return supabaseResponse;

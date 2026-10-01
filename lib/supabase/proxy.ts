@@ -1,12 +1,23 @@
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 import { getSupabaseEnv } from "@/lib/supabase/env";
+
+export type SessionCookie = {
+  name: string;
+  value: string;
+  options?: CookieOptions;
+};
+
+export type SessionCookieJar = {
+  current: SessionCookie[];
+};
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
   });
+  const cookieJar: SessionCookieJar = { current: [] };
 
   const { url, anonKey } = getSupabaseEnv();
 
@@ -16,6 +27,7 @@ export async function updateSession(request: NextRequest) {
         return request.cookies.getAll();
       },
       setAll(cookiesToSet) {
+        cookieJar.current = cookiesToSet;
         cookiesToSet.forEach(({ name, value }) => {
           request.cookies.set(name, value);
         });
@@ -32,27 +44,19 @@ export async function updateSession(request: NextRequest) {
   // IMPORTANT: Do not add logic between createServerClient and getUser().
   const {
     data: { user },
-    error,
   } = await supabase.auth.getUser();
 
-  // Stale/invalid refresh tokens leave the browser stuck; clear auth cookies.
-  if (
-    error &&
-    (error.message?.includes("Refresh Token") ||
-      error.code === "refresh_token_not_found")
-  ) {
-    const cleared = NextResponse.next({ request });
-    request.cookies.getAll().forEach((cookie) => {
-      if (
-        cookie.name.includes("auth-token") ||
-        cookie.name.startsWith("sb-")
-      ) {
-        cleared.cookies.set(cookie.name, "", { maxAge: 0, path: "/" });
-        request.cookies.delete(cookie.name);
-      }
-    });
-    return { user: null, supabase, supabaseResponse: cleared };
+  // A failed refresh must not clear cookies. Parallel student, instructor,
+  // and guidance requests can rotate the same token; wiping cookies signs
+  // the user out and sends them back to login.
+  if (!user) {
+    return {
+      user: null,
+      supabase,
+      supabaseResponse: NextResponse.next({ request }),
+      cookieJar: { current: [] },
+    };
   }
 
-  return { user, supabase, supabaseResponse };
+  return { user, supabase, supabaseResponse, cookieJar };
 }

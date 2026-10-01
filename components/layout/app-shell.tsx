@@ -84,6 +84,22 @@ function AppShellContent({
     };
   }, [lockChrome]);
 
+  useEffect(() => {
+    const guestPaths = ["/login", "/register", "/forgot-password"];
+
+    function stayOnDashboard() {
+      const path = window.location.pathname;
+      const onGuestPage = guestPaths.some(
+        (guestPath) => path === guestPath || path.startsWith(`${guestPath}/`)
+      );
+      if (!onGuestPage) return;
+      window.location.replace(dashboardHref);
+    }
+
+    window.addEventListener("popstate", stayOnDashboard);
+    return () => window.removeEventListener("popstate", stayOnDashboard);
+  }, [dashboardHref]);
+
   return (
     <>
       <TopProgressBar show={lockChrome} />
