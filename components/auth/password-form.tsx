@@ -10,6 +10,7 @@ import {
 } from "@/app/actions/auth";
 import { useActionRedirect } from "@/hooks/use-action-redirect";
 import { useActionToast } from "@/hooks/use-action-toast";
+import { TopProgressBar } from "@/components/layout/top-progress-bar";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -34,9 +35,12 @@ export function PasswordForm({ mode }: PasswordFormProps) {
   const [state, formAction, pending] = useActionState(action, initialState);
   useActionToast(state, pending);
   useActionRedirect(state);
+  const busy = pending || Boolean(state.redirectTo);
 
   return (
-    <Card className="w-full max-w-md border-border/80 shadow-sm">
+    <>
+      <TopProgressBar show={busy} />
+      <Card className="w-full max-w-md border-border/80 shadow-sm">
       <CardHeader className="space-y-1">
         <CardTitle className="text-2xl">
           {mode === "change" ? "Change password" : "Set new password"}
@@ -47,7 +51,7 @@ export function PasswordForm({ mode }: PasswordFormProps) {
             : "Choose a new password for your burnout monitoring account."}
         </CardDescription>
       </CardHeader>
-      <form action={formAction}>
+      <form action={formAction} aria-busy={busy}>
         <CardContent className="space-y-4">
           {mode === "change" && (
             <div className="space-y-2">
@@ -82,8 +86,8 @@ export function PasswordForm({ mode }: PasswordFormProps) {
           </div>
         </CardContent>
         <CardFooter>
-          <Button type="submit" className="w-full" disabled={pending} size="lg">
-            {pending ? (
+          <Button type="submit" className="w-full" disabled={busy} size="lg">
+            {busy ? (
               <>
                 <Loader2 className="animate-spin" />
                 Saving…
@@ -97,5 +101,6 @@ export function PasswordForm({ mode }: PasswordFormProps) {
         </CardFooter>
       </form>
     </Card>
+    </>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -25,7 +26,11 @@ import { TopProgressBar } from "@/components/layout/top-progress-bar";
 
 const initialState: AuthActionState = {};
 
-export function LoginForm() {
+export function LoginForm({
+  forgotPasswordEnabled = true,
+}: {
+  forgotPasswordEnabled?: boolean;
+}) {
   const searchParams = useSearchParams();
   const [state, formAction, pending] = useActionState(login, initialState);
   const authBusy = useAuthBusy();
@@ -111,9 +116,16 @@ export function LoginForm() {
               <p className="text-xs text-muted-foreground">
                 The default password is {DEFAULT_INITIAL_PASSWORD}.
               </p>
-              <p className="text-center text-xs text-muted-foreground">
-                Forgot password? Contact the administrator.
-              </p>
+              {forgotPasswordEnabled ? (
+                <p className="text-center text-xs text-muted-foreground">
+                  <Link
+                    href="/forgot-password"
+                    className="underline-offset-4 hover:underline"
+                  >
+                    Forgot password?
+                  </Link>
+                </p>
+              ) : null}
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-3">

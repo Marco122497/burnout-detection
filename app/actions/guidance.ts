@@ -2149,3 +2149,77 @@ export async function updateOpenaiLlmEnabled(
     };
   }
 }
+
+export async function updateForgotPasswordEnabled(
+  _prev: GuidanceActionState,
+  formData: FormData
+): Promise<GuidanceActionState> {
+  try {
+    const { supabase, user, profile } = await requireRole([
+      "Guidance Counselor",
+    ]);
+
+    if (!isSuperadminEmail(user.email)) {
+      return {
+        error: "Only superadmin@school.edu can change the forgot-password setting.",
+      };
+    }
+
+    const raw = String(formData.get("forgot_password_enabled") ?? "")
+      .trim()
+      .toLowerCase();
+    const enabled = raw === "1" || raw === "true" || raw === "on";
+
+    const { error } = await supabase.from("app_settings").upsert(
+      {
+        key: APP_SETTING_KEYS.forgotPasswordEnabled,
+        value: enabled ? "true" : "false",
+        updated_by: user.id,
+      },
+      { onConflict: "key" }
+    );
+
+    if (error) {
+      return {
+        error:
+          error.message.includes("app_settings") ||
+          error.code === "42P01" ||
+          error.message.toLowerCase().includes("does not exist")
+            ? "App settings table is missing. Run supabase/phase11-app-settings.sql first."
+            : error.message,
+      };
+    }
+
+    await supabase.from("audit_logs").insert(
+      toAuditLogRow({
+        user_id: user.id,
+        user_role: profile.role,
+        action: "UPDATE_FORGOT_PASSWORD_ENABLED",
+        action_type: "UPDATE",
+        table_name: "app_settings",
+        record_id: APP_SETTING_KEYS.forgotPasswordEnabled,
+        description: enabled
+          ? "Turned on forgot password"
+          : "Turned off forgot password",
+        ip_address: await getIp(),
+      })
+    );
+
+    revalidatePath("/guidance/settings");
+    revalidatePath("/login");
+    revalidatePath("/forgot-password");
+
+    return {
+      success: enabled
+        ? "Forgot password is on. People can reset a password from the login page."
+        : "Forgot password is off. The login page no longer offers a reset.",
+    };
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to update the forgot-password setting.",
+    };
+  }
+}

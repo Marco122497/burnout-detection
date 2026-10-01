@@ -11,13 +11,17 @@ import {
   type UserRole,
 } from "@/lib/auth/roles";
 import { toAuditLogRow } from "@/lib/audit";
+import { getForgotPasswordEnabled } from "@/lib/app-settings";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { sendPasswordResetEmail } from "@/lib/email/resend";
 
 export type AuthActionState = {
   error?: string;
   success?: string;
   redirectTo?: string;
+  /** Set after a reset code is requested so the form can show OTP entry. */
+  otpEmail?: string;
 };
 
 async function getRequestMeta() {
@@ -427,25 +431,93 @@ export async function forgotPassword(
     return { error: "Email is required." };
   }
 
+  try {
+    const enabled = await getForgotPasswordEnabled(createAdminClient());
+    if (!enabled) {
+      return {
+        error:
+          "Password reset is turned off. Contact the Guidance Office to reset your password.",
+      };
+    }
+  } catch {
+    // Missing service role still allows the existing reset flow.
+  }
+
   const headerStore = await headers();
   const origin =
     headerStore.get("origin") ||
     process.env.NEXT_PUBLIC_SITE_URL ||
     "http://localhost:3000";
 
+  const sent: AuthActionState = {
+    success: "A verification code has been sent to your email.",
+    otpEmail: email,
+  };
+
+  try {
+    const admin = createAdminClient();
+    const { data, error } = await admin.auth.admin.generateLink({
+      type: "recovery",
+      email,
+      options: {
+        redirectTo: `${origin}/reset-password`,
+      },
+    });
+
+    const missingAccount =
+      error?.status === 404 ||
+      (error?.message ?? "").toLowerCase().includes("not found");
+
+    if (missingAccount || !data?.properties?.email_otp?.trim()) {
+      if (error && !missingAccount) {
+        return { error: error.message };
+      }
+      return { error: "No account was found for that email." };
+    }
+
+    await sendPasswordResetEmail({
+      to: email,
+      code: data.properties.email_otp.trim(),
+    });
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Could not send the password reset email.",
+    };
+  }
+
+  return sent;
+}
+
+export async function verifyPasswordResetOtp(
+  _prev: AuthActionState,
+  formData: FormData
+): Promise<AuthActionState> {
+  const email = String(formData.get("email") || "").trim();
+  const otp = String(formData.get("otp") || "").replace(/\s/g, "");
+
+  if (!email) {
+    return { error: "Email is required." };
+  }
+
+  if (!/^\d{8}$/.test(otp)) {
+    return { error: "Enter the 8-digit verification code." };
+  }
+
   const supabase = await createClient();
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${origin}/auth/callback?next=/reset-password`,
+  const { error } = await supabase.auth.verifyOtp({
+    email,
+    token: otp,
+    type: "recovery",
   });
 
   if (error) {
-    return { error: error.message };
+    return { error: "That code is incorrect or has expired." };
   }
 
-  return {
-    success:
-      "If an account exists for that email, a password reset link has been sent.",
-  };
+  return { redirectTo: "/reset-password" };
 }
 
 export async function changePassword(
@@ -572,11 +644,8 @@ export async function resetPassword(
         user_agent: meta.device,
       })
     );
-
-    if (profile?.role) {
-      return { redirectTo: getDashboardPath(profile.role as UserRole) };
-    }
   }
 
+  await supabase.auth.signOut();
   return { redirectTo: "/login?reset=success" };
 }

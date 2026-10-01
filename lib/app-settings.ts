@@ -8,6 +8,7 @@ export const APP_SETTING_KEYS = {
   schoolAdministratorName: "school_administrator_name",
   schoolAdministratorTitle: "school_administrator_title",
   openaiLlmEnabled: "openai_llm_enabled",
+  forgotPasswordEnabled: "forgot_password_enabled",
 } as const;
 
 export type SchoolAdministratorSignatory = {
@@ -70,6 +71,24 @@ export async function getOpenaiLlmEnabled(
       .from("app_settings")
       .select("value")
       .eq("key", APP_SETTING_KEYS.openaiLlmEnabled)
+      .maybeSingle();
+
+    if (error || !data) return true;
+    return parseEnabledFlag(String((data as { value?: string }).value));
+  } catch {
+    return true;
+  }
+}
+
+/** When false, the login page hides Forgot password and reset emails are blocked. */
+export async function getForgotPasswordEnabled(
+  supabase: SupabaseClient
+): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from("app_settings")
+      .select("value")
+      .eq("key", APP_SETTING_KEYS.forgotPasswordEnabled)
       .maybeSingle();
 
     if (error || !data) return true;
