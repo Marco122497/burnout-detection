@@ -12,6 +12,9 @@ const plusJakarta = Plus_Jakarta_Sans({
   weight: ["400", "500", "600", "700", "800"],
   variable: "--font-plus-jakarta",
   display: "swap",
+  // Weights load with the CSS that uses them. Preloading every file warns
+  // on login, where only some weights are on screen.
+  preload: false,
 });
 
 export const metadata: Metadata = {
