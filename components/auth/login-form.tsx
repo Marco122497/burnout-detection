@@ -86,7 +86,7 @@ export function LoginForm() {
                 name="identifier"
                 type="text"
                 autoComplete="username"
-                placeholder="student ID | example@ckcm.edu.ph"
+                placeholder="ID Number | example@ckcm.edu.ph"
                 required
                 disabled={busy}
                 className="h-10 rounded-xl"
