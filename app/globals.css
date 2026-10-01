@@ -292,11 +292,15 @@
 
 @media print {
   html,
-  body {
+  body,
+  .chum-app,
+  .student-chum {
     background: white !important;
     color: #111111 !important;
     width: auto !important;
     height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
     margin: 0 !important;
     padding: 0 !important;
     overflow: visible !important;
@@ -346,7 +350,7 @@
 
   .formal-report header,
   .formal-report h3,
-  .report-keep,
+  .formal-report .report-signoff,
   .formal-report svg,
   .formal-report img {
     break-inside: avoid;

@@ -257,7 +257,7 @@ export function FormalReportDocument({
               Burnout Detection System
             </p>
             <p className="mt-0.5 text-[12px] italic text-[#374151]">
-              Student wellness & early intervention
+              Detect Early. Act Wisely. Stay Strong.
             </p>
             <p className="mt-1 text-[11px] text-[#4b5563]">
               Guidance · Student Burnout Monitoring
@@ -339,7 +339,7 @@ export function FormalReportDocument({
         </p>
       </section>
 
-      <section className="report-keep mt-10 space-y-10">
+      <section className="report-signoff mt-10 space-y-10">
         <div className="grid grid-cols-1 gap-10 sm:grid-cols-2">
           <SignatoryBlock
             label="Prepared by"

@@ -325,7 +325,7 @@ export function openPrintReport(
           <img class="brand-logo" src="${logoSrc}" alt="Burnout Detection System" />
           <div class="brand-text">
             <p class="brand-name">Burnout Detection System</p>
-            <p class="brand-tagline">Student wellness &amp; early intervention</p>
+            <p class="brand-tagline">Detect Early. Act Wisely. Stay Strong.</p>
             <p class="brand-sub">Guidance · Student Burnout Monitoring</p>
           </div>
           <img class="brand-logo" src="${logoSrc}" alt="" />
