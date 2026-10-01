@@ -58,10 +58,13 @@ function countBy(values: string[]) {
 }
 
 export const getGuidanceStudentRows = cache(async function getGuidanceStudentRows(
-  supabase: SupabaseClient
+  supabase: SupabaseClient,
+  week?: number
 ): Promise<GuidanceStudentRow[]> {
   const term = await getActiveTerm(supabase);
-  const currentWeek = term ? getCurrentWeekNumber(term) : null;
+  const openWeek = term ? getCurrentWeekNumber(term) : null;
+  const currentWeek =
+    week != null && week >= 1 ? Math.floor(week) : openWeek;
 
   type MonitoringListRow = {
     monitoring_id: number;

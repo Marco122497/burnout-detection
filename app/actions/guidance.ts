@@ -13,7 +13,9 @@ import { DEFAULT_INITIAL_PASSWORD } from "@/lib/auth/defaults";
 import {
   canManagePrimaryGuidanceAccount,
   isPrimaryGuidanceEmail,
+  isSuperadminEmail,
   PRIMARY_GUIDANCE_MANAGE_ERROR,
+  SUPERADMIN_FILL_ERROR,
 } from "@/lib/auth/protected-accounts";
 import { getSessionUser, requireRole } from "@/lib/auth/session";
 import type { BulkStudentDraft } from "@/lib/guidance/bulk-students";
@@ -970,6 +972,10 @@ export async function generateDepartmentMonitoring(
     const { supabase, user, profile } = await requireRole([
       "Guidance Counselor",
     ]);
+
+    if (!isSuperadminEmail(user.email)) {
+      return { error: SUPERADMIN_FILL_ERROR };
+    }
 
     const departmentId = Number(formData.get("department_id"));
     const skipExisting = formData.get("skip_existing") === "1";

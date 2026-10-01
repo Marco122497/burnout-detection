@@ -4,56 +4,43 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  REPORT_RANGE_PRESETS,
-  getReportRangePreset,
-  matchReportRangePreset,
-  type ReportRangePreset,
-} from "@/lib/reports-range";
 
 const selectClassName =
   "h-8 min-w-[180px] rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-70";
 
-const dateClassName =
-  "h-8 w-[150px] rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-70";
-
 export function ReportFilters({
   type,
-  from,
-  to,
+  week,
+  maxWeek,
   basePath,
   types,
 }: {
   type: string;
-  from: string;
-  to: string;
+  week: number;
+  maxWeek: number;
   basePath: string;
   types: readonly { id: string; label: string }[];
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [selectedType, setSelectedType] = useState(type);
-  const [fromDate, setFromDate] = useState(from);
-  const [toDate, setToDate] = useState(to);
+  const [selectedWeek, setSelectedWeek] = useState(String(week));
 
   useEffect(() => {
     setSelectedType(type);
-    setFromDate(from);
-    setToDate(to);
-  }, [type, from, to]);
+    setSelectedWeek(String(week));
+  }, [type, week]);
 
-  const activePreset = matchReportRangePreset(
-    isPending ? fromDate : from,
-    isPending ? toDate : to
+  const weekOptions = Array.from(
+    { length: Math.max(1, maxWeek) },
+    (_, index) => index + 1
   );
 
-  function navigate(next: { type?: string; from?: string; to?: string }) {
+  function navigate(next: { type?: string; week?: string }) {
     const params = new URLSearchParams({
       type: next.type ?? selectedType,
-      from: next.from ?? fromDate,
-      to: next.to ?? toDate,
+      week: next.week ?? selectedWeek,
     });
     startTransition(() => {
       router.push(`${basePath}?${params.toString()}`);
@@ -86,72 +73,26 @@ export function ReportFilters({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="report-range" className="text-sm text-muted-foreground">
-          Quick range
+        <Label htmlFor="report-week" className="text-sm text-muted-foreground">
+          Week
         </Label>
         <select
-          id="report-range"
-          value={activePreset ?? "custom"}
+          id="report-week"
+          value={isPending ? selectedWeek : String(week)}
           disabled={isPending}
           className={selectClassName}
           onChange={(event) => {
             const next = event.target.value;
-            if (next === "custom") return;
-            const range = getReportRangePreset(next as ReportRangePreset);
-            setFromDate(range.from);
-            setToDate(range.to);
-            navigate(range);
+            setSelectedWeek(next);
+            navigate({ week: next });
           }}
         >
-          {REPORT_RANGE_PRESETS.map((preset) => (
-            <option key={preset.id} value={preset.id}>
-              {preset.label}
+          {weekOptions.map((item) => (
+            <option key={item} value={item}>
+              Week {item}
             </option>
           ))}
-          <option value="custom">Custom</option>
         </select>
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor="report-from" className="text-sm text-muted-foreground">
-          From
-        </Label>
-        <Input
-          id="report-from"
-          type="date"
-          value={isPending ? fromDate : from}
-          disabled={isPending}
-          className={dateClassName}
-          onChange={(event) => {
-            const next = event.target.value;
-            setFromDate(next);
-            if (!next) return;
-            const end = toDate < next ? next : toDate;
-            if (toDate < next) setToDate(next);
-            navigate({ from: next, to: end });
-          }}
-        />
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor="report-to" className="text-sm text-muted-foreground">
-          To
-        </Label>
-        <Input
-          id="report-to"
-          type="date"
-          value={isPending ? toDate : to}
-          disabled={isPending}
-          className={dateClassName}
-          onChange={(event) => {
-            const next = event.target.value;
-            setToDate(next);
-            if (!next) return;
-            const start = fromDate > next ? next : fromDate;
-            if (fromDate > next) setFromDate(next);
-            navigate({ from: start, to: next });
-          }}
-        />
       </div>
 
       {isPending && (

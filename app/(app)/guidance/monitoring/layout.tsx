@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { GuidanceMonitoringSplit } from "@/components/guidance/guidance-monitoring-split";
 import { MonitoringWeekControls } from "@/components/guidance/monitoring-week-controls";
 import { PageHeading } from "@/components/layout/page-heading";
+import { isSuperadminEmail } from "@/lib/auth/protected-accounts";
 import { requireRole } from "@/lib/auth/session";
 import { getDepartments, getUserEmails } from "@/lib/guidance/queries";
 import { getGuidanceStudentRows } from "@/lib/guidance/monitoring";
@@ -20,7 +21,7 @@ export default async function GuidanceMonitoringLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { supabase } = await requireRole(["Guidance Counselor"]);
+  const { supabase, user } = await requireRole(["Guidance Counselor"]);
   const [rows, departments, term, emails] = await Promise.all([
     getGuidanceStudentRows(supabase),
     getDepartments(supabase),
@@ -52,6 +53,7 @@ export default async function GuidanceMonitoringLayout({
             departments={departments}
             currentWeek={term ? getCurrentWeekNumber(term) : 1}
             monitoringOpen={isMonitoringOpen(term)}
+            canFillWeek={isSuperadminEmail(user.email)}
           >
             {children}
           </GuidanceMonitoringSplit>

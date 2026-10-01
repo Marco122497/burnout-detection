@@ -13,7 +13,7 @@ import {
   INSTRUCTOR_REPORT_TYPES,
   type InstructorReportType,
 } from "@/lib/report-types";
-import { resolveReportDateRange } from "@/lib/reports-range";
+import { resolveReportDateRange, resolveReportWeek } from "@/lib/reports-range";
 import { getActiveTerm, getCurrentWeekNumber } from "@/lib/student/terms";
 
 export const metadata = {
@@ -30,39 +30,46 @@ function resolveInstructorReportType(
 export default async function InstructorReportsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ type?: string; from?: string; to?: string }>;
+  searchParams: Promise<{
+    type?: string;
+    from?: string;
+    to?: string;
+    week?: string;
+  }>;
 }) {
   const { supabase, profile } = await requireRole(["Instructor"]);
   const params = await searchParams;
   const reportType = resolveInstructorReportType(params.type);
   const { from, to } = resolveReportDateRange(params);
 
-  const [rows, term, departmentName, weeklyTrends, schoolAdministrator] =
+  const term = await getActiveTerm(supabase);
+  const openWeek = term ? getCurrentWeekNumber(term) : 1;
+  const selectedWeek = resolveReportWeek(params.week, openWeek);
+
+  const [rows, departmentName, weeklyTrends, schoolAdministrator] =
     await Promise.all([
-      getInstructorStudentRows(supabase, profile.department_id),
-      getActiveTerm(supabase),
+      getInstructorStudentRows(supabase, profile.department_id, selectedWeek),
       getDepartmentName(supabase, profile.department_id),
       getDepartmentWeeklySeries(supabase, profile.department_id, { from, to }),
       getSchoolAdministratorSignatory(supabase),
     ]);
-  const currentWeek = term ? getCurrentWeekNumber(term) : null;
 
   return (
     <div className="space-y-6">
       <div className="print:hidden">
         <PageHeading
           title="Reports"
-          description="Filter by date range, then print or export formal reports with burnout breakdown by year level."
+          description="Choose a monitoring week, then print or export the burnout breakdown for that week."
         />
       </div>
       <InstructorReportsPanel
         rows={rows}
         weeklyTrends={weeklyTrends}
-        currentWeek={currentWeek}
+        currentWeek={selectedWeek}
         departmentName={departmentName}
         reportType={reportType}
-        from={from}
-        to={to}
+        week={selectedWeek}
+        maxWeek={openWeek}
         preparedBy={buildFormalName(profile) || profile.role}
         preparedRole={profile.role}
         schoolAdministratorName={schoolAdministrator.name}

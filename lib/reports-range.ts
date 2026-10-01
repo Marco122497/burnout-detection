@@ -77,6 +77,16 @@ export function resolveReportDateRange(params: {
   return { from, to };
 }
 
+export function resolveReportWeek(
+  value: string | undefined,
+  maxWeek: number
+) {
+  const max = Math.max(1, Math.floor(maxWeek) || 1);
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1) return max;
+  return Math.min(parsed, max);
+}
+
 export function formatReportPeriodLabel(from: string, to: string) {
   const fromDate = new Date(`${from}T00:00:00`);
   const toDate = new Date(`${to}T00:00:00`);

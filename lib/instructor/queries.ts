@@ -223,10 +223,13 @@ export const getDepartmentName = cache(async function getDepartmentName(
 
 export const getInstructorStudentRows = cache(async function getInstructorStudentRows(
   supabase: SupabaseClient,
-  departmentId: number | null
+  departmentId: number | null,
+  week?: number
 ): Promise<StudentMonitorRow[]> {
   const term = await getActiveTerm(supabase);
-  const currentWeek = term ? getCurrentWeekNumber(term) : null;
+  const openWeek = term ? getCurrentWeekNumber(term) : null;
+  const currentWeek =
+    week != null && week >= 1 ? Math.floor(week) : openWeek;
 
   if (!departmentId) return [];
 

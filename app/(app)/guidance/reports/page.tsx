@@ -9,7 +9,7 @@ import {
   GUIDANCE_REPORT_TYPES,
   type GuidanceReportType,
 } from "@/lib/report-types";
-import { resolveReportDateRange } from "@/lib/reports-range";
+import { resolveReportWeek } from "@/lib/reports-range";
 import { getActiveTerm, getCurrentWeekNumber } from "@/lib/student/terms";
 
 export const metadata = {
@@ -24,36 +24,39 @@ function resolveGuidanceReportType(value: string | undefined): GuidanceReportTyp
 export default async function GuidanceReportsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ type?: string; from?: string; to?: string }>;
+  searchParams: Promise<{
+    type?: string;
+    week?: string;
+  }>;
 }) {
   const { supabase } = await requireRole(["Guidance Counselor"]);
   const params = await searchParams;
   const reportType = resolveGuidanceReportType(params.type);
-  const { from, to } = resolveReportDateRange(params);
 
-  const [rows, term, departments, schoolAdministrator] = await Promise.all([
-    getGuidanceStudentRows(supabase),
+  const [term, departments, schoolAdministrator] = await Promise.all([
     getActiveTerm(supabase),
     getDepartments(supabase),
     getSchoolAdministratorSignatory(supabase),
   ]);
-  const currentWeek = term ? getCurrentWeekNumber(term) : null;
+  const openWeek = term ? getCurrentWeekNumber(term) : 1;
+  const selectedWeek = resolveReportWeek(params.week, openWeek);
+  const rows = await getGuidanceStudentRows(supabase, selectedWeek);
 
   return (
     <div className="space-y-6">
       <div className="print:hidden">
         <PageHeading
           title="Guidance reports"
-          description="Filter by date range, then print or export formal reports with burnout breakdown by year level."
+          description="Choose a monitoring week, then print or export the burnout breakdown for that week."
         />
       </div>
       <GuidanceReportsPanel
         rows={rows}
         departments={departments}
-        currentWeek={currentWeek}
+        currentWeek={selectedWeek}
         reportType={reportType}
-        from={from}
-        to={to}
+        week={selectedWeek}
+        maxWeek={openWeek}
         schoolAdministratorName={schoolAdministrator.name}
         schoolAdministratorTitle={schoolAdministrator.title}
       />

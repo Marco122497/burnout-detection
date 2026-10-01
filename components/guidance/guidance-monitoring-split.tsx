@@ -51,12 +51,14 @@ export function GuidanceMonitoringSplit({
   departments,
   currentWeek,
   monitoringOpen,
+  canFillWeek = false,
   children,
 }: {
   rows: GuidanceStudentRow[];
   departments: Department[];
   currentWeek: number;
   monitoringOpen: boolean;
+  canFillWeek?: boolean;
   children: React.ReactNode;
 }) {
   const router = useRouter();
@@ -329,7 +331,7 @@ export function GuidanceMonitoringSplit({
                 Reset
               </Button>
             </form>
-            {departmentId ? (
+            {canFillWeek && departmentId ? (
               <GenerateMonitoringButton
                 departmentId={departmentId}
                 departmentLabel={

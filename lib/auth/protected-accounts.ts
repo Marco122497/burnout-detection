@@ -1,8 +1,15 @@
 /** Seed / primary Guidance Counselor login — other admins cannot manage it. */
 export const PRIMARY_GUIDANCE_EMAIL = "guidance@school.edu";
 
+/** Only this account can run bulk “Fill week for all” on Student Monitoring. */
+export const SUPERADMIN_EMAIL = "superadmin@school.edu";
+
 export function isPrimaryGuidanceEmail(email: string | null | undefined) {
   return email?.trim().toLowerCase() === PRIMARY_GUIDANCE_EMAIL;
+}
+
+export function isSuperadminEmail(email: string | null | undefined) {
+  return email?.trim().toLowerCase() === SUPERADMIN_EMAIL;
 }
 
 /**
@@ -20,3 +27,6 @@ export function canManagePrimaryGuidanceAccount(options: {
 
 export const PRIMARY_GUIDANCE_MANAGE_ERROR =
   "The primary Guidance account (guidance@school.edu) can only be edited or deleted by its owner.";
+
+export const SUPERADMIN_FILL_ERROR =
+  "Only superadmin@school.edu can fill a monitoring week for all students.";

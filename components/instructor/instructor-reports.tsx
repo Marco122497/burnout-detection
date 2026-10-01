@@ -13,10 +13,6 @@ import {
   INSTRUCTOR_REPORT_TYPES,
   type InstructorReportType,
 } from "@/lib/report-types";
-import {
-  filterRowsByMonitoringDate,
-  formatReportPeriodLabel,
-} from "@/lib/reports-range";
 import { formatYearLevel } from "@/lib/utils";
 import { formatMfbiScore } from "@/lib/student/mfbi";
 import {
@@ -144,8 +140,8 @@ export function InstructorReportsPanel({
   currentWeek,
   departmentName,
   reportType,
-  from,
-  to,
+  week,
+  maxWeek,
   preparedBy,
   preparedRole = "Instructor",
   schoolAdministratorName = "SR. LEONILA M. SAJELAN, MCM",
@@ -156,8 +152,8 @@ export function InstructorReportsPanel({
   currentWeek: number | null;
   departmentName: string | null;
   reportType: InstructorReportType;
-  from: string;
-  to: string;
+  week: number;
+  maxWeek: number;
   preparedBy?: string;
   preparedRole?: string;
   schoolAdministratorName?: string;
@@ -165,11 +161,8 @@ export function InstructorReportsPanel({
 }) {
   const generatedAt = useMemo(() => new Date(), []);
   const deptLabel = departmentName || "Department";
-  const periodLabel = formatReportPeriodLabel(from, to);
-  const filteredRows = useMemo(
-    () => filterRowsByMonitoringDate(rows, from, to),
-    [rows, from, to]
-  );
+  const periodLabel = `Week ${week}`;
+  const filteredRows = rows;
   const analytics = useMemo(
     () => getInstructorAnalytics(filteredRows, weeklyTrends),
     [filteredRows, weeklyTrends]
@@ -437,8 +430,8 @@ export function InstructorReportsPanel({
       <div className="flex flex-wrap items-end justify-between gap-3 print:hidden">
         <ReportFilters
           type={reportType}
-          from={from}
-          to={to}
+          week={week}
+          maxWeek={maxWeek}
           basePath="/instructor/reports"
           types={INSTRUCTOR_REPORT_TYPES}
         />

@@ -15,10 +15,6 @@ import {
   type GuidanceReportType,
 } from "@/lib/report-types";
 import {
-  filterRowsByMonitoringDate,
-  formatReportPeriodLabel,
-} from "@/lib/reports-range";
-import {
   formatMfbiScore,
   mfbiRiskBucket,
 } from "@/lib/student/mfbi";
@@ -261,8 +257,8 @@ export function GuidanceReportsPanel({
   departments,
   currentWeek,
   reportType,
-  from,
-  to,
+  week,
+  maxWeek,
   schoolAdministratorName = "SR. LEONILA M. SAJELAN, MCM",
   schoolAdministratorTitle = "School Vice-President",
 }: {
@@ -270,17 +266,14 @@ export function GuidanceReportsPanel({
   departments: Department[];
   currentWeek: number | null;
   reportType: GuidanceReportType;
-  from: string;
-  to: string;
+  week: number;
+  maxWeek: number;
   schoolAdministratorName?: string;
   schoolAdministratorTitle?: string;
 }) {
   const generatedAt = useMemo(() => new Date(), []);
-  const periodLabel = formatReportPeriodLabel(from, to);
-  const filteredRows = useMemo(
-    () => filterRowsByMonitoringDate(rows, from, to),
-    [rows, from, to]
-  );
+  const periodLabel = `Week ${week}`;
+  const filteredRows = rows;
   const analytics = useMemo(
     () => getGuidanceAnalytics(filteredRows),
     [filteredRows]
@@ -561,8 +554,8 @@ export function GuidanceReportsPanel({
       <div className="flex flex-wrap items-end justify-between gap-3 print:hidden">
         <ReportFilters
           type={reportType}
-          from={from}
-          to={to}
+          week={week}
+          maxWeek={maxWeek}
           basePath="/guidance/reports"
           types={GUIDANCE_REPORT_TYPES}
         />
