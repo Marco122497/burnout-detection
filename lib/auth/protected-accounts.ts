@@ -33,5 +33,17 @@ export function canManagePrimaryGuidanceAccount(options: {
 export const PRIMARY_GUIDANCE_MANAGE_ERROR =
   "The primary Guidance account (guidance@school.edu) can only be edited or deleted by its owner.";
 
+export function canManageSuperadminAccount(options: {
+  actorId: string;
+  targetId: string;
+  targetEmail: string | null | undefined;
+}) {
+  if (!isSuperadminEmail(options.targetEmail)) return true;
+  return options.actorId === options.targetId;
+}
+
+export const SUPERADMIN_MANAGE_ERROR =
+  "The superadmin account (superadmin@school.edu) is restricted.";
+
 export const SUPERADMIN_FILL_ERROR =
   "Only superadmin@school.edu can fill a monitoring week for all students.";

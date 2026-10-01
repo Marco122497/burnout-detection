@@ -25,7 +25,11 @@ export default async function GuidanceAdminsPage() {
         title="Admins"
         description="Manage guidance counselor accounts with admin access to the system."
       />
-      <AdminsManager admins={admins} currentUserId={user.id} />
+      <AdminsManager
+        admins={admins}
+        currentUserId={user.id}
+        currentUserEmail={user.email ?? null}
+      />
     </div>
   );
 }

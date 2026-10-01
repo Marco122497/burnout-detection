@@ -26,6 +26,7 @@ import { DefaultInitialPasswordField } from "@/components/guidance/default-initi
 import { DEFAULT_INITIAL_PASSWORD_NOTE } from "@/lib/auth/defaults";
 import {
   isPrimaryGuidanceEmail,
+  isSuperadminEmail,
   PRIMARY_GUIDANCE_MANAGE_ERROR,
 } from "@/lib/auth/protected-accounts";
 import { useActionToast } from "@/hooks/use-action-toast";
@@ -85,9 +86,11 @@ function nameInitials(firstName: string, lastName: string) {
 export function AdminsManager({
   admins,
   currentUserId,
+  currentUserEmail,
 }: {
   admins: UserListItem[];
   currentUserId: string;
+  currentUserEmail: string | null;
 }) {
   const [search, setSearch] = useState("");
   const [addOpen, setAddOpen] = useState(false);
@@ -254,15 +257,27 @@ export function AdminsManager({
                 <TableBody>
                   {pageItems.map((admin) => {
                     const isPrimary = isPrimaryGuidanceEmail(admin.email);
+                    const isRestricted =
+                      isSuperadminEmail(admin.email) &&
+                      !isSuperadminEmail(currentUserEmail);
                     const canManage =
-                      !isPrimary || admin.id === currentUserId;
+                      !isRestricted &&
+                      (!isPrimary || admin.id === currentUserId);
                     const manageLockedHint = PRIMARY_GUIDANCE_MANAGE_ERROR;
                     const isSelf = admin.id === currentUserId;
                     const cannotDeactivateSelf = isSelf && admin.is_active;
                     const cannotDeleteSelf = isSelf && !isPrimary;
 
                     return (
-                      <TableRow key={admin.id}>
+                      <TableRow
+                        key={admin.id}
+                        className={
+                          isRestricted
+                            ? "pointer-events-none opacity-60"
+                            : undefined
+                        }
+                        aria-disabled={isRestricted || undefined}
+                      >
                         <TableCell>
                           <div className="flex min-w-0 items-start gap-2.5">
                             <div className="relative shrink-0">
@@ -307,6 +322,11 @@ export function AdminsManager({
                                     Primary
                                   </span>
                                 ) : null}
+                                {isRestricted ? (
+                                  <span className="ml-1.5 text-xs font-medium text-muted-foreground">
+                                    Restricted
+                                  </span>
+                                ) : null}
                               </p>
                               {admin.email ? (
                                 <p className="truncate text-xs text-muted-foreground">
@@ -331,6 +351,18 @@ export function AdminsManager({
                           {admin.designation || "—"}
                         </TableCell>
                         <TableCell className="w-10 text-right">
+                          {isRestricted ? (
+                            <Button
+                              type="button"
+                              size="icon-sm"
+                              variant="ghost"
+                              className="shrink-0"
+                              disabled
+                              aria-label="Restricted account"
+                            >
+                              <MoreHorizontalIcon className="size-4" />
+                            </Button>
+                          ) : (
                           <DropdownMenu>
                             <DropdownMenuTrigger
                               render={
@@ -413,6 +445,7 @@ export function AdminsManager({
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
+                          )}
                         </TableCell>
                       </TableRow>
                     );

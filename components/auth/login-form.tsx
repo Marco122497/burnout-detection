@@ -116,16 +116,18 @@ export function LoginForm({
               <p className="text-xs text-muted-foreground">
                 The default password is {DEFAULT_INITIAL_PASSWORD}.
               </p>
-              {forgotPasswordEnabled ? (
-                <p className="text-center text-xs text-muted-foreground">
+              <p className="text-center text-xs text-muted-foreground">
+                {forgotPasswordEnabled ? (
                   <Link
                     href="/forgot-password"
                     className="underline-offset-4 hover:underline"
                   >
                     Forgot password?
                   </Link>
-                </p>
-              ) : null}
+                ) : (
+                  "Forgot password? See the administrator."
+                )}
+              </p>
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-3">

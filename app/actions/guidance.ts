@@ -12,10 +12,12 @@ import {
 import { DEFAULT_INITIAL_PASSWORD } from "@/lib/auth/defaults";
 import {
   canManagePrimaryGuidanceAccount,
+  canManageSuperadminAccount,
   isPrimaryGuidanceEmail,
   isSuperadminEmail,
   PRIMARY_GUIDANCE_MANAGE_ERROR,
   SUPERADMIN_FILL_ERROR,
+  SUPERADMIN_MANAGE_ERROR,
 } from "@/lib/auth/protected-accounts";
 import { getSessionUser, requireRole } from "@/lib/auth/session";
 import type { BulkStudentDraft } from "@/lib/guidance/bulk-students";
@@ -53,6 +55,15 @@ async function assertCanManageTargetUser(
     })
   ) {
     return { error: PRIMARY_GUIDANCE_MANAGE_ERROR };
+  }
+  if (
+    !canManageSuperadminAccount({
+      actorId,
+      targetId,
+      targetEmail: authUser.user.email,
+    })
+  ) {
+    return { error: SUPERADMIN_MANAGE_ERROR };
   }
   return null;
 }
