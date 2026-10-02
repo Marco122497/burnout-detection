@@ -11,6 +11,7 @@ const PUBLIC_ROUTES = [
   "/register",
   "/reset-password",
   "/auth/callback",
+  "/api/ai/warm",
 ];
 
 /** Redirect while preserving Supabase session cookies from updateSession. */

@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 
 import { AuthBackground } from "@/components/auth/auth-background";
+import { LandingAiWake } from "@/components/landing/landing-ai-wake";
 import {
   LandingForeground,
   LoginNowLink,
@@ -45,6 +46,7 @@ const purposes = [
 export function LandingPage() {
   return (
     <div className="relative min-h-svh lg:h-svh lg:overflow-hidden">
+      <LandingAiWake />
       <AuthBackground />
       <LandingForeground>
         <header className="flex items-center justify-between gap-3">
