@@ -5,6 +5,7 @@ import {
   type QuestionRow,
 } from "@/lib/student/questionnaires";
 import { getAnswerLabelForQuestion } from "@/lib/student/scale-options";
+import { ensureLatestEarlyWarning } from "@/lib/student/ensure-early-warning";
 import { reconcileMonitoringStudyDisplay } from "@/lib/student/monitoring-display";
 import { getActiveTerm, getCurrentWeekNumber } from "@/lib/student/terms";
 import { cache } from "react";
@@ -206,6 +207,7 @@ export const getLatestBurnoutSnapshot = cache(async function getLatestBurnoutSna
     getWeeklyMonitoringHistory(supabase, studentId),
     getActiveTerm(supabase),
   ]);
+  await ensureLatestEarlyWarning(studentId, history);
 
   const latest = history[0] ?? null;
   const mfbi = latest ? unwrapMfbi(latest) : null;

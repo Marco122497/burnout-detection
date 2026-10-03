@@ -1,4 +1,4 @@
-export const APP_VERSION = "1.1.1.24-beta";
+export const APP_VERSION = "1.1.1.29-beta";
 
 export const APP_COMPANY = "MarcoD Solutions, Inc.";
 

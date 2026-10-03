@@ -5,6 +5,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { classifyMfbiScore } from "@/lib/student/mfbi";
+import type { StudentFactors } from "@/lib/student/tips";
 import {
   stripQuestionnaireItemLabel,
   type StoredRagRecommendation,
@@ -20,6 +22,72 @@ function riskTone(level: string | null | undefined) {
   return "text-muted-foreground";
 }
 
+function outlookLead(
+  currentScore: number,
+  nextScore: number,
+  nextRisk: string | null
+) {
+  const current = Number(currentScore).toFixed(2);
+  const next = Number(nextScore).toFixed(2);
+  const delta = Number(next) - Number(current);
+  const currentBand = classifyMfbiScore(Number(currentScore)).toLowerCase();
+  const nextBand = (nextRisk ?? classifyMfbiScore(Number(nextScore))).toLowerCase();
+
+  if (Math.abs(delta) < 0.02) {
+    return `Next week stays about the same as this week (${current}) and is still ${nextBand}.`;
+  }
+  if (currentBand === nextBand && delta < 0) {
+    return `Next week is a bit lower than this week, from ${current} to ${next}, but it is still ${nextBand}.`;
+  }
+  if (currentBand === nextBand && delta > 0) {
+    return `Next week is a bit higher than this week, from ${current} to ${next}, but it is still ${nextBand}.`;
+  }
+  if (delta < 0) {
+    return `Next week is lower than this week, from ${currentBand} ${current} to ${nextBand} ${next}.`;
+  }
+  return `Next week is higher than this week, from ${currentBand} ${current} to ${nextBand} ${next}.`;
+}
+
+function prioritySentence(factors: StudentFactors) {
+  const items = [
+    { name: "sleep", score: factors.sleep.normalized },
+    { name: "academic workload", score: factors.workload.normalized },
+    { name: "stress", score: factors.stress.normalized },
+    { name: "study time", score: factors.studyTime.normalized },
+  ]
+    .map((item) => ({
+      ...item,
+      level: classifyMfbiScore(item.score).toLowerCase(),
+    }))
+    .sort((a, b) => b.score - a.score);
+
+  const focus = items.filter((item) => item.level !== "low");
+  const okay = items.filter((item) => item.level === "low");
+  const labeled = (item: (typeof items)[number]) =>
+    `${item.name} (${item.score.toFixed(2)}, ${item.level})`;
+
+  let sentence = "";
+  if (focus.length === 1) {
+    sentence = `Prioritize ${labeled(focus[0])}.`;
+  } else if (focus.length > 1) {
+    const [first, ...rest] = focus;
+    sentence = `Prioritize ${labeled(first)} first, then ${rest.map(labeled).join(", then ")}.`;
+  }
+
+  if (okay.length) {
+    const names = okay
+      .map((item) => `${item.name} (${item.score.toFixed(2)})`)
+      .join(" and ");
+    const note = `${names} ${okay.length === 1 ? "is" : "are"} low, so ${okay.length === 1 ? "it does" : "they do"} not need to come first.`;
+    sentence = sentence ? `${sentence} ${note}` : note;
+  }
+
+  return sentence;
+}
+
+const OLD_OUTLOOK_LEAD =
+  /^Next week looks (?:okay|a bit heavy|quite hard to carry|very hard to carry) \(predicted \d+(?:\.\d+)?\)\.\s*/i;
+
 function rewriteForNextWeek(text: string, nextWeekScore: number | null) {
   const nextWeek = text.replace(/\bthis week's\b|\bthis week\b/gi, (match) => {
     const week = match.toLowerCase().endsWith("'s") ? "week's" : "week";
@@ -31,7 +99,9 @@ function rewriteForNextWeek(text: string, nextWeekScore: number | null) {
   const predicted = Number(nextWeekScore).toFixed(2);
   return nextWeek
     .replace(/\(MFBI\s*\d+\.\d+\)/gi, `(predicted ${predicted})`)
-    .replace(/\bMFBI\s+\d+\.\d+/gi, `predicted ${predicted}`);
+    .replace(/\bMFBI\s+\d+\.\d+/gi, `predicted ${predicted}`)
+    .replace(/\(predicted\s+\d+(?:\.\d+)?\)/gi, `(predicted ${predicted})`)
+    .replace(/\bpredicted\s+\d+(?:\.\d+)?/gi, `predicted ${predicted}`);
 }
 
 export function RagRecommendationPanel({
@@ -39,17 +109,19 @@ export function RagRecommendationPanel({
   compact = false,
   nextWeekRisk = null,
   nextWeekScore = null,
+  factors = null,
 }: {
   recommendation: StoredRagRecommendation;
   compact?: boolean;
   nextWeekRisk?: string | null;
   nextWeekScore?: number | null;
+  factors?: StudentFactors | null;
 }) {
   const actions = (compact
     ? recommendation.recommended_actions.slice(0, 4)
     : recommendation.recommended_actions
   ).map(stripQuestionnaireItemLabel);
-  const factors = (compact
+  const factorLines = (compact
     ? recommendation.contributing_factors.slice(0, 4)
     : recommendation.contributing_factors
   ).map(stripQuestionnaireItemLabel);
@@ -57,12 +129,25 @@ export function RagRecommendationPanel({
   const shownScore =
     nextWeekScore != null ? nextWeekScore : recommendation.mfbi_score;
   const forNextWeek = nextWeekRisk != null || nextWeekScore != null;
+  const currentScore = recommendation.mfbi_score;
+  const priorities = factors ? prioritySentence(factors) : "";
+  const comparison =
+    forNextWeek &&
+    nextWeekScore != null &&
+    currentScore != null &&
+    Number.isFinite(Number(currentScore)) &&
+    Number.isFinite(Number(nextWeekScore))
+      ? outlookLead(Number(currentScore), Number(nextWeekScore), shownRisk)
+      : null;
   const summary = forNextWeek
-    ? rewriteForNextWeek(recommendation.assessment_summary, nextWeekScore)
+    ? rewriteForNextWeek(recommendation.assessment_summary, nextWeekScore).replace(
+        OLD_OUTLOOK_LEAD,
+        ""
+      )
     : recommendation.assessment_summary;
   const shownFactors = forNextWeek
-    ? factors.map((factor) => rewriteForNextWeek(factor, nextWeekScore))
-    : factors;
+    ? factorLines.map((factor) => rewriteForNextWeek(factor, nextWeekScore))
+    : factorLines;
   const shownActions = forNextWeek
     ? actions.map((action) => rewriteForNextWeek(action, nextWeekScore))
     : actions;
@@ -103,6 +188,12 @@ export function RagRecommendationPanel({
           {forNextWeek ? "How next week looks" : "How this week looks"}
         </p>
         <p className="text-sm text-foreground whitespace-pre-line">
+          {comparison ? (
+            <span className="font-medium text-foreground">{comparison} </span>
+          ) : null}
+          {priorities ? (
+            <span className="font-medium text-foreground">{priorities} </span>
+          ) : null}
           {summary}
         </p>
       </div>

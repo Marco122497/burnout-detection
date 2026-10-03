@@ -13,6 +13,7 @@ import { formatDateTime } from "@/lib/auth/roles";
 import type { StudentDashboardData } from "@/lib/student/dashboard";
 import { formatFactorRiskLabel } from "@/lib/student/tips";
 import { RagRecommendationPanel } from "@/components/student/rag-recommendation-panel";
+import { StudentAiStatus } from "@/components/student/student-ai-status";
 import {
   BurnoutFactorSection,
   BurnoutHero,
@@ -66,6 +67,7 @@ export function StudentDashboard({
           Track your burnout risk, finish weekly monitoring, and follow
           counseling tips — all in one place.
         </p>
+        <StudentAiStatus />
       </div>
 
       <BurnoutHero
@@ -142,6 +144,7 @@ export function StudentDashboard({
               compact
               nextWeekRisk={nextWeek.level}
               nextWeekScore={nextWeek.score}
+              factors={data.factors}
             />
           ) : data.recommendation ? (
             <div className="space-y-2">

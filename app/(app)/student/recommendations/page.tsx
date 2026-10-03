@@ -114,6 +114,7 @@ export default async function StudentRecommendationsPage() {
             ? nextWeekScore
             : null
         }
+        factors={factors}
       />
     </div>
   );

@@ -141,6 +141,23 @@ function aiRequestTimeoutMs(kind: "health" | "warm" | "predict") {
   return render ? 60000 : 2000;
 }
 
+/** Short live check for the student dashboard. Does not use the cached health fetch. */
+export async function getBurnoutAiOnline(timeoutMs = 8000): Promise<boolean> {
+  const baseUrl = aiBaseUrl();
+  if (!baseUrl) return false;
+  try {
+    const response = await fetch(`${baseUrl}/health`, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    if (!response.ok) return false;
+    const data = (await response.json()) as { models_ready?: boolean };
+    return Boolean(data.models_ready);
+  } catch {
+    return false;
+  }
+}
+
 export async function checkBurnoutAiHealth(): Promise<boolean> {
   const baseUrl = aiBaseUrl();
   if (!baseUrl) return false;

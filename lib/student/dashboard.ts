@@ -6,6 +6,7 @@ import {
 } from "@/lib/student/ai-client";
 import { getStudentAnnouncements } from "@/lib/student/announcements";
 import { getStudentBurnoutTrends, backfillBurnoutTrendsFromHistory } from "@/lib/student/burnout-trends";
+import { ensureLatestEarlyWarning } from "@/lib/student/ensure-early-warning";
 import { ensureRagRecommendation } from "@/lib/student/ensure-rag";
 import {
   ensureWeeklyMonitoringReminder,
@@ -94,6 +95,7 @@ export async function getStudentDashboardData(
     getActiveTerm(supabase),
     getWeeklyMonitoringHistory(supabase, studentId),
   ]);
+  await ensureLatestEarlyWarning(studentId, history);
 
   let savedTrends = await getStudentBurnoutTrends(
     supabase,

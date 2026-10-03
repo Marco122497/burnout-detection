@@ -6,7 +6,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import type { BurnoutLevel } from "@/lib/student/mfbi";
-import type { FactorRecommendation } from "@/lib/student/tips";
+import type { FactorRecommendation, StudentFactors } from "@/lib/student/tips";
 import { formatFactorRiskLabel, getTipsForLevel } from "@/lib/student/tips";
 import type { StoredRagRecommendation } from "@/lib/student/rag";
 import { RagRecommendationPanel } from "@/components/student/rag-recommendation-panel";
@@ -40,6 +40,7 @@ export function RecommendationsView({
   previousMfbi = null,
   ragRecommendation = null,
   nextWeekScore = null,
+  factors = null,
 }: {
   burnoutLevel: BurnoutLevel | null;
   guidance: {
@@ -57,6 +58,7 @@ export function RecommendationsView({
   previousMfbi?: number | null;
   ragRecommendation?: StoredRagRecommendation | null;
   nextWeekScore?: number | null;
+  factors?: StudentFactors | null;
 }) {
   const tips = factorRecommendations.length
     ? [...factorRecommendations]
@@ -141,6 +143,7 @@ export function RecommendationsView({
               recommendation={ragRecommendation}
               nextWeekRisk={nextWeekRisk}
               nextWeekScore={nextWeekScore}
+              factors={factors}
             />
           </CardContent>
         </Card>
