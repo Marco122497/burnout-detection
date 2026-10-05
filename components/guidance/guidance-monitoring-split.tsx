@@ -122,7 +122,7 @@ export function GuidanceMonitoringSplit({
         const bTime = b.monitoring_date
           ? new Date(b.monitoring_date).getTime()
           : Number.POSITIVE_INFINITY;
-        if (aTime !== bTime) return aTime - bTime;
+        if (aTime !== bTime) return bTime - aTime;
       }
       const byLast = (a.last_name || "").localeCompare(b.last_name || "", "en", {
         sensitivity: "base",
