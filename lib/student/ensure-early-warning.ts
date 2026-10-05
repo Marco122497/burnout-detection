@@ -33,6 +33,17 @@ export async function ensureLatestEarlyWarning(
   studentId: string,
   history: MonitoringRow[]
 ) {
+  try {
+    await fillLatestEarlyWarning(studentId, history);
+  } catch (error) {
+    console.error("ensureLatestEarlyWarning:", error);
+  }
+}
+
+async function fillLatestEarlyWarning(
+  studentId: string,
+  history: MonitoringRow[]
+) {
   const latest = history[0];
   if (!latest?.prediction) return;
 

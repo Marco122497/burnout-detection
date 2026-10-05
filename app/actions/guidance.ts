@@ -326,6 +326,52 @@ export async function deleteDepartment(
   return { success: "Department deleted." };
 }
 
+function readDepartmentIds(formData: FormData) {
+  const values = formData
+    .getAll("department_ids")
+    .map((value) => Number(value))
+    .filter((id) => Number.isFinite(id) && id > 0);
+  return [...new Set(values)];
+}
+
+async function saveInstructorDepartments(
+  admin: ReturnType<typeof createAdminClient>,
+  instructorId: string,
+  departmentIds: number[]
+) {
+  const primary = departmentIds[0];
+  const { error: profileError } = await admin
+    .from("profiles")
+    .update({ department_id: primary })
+    .eq("id", instructorId);
+  if (profileError) return profileError.message;
+
+  const { error: deleteError } = await admin
+    .from("instructor_departments")
+    .delete()
+    .eq("instructor_id", instructorId);
+  if (deleteError) {
+    if (/instructor_departments|schema cache|does not exist/i.test(deleteError.message)) {
+      return "Run supabase/phase16-instructor-departments.sql in Supabase before assigning more than one college, program, or department.";
+    }
+    return deleteError.message;
+  }
+
+  const { error: insertError } = await admin.from("instructor_departments").insert(
+    departmentIds.map((department_id) => ({
+      instructor_id: instructorId,
+      department_id,
+    }))
+  );
+  if (insertError) {
+    if (/instructor_departments|schema cache|does not exist/i.test(insertError.message)) {
+      return "Run supabase/phase16-instructor-departments.sql in Supabase before assigning more than one college, program, or department.";
+    }
+    return insertError.message;
+  }
+  return null;
+}
+
 export async function createInstructor(
   _prev: GuidanceActionState,
   formData: FormData
@@ -342,11 +388,12 @@ export async function createInstructor(
   const suffix = String(formData.get("suffix") || "").trim() || null;
   const employee_no = String(formData.get("employee_no") || "").trim() || null;
   const designation = String(formData.get("designation") || "").trim() || null;
-  const department_id = Number(formData.get("department_id"));
+  const departmentIds = readDepartmentIds(formData);
+  const department_id = departmentIds[0];
 
   if (!email || !first_name || !last_name || !department_id) {
     return {
-      error: "Email, name, and department are required.",
+      error: "Email, name, and at least one college, program, or department are required.",
     };
   }
 
@@ -398,6 +445,15 @@ export async function createInstructor(
     })
     .eq("id", data.user.id);
 
+  const departmentError = await saveInstructorDepartments(
+    admin,
+    data.user.id,
+    departmentIds
+  );
+  if (departmentError) {
+    return { error: departmentError };
+  }
+
   await supabase.from("audit_logs").insert(
     toAuditLogRow({
       user_id: user.id,
@@ -434,11 +490,15 @@ export async function updateInstructor(
   const designation = String(formData.get("designation") || "").trim() || null;
   const contact_number =
     String(formData.get("contact_number") || "").trim() || null;
-  const department_id = Number(formData.get("department_id"));
+  const departmentIds = readDepartmentIds(formData);
+  const department_id = departmentIds[0];
   const is_active = String(formData.get("is_active") || "") === "1";
 
   if (!instructor_id || !email || !first_name || !last_name || !department_id) {
-    return { error: "Email, name, and department are required." };
+    return {
+      error:
+        "Email, name, and at least one college, program, or department are required.",
+    };
   }
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -496,6 +556,15 @@ export async function updateInstructor(
       return { error: "Employee number is already in use." };
     }
     return { error: error.message };
+  }
+
+  const departmentError = await saveInstructorDepartments(
+    admin,
+    instructor_id,
+    departmentIds
+  );
+  if (departmentError) {
+    return { error: departmentError };
   }
 
   await supabase.from("audit_logs").insert(

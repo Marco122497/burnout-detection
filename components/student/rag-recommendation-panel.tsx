@@ -64,7 +64,7 @@ function prioritySentence(factors: StudentFactors) {
   const focus = items.filter((item) => item.level !== "low");
   const okay = items.filter((item) => item.level === "low");
   const labeled = (item: (typeof items)[number]) =>
-    `${item.name} (${item.score.toFixed(2)}, ${item.level})`;
+    `${item.name} (${Number(item.score).toFixed(2)}, ${item.level})`;
 
   let sentence = "";
   if (focus.length === 1) {
@@ -76,7 +76,7 @@ function prioritySentence(factors: StudentFactors) {
 
   if (okay.length) {
     const names = okay
-      .map((item) => `${item.name} (${item.score.toFixed(2)})`)
+      .map((item) => `${item.name} (${Number(item.score).toFixed(2)})`)
       .join(" and ");
     const note = `${names} ${okay.length === 1 ? "is" : "are"} low, so ${okay.length === 1 ? "it does" : "they do"} not need to come first.`;
     sentence = sentence ? `${sentence} ${note}` : note;

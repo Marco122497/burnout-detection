@@ -6,6 +6,8 @@ import { requireRole } from "@/lib/auth/session";
 import { getUserEmails } from "@/lib/guidance/queries";
 import {
   getDepartmentName,
+  getInstructorDepartmentIds,
+  getInstructorDepartmentOptions,
   getInstructorStudentRows,
 } from "@/lib/instructor/queries";
 
@@ -14,12 +16,27 @@ export default async function InstructorMonitoringLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { supabase, profile } = await requireRole(["Instructor"]);
-  const [studentRows, departmentName, emails] = await Promise.all([
-    getInstructorStudentRows(supabase, profile.department_id),
-    getDepartmentName(supabase, profile.department_id),
-    getUserEmails(),
-  ]);
+  const { supabase, user, profile } = await requireRole(["Instructor"]);
+  const departmentIds = await getInstructorDepartmentIds(
+    supabase,
+    user.id,
+    profile.department_id
+  );
+  let studentRows: Awaited<ReturnType<typeof getInstructorStudentRows>> = [];
+  let departmentName: string | null = null;
+  let departments: Awaited<ReturnType<typeof getInstructorDepartmentOptions>> =
+    [];
+  let emails: Record<string, string> = {};
+  try {
+    [studentRows, departmentName, departments, emails] = await Promise.all([
+      getInstructorStudentRows(supabase, departmentIds),
+      getDepartmentName(supabase, departmentIds),
+      getInstructorDepartmentOptions(supabase, departmentIds),
+      getUserEmails(),
+    ]);
+  } catch (error) {
+    console.error("Instructor monitoring list:", error);
+  }
   const rows = studentRows.map((row) => ({
     ...row,
     email: emails[row.id] ?? null,
@@ -39,7 +56,7 @@ export default async function InstructorMonitoringLayout({
             <div className="h-full min-h-0 flex-1 animate-pulse rounded-xl bg-muted/60" />
           }
         >
-          <InstructorMonitoringSplit rows={rows}>
+          <InstructorMonitoringSplit rows={rows} departments={departments}>
             {children}
           </InstructorMonitoringSplit>
         </Suspense>

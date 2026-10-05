@@ -1,3 +1,5 @@
+import { after } from "next/server";
+
 import type { Profile } from "@/lib/auth/roles";
 import type { createClient } from "@/lib/supabase/server";
 import {
@@ -95,7 +97,11 @@ export async function getStudentDashboardData(
     getActiveTerm(supabase),
     getWeeklyMonitoringHistory(supabase, studentId),
   ]);
-  await ensureLatestEarlyWarning(studentId, history);
+  try {
+    await ensureLatestEarlyWarning(studentId, history);
+  } catch (error) {
+    console.error("student dashboard early warning:", error);
+  }
 
   let savedTrends = await getStudentBurnoutTrends(
     supabase,
@@ -197,10 +203,16 @@ export async function getStudentDashboardData(
       ),
     ]);
 
-  // Refresh stale/missing advice in the background after the page can render.
+  // Generate missing advice after the page renders. Doing it during render
+  // crashes the page when the AI service is online and that request fails.
   if (latest) {
-    void ensureRagRecommendation(supabase, studentId, latest).catch((error) => {
-      console.error("background ensureRagRecommendation:", error);
+    const monitoring = latest;
+    after(() => {
+      void ensureRagRecommendation(supabase, studentId, monitoring).catch(
+        (error) => {
+          console.error("background ensureRagRecommendation:", error);
+        }
+      );
     });
   }
 

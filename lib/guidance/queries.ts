@@ -15,6 +15,8 @@ export type DepartmentWithCounts = Department & {
 export type InstructorListItem = Profile & {
   department_name: string | null;
   department_code: string | null;
+  department_ids: number[];
+  department_label: string | null;
   email?: string | null;
 };
 
@@ -58,25 +60,72 @@ export async function getInstructors(
     supabase
       .from("profiles")
       .select(
-        `${PROFILE_LIST_COLUMNS}, departments(department_code, department_name)`
+        `${PROFILE_LIST_COLUMNS}, departments!fk_profiles_department(department_code, department_name)`
       )
       .eq("role", "Instructor")
       .order("last_name", { ascending: true })
       .range(from, to)
   );
 
-  return data.map((row) => {
+  const instructors = data.map((row) => {
     const dept = row.departments as
       | { department_code: string; department_name: string }
       | { department_code: string; department_name: string }[]
       | null;
     const department = Array.isArray(dept) ? dept[0] : dept;
     const { departments: _ignored, ...profile } = row;
+    const mapped = toProfile(profile);
 
     return {
-      ...toProfile(profile),
+      ...mapped,
       department_name: department?.department_name ?? null,
       department_code: department?.department_code ?? null,
+      department_ids: mapped.department_id ? [mapped.department_id] : [],
+      department_label: department
+        ? `${department.department_code} — ${department.department_name}`
+        : null,
+    };
+  });
+
+  if (!instructors.length) return instructors;
+
+  const { data: links, error } = await supabase
+    .from("instructor_departments")
+    .select(
+      "instructor_id, department_id, departments(department_code, department_name)"
+    )
+    .in(
+      "instructor_id",
+      instructors.map((instructor) => instructor.id)
+    );
+
+  if (error || !links?.length) return instructors;
+
+  const byInstructor = new Map<string, { id: number; label: string }[]>();
+  for (const link of links) {
+    const dept = link.departments as
+      | { department_code: string; department_name: string }
+      | { department_code: string; department_name: string }[]
+      | null;
+    const department = Array.isArray(dept) ? dept[0] : dept;
+    const list = byInstructor.get(link.instructor_id) ?? [];
+    list.push({
+      id: Number(link.department_id),
+      label: department
+        ? `${department.department_code} — ${department.department_name}`
+        : String(link.department_id),
+    });
+    byInstructor.set(link.instructor_id, list);
+  }
+
+  return instructors.map((instructor) => {
+    const assigned = byInstructor.get(instructor.id);
+    if (!assigned?.length) return instructor;
+    return {
+      ...instructor,
+      department_ids: assigned.map((item) => item.id),
+      department_label: assigned.map((item) => item.label).join("\n"),
+      department_name: assigned.map((item) => item.label).join("\n"),
     };
   });
 }
@@ -127,7 +176,7 @@ export async function getUsersByRole(
     supabase
       .from("profiles")
       .select(
-        `${PROFILE_LIST_COLUMNS}, departments(department_code, department_name)`
+        `${PROFILE_LIST_COLUMNS}, departments!fk_profiles_department(department_code, department_name)`
       )
       .eq("role", role)
       .order("last_name", { ascending: true })

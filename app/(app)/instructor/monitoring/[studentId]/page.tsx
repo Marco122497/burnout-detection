@@ -4,10 +4,9 @@ import { StudentAssessmentHistoryView } from "@/components/instructor/student-as
 import { requireRole } from "@/lib/auth/session";
 import {
   getDepartmentName,
+  getInstructorDepartmentIds,
   getStudentAssessmentHistory,
 } from "@/lib/instructor/queries";
-import { getMonitoringAnswers } from "@/lib/student/queries";
-
 export const metadata = {
   title: "Student Assessment History",
 };
@@ -18,28 +17,27 @@ export default async function InstructorStudentHistoryPage({
   params: Promise<{ studentId: string }>;
 }) {
   const { studentId } = await params;
-  const { supabase, profile } = await requireRole(["Instructor"]);
+  const { supabase, user, profile } = await requireRole(["Instructor"]);
+  const departmentIds = await getInstructorDepartmentIds(
+    supabase,
+    user.id,
+    profile.department_id
+  );
   const { student, history } = await getStudentAssessmentHistory(
     supabase,
     studentId,
-    profile.department_id
+    departmentIds
   );
 
   if (!student) notFound();
 
-  const [answers, departmentName] = await Promise.all([
-    getMonitoringAnswers(
-      supabase,
-      history.map((row) => row.monitoring_id)
-    ),
-    getDepartmentName(supabase, profile.department_id),
-  ]);
+  const departmentName = await getDepartmentName(supabase, departmentIds);
 
   return (
     <StudentAssessmentHistoryView
       student={{ ...student, department_name: departmentName }}
       history={history}
-      answers={answers}
+      showAnswers={false}
       embedded
     />
   );

@@ -41,6 +41,8 @@ export type StudentMonitorRow = {
   previous_burnout_level: string | null;
   monitoring_date: string | null;
   submittedThisWeek: boolean;
+  department_id?: number | null;
+  department_code?: string | null;
 };
 
 export type StudentHistoryRow = {
@@ -207,23 +209,74 @@ function matchFilters(row: StudentMonitorRow, filters: StudentSearchFilters) {
   return true;
 }
 
+function normalizeDepartmentIds(departmentId: number | number[] | null) {
+  const values = Array.isArray(departmentId) ? departmentId : [departmentId];
+  return [...new Set(values.filter((id): id is number => Number.isFinite(id)))];
+}
+
+export async function getInstructorDepartmentIds(
+  supabase: SupabaseClient,
+  instructorId: string,
+  primaryDepartmentId: number | null
+) {
+  const ids = new Set<number>();
+  if (primaryDepartmentId) ids.add(primaryDepartmentId);
+  const { data, error } = await supabase
+    .from("instructor_departments")
+    .select("department_id")
+    .eq("instructor_id", instructorId);
+  if (!error) {
+    for (const row of data ?? []) {
+      const id = Number(row.department_id);
+      if (Number.isFinite(id)) ids.add(id);
+    }
+  }
+  return [...ids];
+}
+
 export const getDepartmentName = cache(async function getDepartmentName(
   supabase: SupabaseClient,
-  departmentId: number | null
+  departmentId: number | number[] | null
 ) {
-  if (!departmentId) return null;
+  const ids = normalizeDepartmentIds(departmentId);
+  if (!ids.length) return null;
   const { data } = await supabase
     .from("departments")
-    .select("department_code, department_name, description")
-    .eq("department_id", departmentId)
-    .maybeSingle();
-  if (!data) return null;
-  return data.department_name || data.description || null;
+    .select("department_id, department_code, department_name, description")
+    .in("department_id", ids);
+  if (!data?.length) return null;
+  const names = ids
+    .map((id) => data.find((row) => row.department_id === id))
+    .filter((row): row is NonNullable<typeof row> => Boolean(row))
+    .map((row) => row.department_name || row.description)
+    .filter((name): name is string => Boolean(name));
+  return names.join(", ") || null;
 });
+
+export async function getInstructorDepartmentOptions(
+  supabase: SupabaseClient,
+  departmentId: number | number[] | null
+) {
+    const ids = normalizeDepartmentIds(departmentId);
+    if (ids.length < 2) return [];
+    const { data } = await supabase
+      .from("departments")
+      .select("department_id, department_code, department_name")
+      .in("department_id", ids);
+    const rows = data ?? [];
+    return ids
+      .map((id) => rows.find((row) => row.department_id === id))
+      .filter((row): row is NonNullable<typeof row> => Boolean(row))
+      .map((row) => ({
+        department_id: row.department_id,
+        department_code: row.department_code,
+        department_name: row.department_name,
+      }));
+}
 
 export const getInstructorStudentRows = cache(async function getInstructorStudentRows(
   supabase: SupabaseClient,
-  departmentId: number | null,
+  departmentId: number | number[] | null,
   week?: number
 ): Promise<StudentMonitorRow[]> {
   const term = await getActiveTerm(supabase);
@@ -231,7 +284,8 @@ export const getInstructorStudentRows = cache(async function getInstructorStuden
   const currentWeek =
     week != null && week >= 1 ? Math.floor(week) : openWeek;
 
-  if (!departmentId) return [];
+  const departmentIds = normalizeDepartmentIds(departmentId);
+  if (!departmentIds.length) return [];
 
   const students = await fetchAllPages(async (from, to) =>
     supabase
@@ -241,7 +295,7 @@ export const getInstructorStudentRows = cache(async function getInstructorStuden
       )
       .eq("role", "Student")
       .eq("is_active", true)
-      .eq("department_id", departmentId)
+      .in("department_id", departmentIds)
       .order("last_name", { ascending: true })
       .range(from, to)
   );
@@ -365,6 +419,17 @@ export const getInstructorStudentRows = cache(async function getInstructorStuden
     "@/lib/student/early-warning-staff"
   );
 
+  const { data: departmentRows } = await supabase
+    .from("departments")
+    .select("department_id, department_code")
+    .in("department_id", departmentIds);
+  const departmentCodes = new Map(
+    (departmentRows ?? []).map((row) => [
+      Number(row.department_id),
+      row.department_code as string,
+    ])
+  );
+
   return students.map((student) => {
     // Dashboard / monitoring stats use the active monitoring week only.
     const monitoring =
@@ -429,6 +494,12 @@ export const getInstructorStudentRows = cache(async function getInstructorStuden
       previous_burnout_level: previousMfbi?.burnout_risk_level ?? null,
       monitoring_date: monitoring?.submitted_at ?? null,
       submittedThisWeek: submittedThisWeek.has(student.id),
+      department_id:
+        student.department_id != null ? Number(student.department_id) : null,
+      department_code:
+        student.department_id != null
+          ? departmentCodes.get(Number(student.department_id)) ?? null
+          : null,
     };
   });
 });
@@ -436,12 +507,13 @@ export const getInstructorStudentRows = cache(async function getInstructorStuden
 export const getStudentAssessmentHistory = cache(async function getStudentAssessmentHistory(
   supabase: SupabaseClient,
   studentId: string,
-  departmentId: number | null
+  departmentId: number | number[] | null
 ): Promise<{
   student: StudentMonitorRow | null;
   history: StudentHistoryRow[];
 }> {
-  if (!departmentId) return { student: null, history: [] };
+  const departmentIds = normalizeDepartmentIds(departmentId);
+  if (!departmentIds.length) return { student: null, history: [] };
 
   const [{ data: profile }, { data: monitoringRows }] = await Promise.all([
     supabase
@@ -451,7 +523,7 @@ export const getStudentAssessmentHistory = cache(async function getStudentAssess
       )
       .eq("id", studentId)
       .eq("role", "Student")
-      .eq("department_id", departmentId)
+      .in("department_id", departmentIds)
       .maybeSingle(),
     supabase
       .from("weekly_monitoring")
@@ -560,21 +632,21 @@ export const getStudentAssessmentHistory = cache(async function getStudentAssess
 
 export async function getDepartmentWeeklySeries(
   supabase: SupabaseClient,
-  departmentId: number | null,
+  departmentId: number | number[] | null,
   range?: { from?: string; to?: string }
 ) {
-  // Date-filtered reports still need a live query; dashboards use the cache.
-  if (range?.from || range?.to) {
-    if (!departmentId) {
-      return [] as {
-        week: number;
-        average: number;
-        count: number;
-        lowCount: number;
-        moderateCount: number;
-        highCount: number;
-      }[];
-    }
+  const departmentIds = normalizeDepartmentIds(departmentId);
+  const empty = [] as {
+    week: number;
+    average: number;
+    count: number;
+    lowCount: number;
+    moderateCount: number;
+    highCount: number;
+  }[];
+  // Date-filtered reports and multi-department instructors need a live query.
+  if (range?.from || range?.to || departmentIds.length !== 1) {
+    if (!departmentIds.length) return empty;
 
     const term = await getActiveTerm(supabase);
     const { data: students } = await supabase
@@ -582,7 +654,7 @@ export async function getDepartmentWeeklySeries(
       .select("id")
       .eq("role", "Student")
       .eq("is_active", true)
-      .eq("department_id", departmentId);
+      .in("department_id", departmentIds);
 
     const ids = (students ?? []).map((s) => s.id);
     if (!ids.length) return [];
@@ -608,10 +680,10 @@ export async function getDepartmentWeeklySeries(
           .order("week_number", { ascending: true });
 
         if (term?.term_id) query = query.eq("term_id", term.term_id);
-        if (range.from) {
+        if (range?.from) {
           query = query.gte("submitted_at", `${range.from}T00:00:00`);
         }
-        if (range.to) {
+        if (range?.to) {
           query = query.lte("submitted_at", `${range.to}T23:59:59.999`);
         }
 
@@ -664,7 +736,7 @@ export async function getDepartmentWeeklySeries(
       }));
   }
 
-  return getCachedDepartmentWeeklySeries(supabase, departmentId);
+  return getCachedDepartmentWeeklySeries(supabase, departmentIds[0] ?? null);
 }
 
 function classLabel(row: StudentMonitorRow) {
@@ -743,7 +815,7 @@ function formatDepartmentScope(name: string | null) {
 export async function getInstructorDashboardData(
   supabase: SupabaseClient,
   instructorId: string,
-  departmentId: number | null
+  departmentId: number | number[] | null
 ): Promise<InstructorDashboardData> {
   const [term, rows, departmentName, weeklyTrends, notificationResult] =
     await Promise.all([

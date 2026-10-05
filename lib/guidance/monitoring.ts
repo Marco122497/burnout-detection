@@ -97,7 +97,7 @@ export const getGuidanceStudentRows = cache(async function getGuidanceStudentRow
       supabase
         .from("profiles")
         .select(
-          "id, first_name, middle_name, last_name, suffix, student_number, sex, course, year_level, section, is_active, department_id, profile_picture, departments(department_code, department_name, description)"
+          "id, first_name, middle_name, last_name, suffix, student_number, sex, course, year_level, section, is_active, department_id, profile_picture, departments!fk_profiles_department(department_code, department_name, description)"
         )
         .eq("role", "Student")
         .eq("is_active", true)
@@ -281,7 +281,7 @@ export const getGuidanceStudentHistory = cache(async function getGuidanceStudent
     supabase
       .from("profiles")
       .select(
-        "id, first_name, middle_name, last_name, suffix, student_number, sex, course, year_level, section, department_id, role, is_active, departments(department_code, department_name, description)"
+        "id, first_name, middle_name, last_name, suffix, student_number, sex, course, year_level, section, department_id, role, is_active, departments!fk_profiles_department(department_code, department_name, description)"
       )
       .eq("id", studentId)
       .eq("role", "Student")
@@ -904,7 +904,7 @@ export async function getInstructorMonitoringRows(
   const { data: instructors } = await supabase
     .from("profiles")
     .select(
-      "id, first_name, middle_name, last_name, suffix, is_active, department_id, departments(department_code, department_name, description)"
+      "id, first_name, middle_name, last_name, suffix, is_active, department_id, departments!fk_profiles_department(department_code, department_name, description)"
     )
     .eq("role", "Instructor")
     .order("last_name", { ascending: true });

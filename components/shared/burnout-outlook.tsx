@@ -133,7 +133,8 @@ export type WeeklyTrendPoint = {
 };
 
 function formatScore(value: number | null | undefined) {
-  return value != null ? value.toFixed(2) : "—";
+  const score = Number(value);
+  return value != null && Number.isFinite(score) ? score.toFixed(2) : "—";
 }
 
 function formatDirectionLabel(direction: string | null | undefined) {
@@ -198,10 +199,10 @@ function TrendWeekCard({
           {directionLabel ? (
             <>
               {directionLabel}
-              {delta != null ? (
+              {delta != null && Number.isFinite(Number(delta)) ? (
                 <span className="ml-0.5 tabular-nums font-medium opacity-80">
-                  ({delta > 0 ? "+" : ""}
-                  {delta.toFixed(2)})
+                  ({Number(delta) > 0 ? "+" : ""}
+                  {Number(delta).toFixed(2)})
                 </span>
               ) : null}
             </>
@@ -353,12 +354,14 @@ export function EarlyWarningOutlookCard({
   const week2 = resolveWeek2Display(earlyWarning);
   const hasMlNextWeek = Boolean(earlyWarning?.has_ml_next_week);
   const currentLevel = resolveMfbiBurnoutLevel(mfbiScore, burnoutLevel);
+  const builtWarning = buildMfbiEarlyWarningMessage({
+    factors,
+    trend: earlyWarning?.trend ?? null,
+    burnoutLevel: currentLevel,
+  });
+  const storedWarning = earlyWarning?.warning_message;
   const warningMessage =
-    buildMfbiEarlyWarningMessage({
-      factors,
-      trend: earlyWarning?.trend ?? null,
-      burnoutLevel: currentLevel,
-    }) ?? earlyWarning?.warning_message ?? null;
+    builtWarning ?? (typeof storedWarning === "string" ? storedWarning : null);
 
   return (
     <Card>
@@ -646,7 +649,8 @@ export function BurnoutRiskTrendChart({
                   )}
                 >
                   Latest movement: {latestMovement.direction}
-                  {latestMovement.delta != null ? (
+                  {latestMovement.delta != null &&
+                  Number.isFinite(Number(latestMovement.delta)) ? (
                     <>
                       {" "}
                       <span
@@ -655,8 +659,8 @@ export function BurnoutRiskTrendChart({
                           movementDeltaTone(latestMovement.direction)
                         )}
                       >
-                        ({latestMovement.delta > 0 ? "+" : ""}
-                        {latestMovement.delta.toFixed(2)} MFBI)
+                        ({Number(latestMovement.delta) > 0 ? "+" : ""}
+                        {Number(latestMovement.delta).toFixed(2)} MFBI)
                       </span>
                     </>
                   ) : null}
@@ -764,10 +768,11 @@ export function BurnoutRiskTrendChart({
                           {directionLabel ? (
                             <>
                               {directionLabel}
-                              {point.delta != null ? (
+                              {point.delta != null &&
+                              Number.isFinite(Number(point.delta)) ? (
                                 <span className="ml-0.5 tabular-nums font-medium opacity-80">
-                                  ({point.delta > 0 ? "+" : ""}
-                                  {point.delta.toFixed(2)})
+                                  ({Number(point.delta) > 0 ? "+" : ""}
+                                  {Number(point.delta).toFixed(2)})
                                 </span>
                               ) : null}
                             </>

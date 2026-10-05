@@ -10,10 +10,6 @@ export const metadata = {
 
 export default async function StudentDashboardPage() {
   const { supabase, profile } = await requireRole(["Student"]);
-  // Wake Render-hosted burnout-ai (free tier sleeps). Do not block the dashboard.
-  void import("@/lib/student/ai-client").then(({ warmBurnoutAi }) =>
-    warmBurnoutAi()
-  );
   const data = await getStudentDashboardData(supabase, profile);
 
   return <StudentDashboard profile={profile} data={data} />;

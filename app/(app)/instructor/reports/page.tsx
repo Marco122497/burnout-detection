@@ -7,6 +7,7 @@ import { buildFormalName } from "@/lib/auth/roles";
 import {
   getDepartmentName,
   getDepartmentWeeklySeries,
+  getInstructorDepartmentIds,
   getInstructorStudentRows,
 } from "@/lib/instructor/queries";
 import {
@@ -37,7 +38,12 @@ export default async function InstructorReportsPage({
     week?: string;
   }>;
 }) {
-  const { supabase, profile } = await requireRole(["Instructor"]);
+  const { supabase, user, profile } = await requireRole(["Instructor"]);
+  const departmentIds = await getInstructorDepartmentIds(
+    supabase,
+    user.id,
+    profile.department_id
+  );
   const params = await searchParams;
   const reportType = resolveInstructorReportType(params.type);
   const { from, to } = resolveReportDateRange(params);
@@ -48,9 +54,9 @@ export default async function InstructorReportsPage({
 
   const [rows, departmentName, weeklyTrends, schoolAdministrator] =
     await Promise.all([
-      getInstructorStudentRows(supabase, profile.department_id, selectedWeek),
-      getDepartmentName(supabase, profile.department_id),
-      getDepartmentWeeklySeries(supabase, profile.department_id, { from, to }),
+      getInstructorStudentRows(supabase, departmentIds, selectedWeek),
+      getDepartmentName(supabase, departmentIds),
+      getDepartmentWeeklySeries(supabase, departmentIds, { from, to }),
       getSchoolAdministratorSignatory(supabase),
     ]);
 

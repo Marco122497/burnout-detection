@@ -4,6 +4,7 @@ import {
   getDepartmentName,
   getDepartmentWeeklySeries,
   getInstructorAnalytics,
+  getInstructorDepartmentIds,
   getInstructorStudentRows,
 } from "@/lib/instructor/queries";
 
@@ -12,11 +13,16 @@ export const metadata = {
 };
 
 export default async function InstructorAnalyticsPage() {
-  const { supabase, profile } = await requireRole(["Instructor"]);
+  const { supabase, user, profile } = await requireRole(["Instructor"]);
+  const departmentIds = await getInstructorDepartmentIds(
+    supabase,
+    user.id,
+    profile.department_id
+  );
   const [rows, weeklyTrends, departmentName] = await Promise.all([
-    getInstructorStudentRows(supabase, profile.department_id),
-    getDepartmentWeeklySeries(supabase, profile.department_id),
-    getDepartmentName(supabase, profile.department_id),
+    getInstructorStudentRows(supabase, departmentIds),
+    getDepartmentWeeklySeries(supabase, departmentIds),
+    getDepartmentName(supabase, departmentIds),
   ]);
   const data = getInstructorAnalytics(rows, weeklyTrends);
 

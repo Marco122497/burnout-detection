@@ -93,12 +93,14 @@ export function StudentAssessmentHistoryView({
   student,
   history,
   answers = {},
+  showAnswers = true,
   backHref = "/instructor/monitoring",
   embedded = false,
 }: {
   student: StudentMonitorRow & { department_name?: string | null };
   history: StudentHistoryRow[];
   answers?: MonitoringAnswersMap;
+  showAnswers?: boolean;
   backHref?: string;
   embedded?: boolean;
 }) {
@@ -291,9 +293,11 @@ export function StudentAssessmentHistoryView({
                     <th className="px-2 py-1.5 font-medium">MFBI</th>
                     <th className="px-2 py-1.5 font-medium">Risk</th>
                     <th className="px-2 py-1.5 font-medium">Prediction</th>
-                    <th className="px-2 py-1.5 text-right font-medium">
-                      Answers
-                    </th>
+                    {showAnswers ? (
+                      <th className="px-2 py-1.5 text-right font-medium">
+                        Answers
+                      </th>
+                    ) : null}
                   </tr>
                 </thead>
                 <tbody>
@@ -346,27 +350,29 @@ export function StudentAssessmentHistoryView({
                           <td className="px-2 py-1.5">
                             <PredictionLabel level={row.prediction} />
                           </td>
-                          <td className="px-2 py-1.5 text-right">
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              onClick={() =>
-                                setOpenId(isOpen ? null : row.monitoring_id)
-                              }
-                              aria-expanded={isOpen}
-                            >
-                              View answers
-                              <ChevronDownIcon
-                                className={cn(
-                                  "size-3.5 transition-transform",
-                                  isOpen && "rotate-180"
-                                )}
-                              />
-                            </Button>
-                          </td>
+                          {showAnswers ? (
+                            <td className="px-2 py-1.5 text-right">
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                onClick={() =>
+                                  setOpenId(isOpen ? null : row.monitoring_id)
+                                }
+                                aria-expanded={isOpen}
+                              >
+                                View answers
+                                <ChevronDownIcon
+                                  className={cn(
+                                    "size-3.5 transition-transform",
+                                    isOpen && "rotate-180"
+                                  )}
+                                />
+                              </Button>
+                            </td>
+                          ) : null}
                         </tr>
-                        {isOpen ? (
+                        {showAnswers && isOpen ? (
                           <tr className="border-b bg-muted/30 last:border-0">
                             <td colSpan={10} className="px-4 py-4">
                               <AnswersPanel

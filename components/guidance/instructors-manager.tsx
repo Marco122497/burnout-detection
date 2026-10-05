@@ -78,6 +78,86 @@ function nameInitials(firstName: string, lastName: string) {
   return `${firstName?.[0] || ""}${lastName?.[0] || ""}`.toUpperCase() || "?";
 }
 
+function DepartmentPicker({
+  idPrefix,
+  departments,
+  initialIds,
+}: {
+  idPrefix: string;
+  departments: Department[];
+  initialIds: string[];
+}) {
+  const [ids, setIds] = useState(initialIds.length ? initialIds : [""]);
+  const selected = new Set(ids.filter(Boolean));
+
+  return (
+    <div className="space-y-2 sm:col-span-2">
+      <div className="flex items-center justify-between gap-2">
+        <Label>College / program / department</Label>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setIds((current) => [...current, ""])}
+        >
+          <PlusIcon />
+          Add another
+        </Button>
+      </div>
+      {ids.map((id, index) => (
+        <div key={`${idPrefix}-${index}`} className="flex items-center gap-2">
+          <select
+            id={`${idPrefix}-${index}`}
+            name="department_ids"
+            required={index === 0}
+            value={id}
+            onChange={(event) => {
+              const value = event.target.value;
+              setIds((current) =>
+                current.map((item, itemIndex) =>
+                  itemIndex === index ? value : item
+                )
+              );
+            }}
+            className={selectClassName}
+          >
+            <option value="" disabled>
+              Select college / program / department
+            </option>
+            {departments.map((dept) => (
+              <option
+                key={dept.department_id}
+                value={dept.department_id}
+                disabled={
+                  selected.has(String(dept.department_id)) &&
+                  String(dept.department_id) !== id
+                }
+              >
+                {dept.department_code} — {dept.department_name}
+              </option>
+            ))}
+          </select>
+          {ids.length > 1 ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Remove department"
+              onClick={() =>
+                setIds((current) =>
+                  current.filter((_, itemIndex) => itemIndex !== index)
+                )
+              }
+            >
+              <Trash2Icon />
+            </Button>
+          ) : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function InstructorsManager({
   instructors,
   departments,
@@ -261,13 +341,15 @@ export function InstructorsManager({
                                 {instructor.email}
                               </p>
                             ) : null}
-                            <p className="mt-0.5 truncate text-xs text-muted-foreground md:hidden">
-                              {[
-                                instructor.employee_no || "—",
-                                instructor.department_code || null,
-                              ]
-                                .filter(Boolean)
-                                .join(" | ")}
+                            <p className="mt-0.5 text-xs text-muted-foreground md:hidden">
+                              <span>{instructor.employee_no || "—"}</span>
+                              {instructor.department_label ||
+                              instructor.department_code ? (
+                                <span className="mt-0.5 block whitespace-pre-line">
+                                  {instructor.department_label ||
+                                    instructor.department_code}
+                                </span>
+                              ) : null}
                             </p>
                           </div>
                         </div>
@@ -278,8 +360,10 @@ export function InstructorsManager({
                       <TableCell className="hidden lg:table-cell">
                         {instructor.designation || "—"}
                       </TableCell>
-                      <TableCell className="hidden lg:table-cell">
-                        {instructor.department_name || "—"}
+                      <TableCell className="hidden whitespace-pre-line lg:table-cell">
+                        {instructor.department_label ||
+                          instructor.department_name ||
+                          "—"}
                       </TableCell>
                       <TableCell className="w-10 text-right">
                         <DropdownMenu>
@@ -360,7 +444,7 @@ export function InstructorsManager({
             </AlertDialogMedia>
             <AlertDialogTitle>Add instructor</AlertDialogTitle>
             <AlertDialogDescription>
-              Create an instructor account and assign them to a department.{" "}
+              Create an instructor account and assign one or more colleges, programs, or departments.{" "}
               {DEFAULT_INITIAL_PASSWORD_NOTE}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -401,28 +485,11 @@ export function InstructorsManager({
                 <Label htmlFor="create-designation">Designation</Label>
                 <Input id="create-designation" name="designation" />
               </div>
-              <div className="space-y-1.5 sm:col-span-2">
-                <Label htmlFor="create-department_id">Department</Label>
-                <select
-                  id="create-department_id"
-                  name="department_id"
-                  required
-                  defaultValue=""
-                  className={selectClassName}
-                >
-                  <option value="" disabled>
-                    Select department
-                  </option>
-                  {activeDepartments.map((dept) => (
-                    <option
-                      key={dept.department_id}
-                      value={dept.department_id}
-                    >
-                      {dept.department_code} — {dept.department_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <DepartmentPicker
+                idPrefix="create-department"
+                departments={activeDepartments}
+                initialIds={[""]}
+              />
             </form>
           ) : null}
 
@@ -538,28 +605,16 @@ export function InstructorsManager({
                   defaultValue={editing.contact_number ?? ""}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-department_id">Department</Label>
-                <select
-                  id="edit-department_id"
-                  name="department_id"
-                  required
-                  defaultValue={editing.department_id?.toString() ?? ""}
-                  className={selectClassName}
-                >
-                  <option value="" disabled>
-                    Select department
-                  </option>
-                  {activeDepartments.map((dept) => (
-                    <option
-                      key={dept.department_id}
-                      value={dept.department_id}
-                    >
-                      {dept.department_code} — {dept.department_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <DepartmentPicker
+                idPrefix={`edit-department-${editing.id}`}
+                departments={activeDepartments}
+                initialIds={(editing.department_ids?.length
+                  ? editing.department_ids
+                  : editing.department_id
+                    ? [editing.department_id]
+                    : []
+                ).map(String)}
+              />
               <div className="space-y-2 sm:col-span-2">
                 <Label htmlFor="edit-is_active">Status</Label>
                 <select

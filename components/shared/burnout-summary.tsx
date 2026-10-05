@@ -104,7 +104,11 @@ export function BurnoutHero({
   children?: React.ReactNode;
 }) {
   const theme = getRiskTheme(level);
-  const mfbiPercent = mfbiScore != null ? Math.round(mfbiScore * 100) : null;
+  const mfbiNumber = mfbiScore != null ? Number(mfbiScore) : null;
+  const mfbiPercent =
+    mfbiNumber != null && Number.isFinite(mfbiNumber)
+      ? Math.round(mfbiNumber * 100)
+      : null;
 
   return (
     <Card className={cn("ring-2", theme.ring, theme.card)}>
@@ -150,8 +154,8 @@ export function BurnoutHero({
           <div className="flex items-baseline justify-between text-sm">
             <span className="text-muted-foreground">{scoreLabel}</span>
             <span className={cn("font-medium tabular-nums", theme.mfbi)}>
-              {mfbiScore != null
-                ? `${mfbiScore.toFixed(2)} (${mfbiPercent}%)`
+              {mfbiNumber != null && Number.isFinite(mfbiNumber)
+                ? `${mfbiNumber.toFixed(2)} (${mfbiPercent}%)`
                 : "—"}
             </span>
           </div>

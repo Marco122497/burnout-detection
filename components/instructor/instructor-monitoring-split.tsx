@@ -46,9 +46,15 @@ function selectedStudentId(pathname: string) {
 
 export function InstructorMonitoringSplit({
   rows,
+  departments = [],
   children,
 }: {
   rows: StudentMonitorRow[];
+  departments?: {
+    department_id: number;
+    department_code: string;
+    department_name: string;
+  }[];
   children: React.ReactNode;
 }) {
   const router = useRouter();
@@ -58,6 +64,9 @@ export function InstructorMonitoringSplit({
   const activeId = selectedStudentId(pathname);
 
   const [q, setQ] = useState(searchParams.get("q") ?? "");
+  const [departmentId, setDepartmentId] = useState(
+    searchParams.get("department_id") ?? ""
+  );
   const [yearLevel, setYearLevel] = useState(
     searchParams.get("year_level") ?? ""
   );
@@ -75,6 +84,9 @@ export function InstructorMonitoringSplit({
           .join(" ")
           .toLowerCase();
         if (!haystack.includes(query)) return false;
+      }
+      if (departmentId && String(row.department_id) !== departmentId) {
+        return false;
       }
       if (yearLevel && String(row.year_level) !== yearLevel) return false;
       if (risk) {
@@ -115,7 +127,7 @@ export function InstructorMonitoringSplit({
       if (byFirst !== 0) return byFirst;
       return a.full_name.localeCompare(b.full_name, "en");
     });
-  }, [rows, q, yearLevel, risk, submission]);
+  }, [rows, q, departmentId, yearLevel, risk, submission]);
 
   const {
     page,
@@ -128,11 +140,12 @@ export function InstructorMonitoringSplit({
 
   useEffect(() => {
     setPage(1);
-  }, [q, yearLevel, risk, submission, setPage]);
+  }, [q, departmentId, yearLevel, risk, submission, setPage]);
 
   function filterQuery() {
     const params = new URLSearchParams();
     if (q.trim()) params.set("q", q.trim());
+    if (departmentId) params.set("department_id", departmentId);
     if (yearLevel) params.set("year_level", yearLevel);
     if (risk) params.set("risk", risk);
     if (submission) params.set("submission", submission);
@@ -195,6 +208,30 @@ export function InstructorMonitoringSplit({
               placeholder="Name, student number, or email"
               className="h-8 w-full min-w-[12rem] sm:w-52"
             />
+            {departments.length >= 2 ? (
+              <>
+                <Label htmlFor="department_id" className="sr-only">
+                  Department
+                </Label>
+                <select
+                  id="department_id"
+                  value={departmentId}
+                  onChange={(e) => setDepartmentId(e.target.value)}
+                  className={cn(
+                    selectClassName,
+                    "w-auto min-w-[9rem] max-w-[16rem]"
+                  )}
+                  aria-label="Department"
+                >
+                  <option value="">Department</option>
+                  {departments.map((dept) => (
+                    <option key={dept.department_id} value={dept.department_id}>
+                      {dept.department_code} — {dept.department_name}
+                    </option>
+                  ))}
+                </select>
+              </>
+            ) : null}
             <Label htmlFor="year_level" className="sr-only">
               Year Level
             </Label>
@@ -250,6 +287,7 @@ export function InstructorMonitoringSplit({
               size="sm"
               onClick={() => {
                 setQ("");
+                setDepartmentId("");
                 setYearLevel("");
                 setRisk("");
                 setSubmission("");
@@ -325,6 +363,9 @@ export function InstructorMonitoringSplit({
                                 {row.submittedThisWeek
                                   ? "Submitted this week"
                                   : "Pending this week"}
+                                {row.department_code
+                                  ? ` · ${row.department_code}`
+                                  : ""}
                                 {row.year_level != null
                                   ? ` · Year ${row.year_level}`
                                   : ""}
