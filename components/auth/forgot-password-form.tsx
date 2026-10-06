@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useState } from "react";
 import Link from "next/link";
+import { REGEXP_ONLY_DIGITS } from "input-otp";
 import { Loader2, RefreshCwIcon } from "lucide-react";
 
 import {
@@ -31,7 +32,6 @@ import { Label } from "@/components/ui/label";
 import {
   InputOTP,
   InputOTPGroup,
-  InputOTPSeparator,
   InputOTPSlot,
 } from "@/components/ui/input-otp";
 
@@ -73,7 +73,7 @@ export function ForgotPasswordForm() {
           <CardHeader>
             <CardTitle>Verify your email</CardTitle>
             <CardDescription>
-              Enter the verification code we sent to{" "}
+              Enter the 6-digit verification code we sent to{" "}
               <span className="font-medium text-foreground">{sentEmail}</span>.
             </CardDescription>
           </CardHeader>
@@ -103,24 +103,20 @@ export function ForgotPasswordForm() {
                 </div>
                 <InputOTP
                   id="otp-verification"
-                  maxLength={8}
+                  maxLength={6}
+                  pattern={REGEXP_ONLY_DIGITS}
                   value={otp}
                   onChange={setOtp}
                   disabled={verifying}
                   required
                 >
-                  <InputOTPGroup className="*:data-[slot=input-otp-slot]:h-12 *:data-[slot=input-otp-slot]:w-9 *:data-[slot=input-otp-slot]:text-lg sm:*:data-[slot=input-otp-slot]:w-11 sm:*:data-[slot=input-otp-slot]:text-xl">
+                  <InputOTPGroup className="*:data-[slot=input-otp-slot]:h-12 *:data-[slot=input-otp-slot]:w-10 *:data-[slot=input-otp-slot]:text-lg sm:*:data-[slot=input-otp-slot]:w-12 sm:*:data-[slot=input-otp-slot]:text-xl">
                     <InputOTPSlot index={0} />
                     <InputOTPSlot index={1} />
                     <InputOTPSlot index={2} />
                     <InputOTPSlot index={3} />
-                  </InputOTPGroup>
-                  <InputOTPSeparator className="mx-2" />
-                  <InputOTPGroup className="*:data-[slot=input-otp-slot]:h-12 *:data-[slot=input-otp-slot]:w-9 *:data-[slot=input-otp-slot]:text-lg sm:*:data-[slot=input-otp-slot]:w-11 sm:*:data-[slot=input-otp-slot]:text-xl">
                     <InputOTPSlot index={4} />
                     <InputOTPSlot index={5} />
-                    <InputOTPSlot index={6} />
-                    <InputOTPSlot index={7} />
                   </InputOTPGroup>
                 </InputOTP>
                 <FieldDescription>
@@ -139,7 +135,7 @@ export function ForgotPasswordForm() {
                 <Button
                   type="submit"
                   className="w-full"
-                  disabled={verifying || otp.length !== 8}
+                  disabled={verifying || otp.length !== 6}
                 >
                   {verifying ? (
                     <>
@@ -184,7 +180,7 @@ export function ForgotPasswordForm() {
               name="email"
               type="email"
               autoComplete="email"
-              placeholder="you@school.edu"
+              placeholder="you@ckcm.edu.ph"
               required
               disabled={sendPending}
             />

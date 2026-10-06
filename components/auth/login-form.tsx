@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -40,6 +40,7 @@ export function LoginForm({
 
   const redirecting = Boolean(state.redirectTo);
   const busy = pending || redirecting;
+  const [openingReset, setOpeningReset] = useState(false);
 
   useEffect(() => {
     setAuthBusy?.(busy);
@@ -76,7 +77,7 @@ export function LoginForm({
 
   return (
     <>
-      <TopProgressBar show={busy} />
+      <TopProgressBar show={busy || openingReset} />
 
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
@@ -116,16 +117,29 @@ export function LoginForm({
               <p className="text-xs text-muted-foreground">
                 The default password is {DEFAULT_INITIAL_PASSWORD}.
               </p>
-              <p className="text-center text-xs text-muted-foreground">
+              <p className="text-right">
                 {forgotPasswordEnabled ? (
                   <Link
                     href="/forgot-password"
-                    className="underline-offset-4 hover:underline"
+                    aria-busy={openingReset}
+                    onClick={(event) => {
+                      if (openingReset) {
+                        event.preventDefault();
+                        return;
+                      }
+                      setOpeningReset(true);
+                    }}
+                    className={`inline-flex items-center gap-1.5 text-sm font-semibold text-primary ${openingReset ? "pointer-events-none" : ""}`}
                   >
+                    {openingReset ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : null}
                     Forgot password?
                   </Link>
                 ) : (
-                  "Forgot password? See the administrator."
+                  <span className="text-sm font-semibold text-foreground">
+                    Forgot password? See the administrator.
+                  </span>
                 )}
               </p>
             </div>

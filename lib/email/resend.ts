@@ -9,7 +9,7 @@ function passwordResetEmail(code: string) {
     "",
     "We received a request to reset the password for your Burnout Detection System account.",
     "",
-    "Your verification code is:",
+    "Your 6-digit verification code is:",
     "",
     safeCode,
     "",

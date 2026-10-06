@@ -1,5 +1,6 @@
 "use server";
 
+import { createHash, randomInt, timingSafeEqual } from "crypto";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 
@@ -33,6 +34,85 @@ async function getRequestMeta() {
       null,
     device: headerStore.get("user-agent") || null,
   };
+}
+
+const RESET_CODE_DIGITS = 6;
+const RESET_CODE_TTL_MS = 15 * 60 * 1000;
+const RESET_CODE_MAX_ATTEMPTS = 5;
+
+type PasswordResetMeta = {
+  code_hash: string;
+  token_hash: string;
+  expires_at: string;
+  attempts: number;
+};
+
+function newResetCode() {
+  return randomInt(0, 10 ** RESET_CODE_DIGITS)
+    .toString()
+    .padStart(RESET_CODE_DIGITS, "0");
+}
+
+function hashResetCode(email: string, code: string) {
+  return createHash("sha256")
+    .update(`${email.trim().toLowerCase()}:${code}`)
+    .digest("hex");
+}
+
+function resetCodesMatch(storedHash: string, email: string, code: string) {
+  const actual = Buffer.from(hashResetCode(email, code));
+  const expected = Buffer.from(storedHash);
+  return actual.length === expected.length && timingSafeEqual(actual, expected);
+}
+
+function burnedPasswordReset(): PasswordResetMeta {
+  return {
+    code_hash: "",
+    token_hash: "",
+    expires_at: new Date(0).toISOString(),
+    attempts: RESET_CODE_MAX_ATTEMPTS,
+  };
+}
+
+function readPasswordReset(
+  metadata: Record<string, unknown> | undefined
+): PasswordResetMeta | null {
+  const value = metadata?.password_reset;
+  if (!value || typeof value !== "object") return null;
+  const row = value as Partial<PasswordResetMeta>;
+  if (
+    typeof row.code_hash !== "string" ||
+    typeof row.token_hash !== "string" ||
+    typeof row.expires_at !== "string"
+  ) {
+    return null;
+  }
+  return {
+    code_hash: row.code_hash,
+    token_hash: row.token_hash,
+    expires_at: row.expires_at,
+    attempts: typeof row.attempts === "number" ? row.attempts : 0,
+  };
+}
+
+async function findAuthUserByEmail(
+  admin: ReturnType<typeof createAdminClient>,
+  email: string
+) {
+  const target = email.trim().toLowerCase();
+  const perPage = 1000;
+
+  for (let page = 1; page <= 20; page++) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage });
+    if (error) return null;
+    const match = data.users.find(
+      (user) => user.email?.trim().toLowerCase() === target
+    );
+    if (match) return match;
+    if (data.users.length < perPage) return null;
+  }
+
+  return null;
 }
 
 type ResolveLoginEmailResult =
@@ -468,16 +548,39 @@ export async function forgotPassword(
       error?.status === 404 ||
       (error?.message ?? "").toLowerCase().includes("not found");
 
-    if (missingAccount || !data?.properties?.email_otp?.trim()) {
+    const tokenHash = data?.properties?.hashed_token?.trim();
+    const userId = data?.user?.id;
+
+    if (missingAccount || !tokenHash || !userId) {
       if (error && !missingAccount) {
         return { error: error.message };
       }
       return { error: "No account was found for that email." };
     }
 
+    const code = newResetCode();
+    const { error: updateError } = await admin.auth.admin.updateUserById(
+      userId,
+      {
+        app_metadata: {
+          ...(data.user.app_metadata ?? {}),
+          password_reset: {
+            code_hash: hashResetCode(email, code),
+            token_hash: tokenHash,
+            expires_at: new Date(Date.now() + RESET_CODE_TTL_MS).toISOString(),
+            attempts: 0,
+          } satisfies PasswordResetMeta,
+        },
+      }
+    );
+
+    if (updateError) {
+      return { error: updateError.message };
+    }
+
     await sendPasswordResetEmail({
       to: email,
-      code: data.properties.email_otp.trim(),
+      code,
     });
   } catch (error) {
     return {
@@ -502,15 +605,49 @@ export async function verifyPasswordResetOtp(
     return { error: "Email is required." };
   }
 
-  if (!/^\d{8}$/.test(otp)) {
-    return { error: "Enter the 8-digit verification code." };
+  if (!/^\d{6}$/.test(otp)) {
+    return { error: "Enter the 6-digit verification code." };
+  }
+
+  const admin = createAdminClient();
+  const user = await findAuthUserByEmail(admin, email);
+  const reset = readPasswordReset(
+    user?.app_metadata as Record<string, unknown> | undefined
+  );
+  if (
+    !user ||
+    !reset ||
+    Date.parse(reset.expires_at) <= Date.now() ||
+    reset.attempts >= RESET_CODE_MAX_ATTEMPTS
+  ) {
+    if (user) {
+      await admin.auth.admin.updateUserById(user.id, {
+        app_metadata: { password_reset: burnedPasswordReset() },
+      });
+    }
+    return { error: "That code is incorrect or has expired." };
+  }
+
+  if (!resetCodesMatch(reset.code_hash, email, otp)) {
+    await admin.auth.admin.updateUserById(user.id, {
+      app_metadata: {
+        password_reset: {
+          ...reset,
+          attempts: reset.attempts + 1,
+        },
+      },
+    });
+    return { error: "That code is incorrect or has expired." };
   }
 
   const supabase = await createClient();
   const { error } = await supabase.auth.verifyOtp({
-    email,
-    token: otp,
+    token_hash: reset.token_hash,
     type: "recovery",
+  });
+
+  await admin.auth.admin.updateUserById(user.id, {
+    app_metadata: { password_reset: burnedPasswordReset() },
   });
 
   if (error) {
