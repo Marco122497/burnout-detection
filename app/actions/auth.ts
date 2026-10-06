@@ -549,9 +549,9 @@ export async function forgotPassword(
       (error?.message ?? "").toLowerCase().includes("not found");
 
     const tokenHash = data?.properties?.hashed_token?.trim();
-    const userId = data?.user?.id;
+    const authUser = data?.user;
 
-    if (missingAccount || !tokenHash || !userId) {
+    if (missingAccount || !tokenHash || !authUser) {
       if (error && !missingAccount) {
         return { error: error.message };
       }
@@ -560,10 +560,10 @@ export async function forgotPassword(
 
     const code = newResetCode();
     const { error: updateError } = await admin.auth.admin.updateUserById(
-      userId,
+      authUser.id,
       {
         app_metadata: {
-          ...(data.user.app_metadata ?? {}),
+          ...(authUser.app_metadata ?? {}),
           password_reset: {
             code_hash: hashResetCode(email, code),
             token_hash: tokenHash,
