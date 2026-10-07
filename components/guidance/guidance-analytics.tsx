@@ -25,6 +25,7 @@ import {
   AiModelStatusCard,
 } from "@/components/shared/ai-early-warning-panel";
 import { AiBurnoutTrendChart } from "@/components/shared/ai-burnout-trend-chart";
+import { TablePagination } from "@/components/shared/table-pagination";
 import { BurnoutByGenderCard } from "@/components/reports/burnout-by-gender-card";
 import { Button } from "@/components/ui/button";
 import {
@@ -48,6 +49,7 @@ import type {
   AiModelStatus,
   ModelEvaluationSnapshot,
 } from "@/lib/guidance/model-metrics";
+import { useTablePagination } from "@/hooks/use-table-pagination";
 import { cn, formatYearLevel } from "@/lib/utils";
 
 type Analytics = ReturnType<typeof getGuidanceAnalytics>;
@@ -148,6 +150,14 @@ export function GuidanceAnalyticsView({
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [alertError, setAlertError] = useState<string | null>(null);
   const [isAlertPending, startAlertTransition] = useTransition();
+  const {
+    page: attentionPage,
+    pageSize: attentionPageSize,
+    totalItems: attentionTotal,
+    pageItems: attentionStudents,
+    setPage: setAttentionPage,
+    setPageSize: setAttentionPageSize,
+  } = useTablePagination(data.highRiskStudents, 10);
 
   const pieData = data.riskOverview.map((item) => ({
     ...item,
@@ -690,7 +700,7 @@ export function GuidanceAnalyticsView({
                     </tr>
                   </thead>
                   <tbody>
-                    {data.highRiskStudents.map((student) => {
+                    {attentionStudents.map((student) => {
                       const viewHref = `/guidance/monitoring/${student.id}`;
                       const viewLoading =
                         isPending && pendingHref === viewHref;
@@ -771,6 +781,18 @@ export function GuidanceAnalyticsView({
                 </table>
               </div>
             )}
+            {data.highRiskStudents.length > 0 ? (
+              <TablePagination
+                page={attentionPage}
+                pageSize={attentionPageSize}
+                totalItems={attentionTotal}
+                onPageChange={setAttentionPage}
+                onPageSizeChange={setAttentionPageSize}
+                pageSizeOptions={[10]}
+                id="immediate-attention-rows"
+                className="justify-end"
+              />
+            ) : null}
           </CardContent>
         </Card>
       </section>

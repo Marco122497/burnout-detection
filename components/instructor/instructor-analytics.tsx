@@ -18,6 +18,7 @@ import {
 } from "@/components/shared/ai-early-warning-panel";
 import { WeeklyBurnoutRiskTrendChart } from "@/components/shared/weekly-burnout-risk-trend-chart";
 import { AiBurnoutTrendChart } from "@/components/shared/ai-burnout-trend-chart";
+import { TablePagination } from "@/components/shared/table-pagination";
 import { BurnoutByGenderCard } from "@/components/reports/burnout-by-gender-card";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,6 +43,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useTablePagination } from "@/hooks/use-table-pagination";
 import type { getInstructorAnalytics } from "@/lib/instructor/queries";
 import { cn } from "@/lib/utils";
 
@@ -234,6 +236,19 @@ export function InstructorAnalyticsView({
     }
     return true;
   });
+
+  const {
+    page: attentionPage,
+    pageSize: attentionPageSize,
+    totalItems: attentionTotal,
+    pageItems: attentionStudents,
+    setPage: setAttentionPage,
+    setPageSize: setAttentionPageSize,
+  } = useTablePagination(filteredAttention, 10);
+
+  React.useEffect(() => {
+    setAttentionPage(1);
+  }, [yearFilter, riskFilter, classFilter, trendFilter, setAttentionPage]);
 
   const trendData = data.weeklyTrends.map((item) => ({
     weekLabel: `Week ${item.week}`,
@@ -496,7 +511,7 @@ export function InstructorAnalyticsView({
           ) : (
             <>
               <div className="space-y-3 md:hidden">
-                {filteredAttention.map((student) => {
+                {attentionStudents.map((student) => {
                   const href = `/instructor/monitoring/${student.id}`;
                   const loading = isPending && pendingHref === href;
                   return (
@@ -580,7 +595,7 @@ export function InstructorAnalyticsView({
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredAttention.map((student) => {
+                    {attentionStudents.map((student) => {
                       const href = `/instructor/monitoring/${student.id}`;
                       const loading = isPending && pendingHref === href;
                       return (
@@ -635,6 +650,16 @@ export function InstructorAnalyticsView({
                   </tbody>
                 </table>
               </div>
+              <TablePagination
+                page={attentionPage}
+                pageSize={attentionPageSize}
+                totalItems={attentionTotal}
+                onPageChange={setAttentionPage}
+                onPageSizeChange={setAttentionPageSize}
+                pageSizeOptions={[10]}
+                id="instructor-attention-rows"
+                className="mt-3 justify-end"
+              />
             </>
           )}
         </CardContent>
