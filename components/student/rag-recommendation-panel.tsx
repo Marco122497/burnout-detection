@@ -22,86 +22,139 @@ function riskTone(level: string | null | undefined) {
   return "text-muted-foreground";
 }
 
-function outlookLead(
-  currentScore: number,
-  nextScore: number,
-  nextRisk: string | null
-) {
-  const current = Number(currentScore).toFixed(2);
-  const next = Number(nextScore).toFixed(2);
-  const delta = Number(next) - Number(current);
-  const currentBand = classifyMfbiScore(Number(currentScore)).toLowerCase();
-  const nextBand = (nextRisk ?? classifyMfbiScore(Number(nextScore))).toLowerCase();
-
-  if (Math.abs(delta) < 0.02) {
-    return `Next week stays about the same as this week (${current}) and is still ${nextBand}.`;
-  }
-  if (currentBand === nextBand && delta < 0) {
-    return `Next week is a bit lower than this week, from ${current} to ${next}, but it is still ${nextBand}.`;
-  }
-  if (currentBand === nextBand && delta > 0) {
-    return `Next week is a bit higher than this week, from ${current} to ${next}, but it is still ${nextBand}.`;
-  }
-  if (delta < 0) {
-    return `Next week is lower than this week, from ${currentBand} ${current} to ${nextBand} ${next}.`;
-  }
-  return `Next week is higher than this week, from ${currentBand} ${current} to ${nextBand} ${next}.`;
+function predictionLine(nextScore: number, nextRisk: string | null) {
+  const nextBand = (nextRisk ?? classifyMfbiScore(nextScore)).toLowerCase();
+  return `Next week prediction: ${Number(nextScore).toFixed(2)}, ${nextBand}. This is a forecast only and does not change the advice below.`;
 }
 
-function prioritySentence(factors: StudentFactors) {
-  const items = [
-    { name: "sleep", score: factors.sleep.normalized },
-    { name: "academic workload", score: factors.workload.normalized },
-    { name: "stress", score: factors.stress.normalized },
-    { name: "study time", score: factors.studyTime.normalized },
-  ]
+type AdviceFactorKey = "stress" | "workload" | "sleep" | "study";
+
+type AdviceFactor = {
+  key: AdviceFactorKey;
+  name: string;
+  score: number;
+  level: string;
+};
+
+const FACTOR_MARKERS: Record<AdviceFactorKey, RegExp[]> = {
+  stress: [
+    /unexpected problem/i,
+    /nervous/i,
+    /worry/i,
+    /slow breath/i,
+    /in control/i,
+    /\bstress\b/i,
+  ],
+  workload: [/workload/i, /quizzes/i, /due date/i, /soonest/i, /deadlines/i, /classwork/i],
+  sleep: [/sleep/i, /bedtime/i, /rested/i, /short nights/i, /coffee/i],
+  study: [
+    /studying/i,
+    /study time/i,
+    /40 to 50/i,
+    /rereading/i,
+    /study hours/i,
+    /study block/i,
+    /last study/i,
+  ],
+};
+
+function adviceFactors(factors: StudentFactors): AdviceFactor[] {
+  const items: AdviceFactor[] = [
+    { key: "sleep", name: "sleep", score: Number(factors.sleep.normalized), level: "" },
+    {
+      key: "workload",
+      name: "academic workload",
+      score: Number(factors.workload.normalized),
+      level: "",
+    },
+    { key: "stress", name: "stress", score: Number(factors.stress.normalized), level: "" },
+    {
+      key: "study",
+      name: "study time",
+      score: Number(factors.studyTime.normalized),
+      level: "",
+    },
+  ];
+  return items
     .map((item) => ({
       ...item,
       level: classifyMfbiScore(item.score).toLowerCase(),
     }))
     .sort((a, b) => b.score - a.score);
-
-  const focus = items.filter((item) => item.level !== "low");
-  const okay = items.filter((item) => item.level === "low");
-  const labeled = (item: (typeof items)[number]) =>
-    `${item.name} (${Number(item.score).toFixed(2)}, ${item.level})`;
-
-  let sentence = "";
-  if (focus.length === 1) {
-    sentence = `Prioritize ${labeled(focus[0])}.`;
-  } else if (focus.length > 1) {
-    const [first, ...rest] = focus;
-    sentence = `Prioritize ${labeled(first)} first, then ${rest.map(labeled).join(", then ")}.`;
-  }
-
-  if (okay.length) {
-    const names = okay
-      .map((item) => `${item.name} (${Number(item.score).toFixed(2)})`)
-      .join(" and ");
-    const note = `${names} ${okay.length === 1 ? "is" : "are"} low, so ${okay.length === 1 ? "it does" : "they do"} not need to come first.`;
-    sentence = sentence ? `${sentence} ${note}` : note;
-  }
-
-  return sentence;
 }
 
-const OLD_OUTLOOK_LEAD =
-  /^Next week looks (?:okay|a bit heavy|quite hard to carry|very hard to carry) \(predicted \d+(?:\.\d+)?\)\.\s*/i;
+const GENERAL_WORKLOAD_TIP =
+  "Write your schoolwork on one page with due dates, then circle what is due first.";
 
-function rewriteForNextWeek(text: string, nextWeekScore: number | null) {
-  const nextWeek = text.replace(/\bthis week's\b|\bthis week\b/gi, (match) => {
-    const week = match.toLowerCase().endsWith("'s") ? "week's" : "week";
-    return `${match[0] === "T" ? "Next" : "next"} ${week}`;
+const DEFAULT_TIPS: Record<AdviceFactorKey, string> = {
+  workload: GENERAL_WORKLOAD_TIP,
+  sleep:
+    "Try to sleep about 7 hours and keep a bedtime you can keep, even if one homework is not done.",
+  study:
+    "Sit for 40 to 50 minutes with one written goal, then take a real break. More hours are not the fix.",
+  stress:
+    "Name the one worry sitting heaviest, so it is not going round and round in your head.",
+};
+
+function factorKeysIn(text: string) {
+  return (Object.keys(FACTOR_MARKERS) as AdviceFactorKey[]).filter((key) =>
+    FACTOR_MARKERS[key].some((pattern) => pattern.test(text))
+  );
+}
+
+function bandRank(level: string) {
+  if (level === "high" || level === "severe") return 0;
+  if (level === "moderate") return 1;
+  return 2;
+}
+
+function factorsNeedingAdvice(factors: StudentFactors) {
+  return adviceFactors(factors)
+    .filter((item) => bandRank(item.level) < 2)
+    .sort((a, b) => bandRank(a.level) - bandRank(b.level) || b.score - a.score);
+}
+
+function currentFactorLines(factors: StudentFactors) {
+  return factorsNeedingAdvice(factors).map((item) => {
+    const label = item.name.charAt(0).toUpperCase() + item.name.slice(1);
+    const score = item.score.toFixed(2);
+    if (bandRank(item.level) === 0) {
+      return `${label} is high this week (${score}). Start here.`;
+    }
+    return `${label} is moderate this week (${score}). These steps can bring it toward low.`;
   });
-  if (nextWeekScore == null || !Number.isFinite(Number(nextWeekScore))) {
-    return nextWeek;
+}
+
+/** High factors first, then moderate, so each one still gets a tip toward low. */
+function orderTips(actions: string[], factors: StudentFactors | null) {
+  if (!factors) return actions;
+  const ranked = factorsNeedingAdvice(factors);
+
+  const used = new Set<string>();
+  const tips: string[] = [];
+
+  for (const factor of ranked) {
+    const dedicated = actions.find((action) => {
+      if (used.has(action)) return false;
+      const keys = factorKeysIn(action);
+      return keys.length === 1 && keys[0] === factor.key;
+    });
+    const shared = actions.find((action) => {
+      if (used.has(action)) return false;
+      return factorKeysIn(action).includes(factor.key);
+    });
+    const tip = dedicated ?? shared ?? DEFAULT_TIPS[factor.key];
+    if (used.has(tip)) continue;
+    used.add(tip);
+    tips.push(tip);
   }
-  const predicted = Number(nextWeekScore).toFixed(2);
-  return nextWeek
-    .replace(/\(MFBI\s*\d+\.\d+\)/gi, `(predicted ${predicted})`)
-    .replace(/\bMFBI\s+\d+\.\d+/gi, `predicted ${predicted}`)
-    .replace(/\(predicted\s+\d+(?:\.\d+)?\)/gi, `(predicted ${predicted})`)
-    .replace(/\bpredicted\s+\d+(?:\.\d+)?/gi, `predicted ${predicted}`);
+
+  return tips.map((tip) =>
+    tip.replace(
+      /Write next week's quizzes, projects, and readings on one page with due dates, then circle what is due first\.?/gi,
+      GENERAL_WORKLOAD_TIP
+    )
+  );
 }
 
 export function RagRecommendationPanel({
@@ -117,67 +170,53 @@ export function RagRecommendationPanel({
   nextWeekScore?: number | null;
   factors?: StudentFactors | null;
 }) {
-  const actions = (compact
-    ? recommendation.recommended_actions.slice(0, 4)
-    : recommendation.recommended_actions
-  ).map(stripQuestionnaireItemLabel);
-  const factorLines = (compact
-    ? recommendation.contributing_factors.slice(0, 4)
-    : recommendation.contributing_factors
-  ).map(stripQuestionnaireItemLabel);
-  const shownRisk = nextWeekRisk ?? recommendation.risk_level;
-  const shownScore =
-    nextWeekScore != null ? nextWeekScore : recommendation.mfbi_score;
-  const forNextWeek = nextWeekRisk != null || nextWeekScore != null;
+  const actions = recommendation.recommended_actions.map(stripQuestionnaireItemLabel);
   const currentScore = recommendation.mfbi_score;
-  const priorities = factors ? prioritySentence(factors) : "";
-  const comparison =
-    forNextWeek &&
-    nextWeekScore != null &&
-    currentScore != null &&
-    Number.isFinite(Number(currentScore)) &&
-    Number.isFinite(Number(nextWeekScore))
-      ? outlookLead(Number(currentScore), Number(nextWeekScore), shownRisk)
-      : null;
-  const summary = forNextWeek
-    ? rewriteForNextWeek(recommendation.assessment_summary, nextWeekScore).replace(
-        OLD_OUTLOOK_LEAD,
-        ""
-      )
-    : recommendation.assessment_summary;
-  const shownFactors = forNextWeek
-    ? factorLines.map((factor) => rewriteForNextWeek(factor, nextWeekScore))
-    : factorLines;
-  const shownActions = forNextWeek
-    ? actions.map((action) => rewriteForNextWeek(action, nextWeekScore))
-    : actions;
-  const support = forNextWeek
-    ? rewriteForNextWeek(recommendation.human_support, nextWeekScore)
-    : recommendation.human_support;
+  const currentLevel =
+    currentScore != null && Number.isFinite(Number(currentScore))
+      ? classifyMfbiScore(Number(currentScore))
+      : recommendation.risk_level;
+  const hasPrediction =
+    nextWeekScore != null && Number.isFinite(Number(nextWeekScore));
+  const looks =
+    currentScore != null && Number.isFinite(Number(currentScore))
+      ? `This week is ${classifyMfbiScore(Number(currentScore)).toLowerCase()} (${Number(currentScore).toFixed(2)}). The tips follow these current scores.`
+      : recommendation.assessment_summary;
+  const forecast = hasPrediction
+    ? predictionLine(Number(nextWeekScore), nextWeekRisk)
+    : null;
+  const shownFactors = factors
+    ? currentFactorLines(factors)
+    : (compact
+        ? recommendation.contributing_factors.slice(0, 4)
+        : recommendation.contributing_factors
+      ).map(stripQuestionnaireItemLabel);
+  const shownActions = orderTips(actions, factors);
+  const support = recommendation.human_support;
 
   return (
     <div className="student-chum-prose space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {forNextWeek ? "Next week burnout risk (AI)" : "Burnout risk"}
+            Current burnout risk
           </p>
           <p
             className={cn(
               "text-xl font-semibold tracking-tight",
-              riskTone(shownRisk)
+              riskTone(currentLevel)
             )}
           >
-            {shownRisk
-              ? `${shownRisk} risk`
+            {currentLevel
+              ? `${currentLevel} risk`
               : "Risk available after monitoring"}
           </p>
         </div>
-        {shownScore != null ? (
+        {currentScore != null && Number.isFinite(Number(currentScore)) ? (
           <p className="text-sm text-muted-foreground">
-            {forNextWeek ? "Next week prediction: " : "MFBI score: "}
+            This week:{" "}
             <span className="font-medium text-foreground">
-              {Number(shownScore).toFixed(2)}
+              {Number(currentScore).toFixed(2)}
             </span>
           </p>
         ) : null}
@@ -185,25 +224,18 @@ export function RagRecommendationPanel({
 
       <div className="space-y-1">
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {forNextWeek ? "How next week looks" : "How this week looks"}
+          How this week looks
         </p>
-        <p className="text-sm text-foreground whitespace-pre-line">
-          {comparison ? (
-            <span className="font-medium text-foreground">{comparison} </span>
-          ) : null}
-          {priorities ? (
-            <span className="font-medium text-foreground">{priorities} </span>
-          ) : null}
-          {summary}
-        </p>
+        <p className="text-sm font-medium text-foreground">{looks}</p>
+        {forecast ? (
+          <p className="text-sm text-muted-foreground">{forecast}</p>
+        ) : null}
       </div>
 
       {shownFactors.length ? (
         <div className="space-y-2">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {forNextWeek
-              ? "What may weigh on you next week"
-              : "What's weighing on you"}
+            What is weighing on you this week
           </p>
           <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
             {shownFactors.map((factor) => (
@@ -216,9 +248,7 @@ export function RagRecommendationPanel({
       {shownActions.length ? (
         <div className="space-y-2">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {forNextWeek
-              ? "Things you can try next week"
-              : "Things you can try this week"}
+            Things you can try this week
           </p>
           <ol className="list-decimal space-y-2 pl-5 text-sm text-foreground">
             {shownActions.map((action) => (
@@ -270,14 +300,10 @@ export function RagRecommendationCard({
     <Card>
       <CardHeader>
         <CardTitle>
-          {nextWeekRisk || nextWeekScore != null
-            ? "Advice for next week"
-            : "Advice for this week"}
+          Advice for this week
         </CardTitle>
         <CardDescription>
-          {nextWeekRisk || nextWeekScore != null
-            ? "A plain-language look at next week's predicted burnout risk, based on your latest form and school well-being guidance."
-            : "A plain-language look at this week, based on your scores and school well-being guidance."}
+          Tips follow your current scores. Next week is only a prediction.
         </CardDescription>
       </CardHeader>
       <CardContent>

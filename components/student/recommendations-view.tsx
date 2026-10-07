@@ -128,14 +128,10 @@ export function RecommendationsView({
         <Card>
           <CardHeader>
             <CardTitle>
-              {nextWeekRisk || nextWeekScore != null
-                ? "Advice for next week"
-                : "Advice for this week"}
+              Advice for this week
             </CardTitle>
             <CardDescription>
-              {nextWeekRisk || nextWeekScore != null
-                ? "A plain-language look at next week's predicted burnout risk, based on your latest form and school well-being guidance. This does not change your burnout-risk result."
-                : "A plain-language look at this week, based on your scores and school well-being guidance. This does not change your burnout-risk result."}
+              Tips follow your current scores. Next week is only a prediction and does not change your burnout-risk result.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -151,14 +147,10 @@ export function RecommendationsView({
         <Card>
           <CardHeader>
             <CardTitle>
-              {nextWeekRisk || nextWeekScore != null
-                ? "Advice for next week"
-                : "Advice for this week"}
+              Advice for this week
             </CardTitle>
             <CardDescription>
-              {nextWeekRisk || nextWeekScore != null
-                ? "A plain-language look at next week's predicted burnout risk, based on your latest form and school well-being guidance."
-                : "A plain-language look at this week, based on your scores and school well-being guidance."}
+              Tips follow your current scores. Next week is only a prediction.
             </CardDescription>
           </CardHeader>
           <CardContent>
