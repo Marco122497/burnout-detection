@@ -449,10 +449,7 @@ export function GuidanceAnalyticsView({
                             const row = payload?.[0]?.payload as
                               | { code?: string; label?: string }
                               | undefined;
-                            if (!row) return "";
-                            return row.label && row.label !== row.code
-                              ? `${row.code} · ${row.label}`
-                              : row.code || row.label || "";
+                            return row?.code || row?.label || "";
                           }}
                         />
                       }

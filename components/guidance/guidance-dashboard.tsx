@@ -69,6 +69,7 @@ const riskConfig = {
 } satisfies ChartConfig;
 
 const courseRiskConfig = {
+  low: { label: "Low", color: "oklch(0.72 0.15 160)" },
   moderate: { label: "Moderate", color: "oklch(0.8 0.15 85)" },
   high: { label: "High", color: "oklch(0.68 0.19 40)" },
 } satisfies ChartConfig;
@@ -237,6 +238,7 @@ export function GuidanceDashboard({
     .map((item) => ({
       ...item,
       code: item.code || item.label,
+      low: item.low,
       moderate: item.moderate,
       high: item.high,
       attention: item.moderate + item.high,
@@ -251,7 +253,7 @@ export function GuidanceDashboard({
         highestCourse.label !== highestCourse.code
           ? ` · ${highestCourse.label}`
           : ""
-      } · ${highestCourse.high} High · ${highestCourse.moderate} Moderate`
+      } · ${highestCourse.low} Low · ${highestCourse.moderate} Moderate · ${highestCourse.high} High`
     : null;
 
   const filteredHighRisk =
@@ -294,7 +296,7 @@ export function GuidanceDashboard({
       meta: "This week",
     },
     {
-      text: `${data.byCourse.length} program${data.byCourse.length === 1 ? "" : "s"} shown with High and Moderate risk counts`,
+      text: `${data.byCourse.length} program${data.byCourse.length === 1 ? "" : "s"} shown with Low, Moderate, and High risk counts`,
       meta: "Active term",
     },
   ];
@@ -464,7 +466,7 @@ export function GuidanceDashboard({
               Burnout by Program / Course
             </CardTitle>
             <CardDescription>
-              High and Moderate risk student counts by academic program —
+              Low, Moderate, and High MFBI counts by academic program —
               highlights programs that may need extra support.
               {highestCourseSummary ? (
                 <>
@@ -521,15 +523,19 @@ export function GuidanceDashboard({
                           const row = payload?.[0]?.payload as
                             | { code?: string; label?: string }
                             | undefined;
-                          if (!row) return "";
-                          return row.label && row.label !== row.code
-                            ? `${row.code} · ${row.label}`
-                            : row.code || row.label || "";
+                          return row?.code || row?.label || "";
                         }}
                       />
                     }
                   />
                   <ChartLegend content={<ChartLegendContent />} />
+                  <Bar
+                    dataKey="low"
+                    stackId="risk"
+                    fill="var(--color-low)"
+                    radius={[0, 0, 4, 4]}
+                    maxBarSize={56}
+                  />
                   <Bar
                     dataKey="moderate"
                     stackId="risk"
