@@ -1,6 +1,7 @@
 
 import { AdminsManager } from "@/components/guidance/admins-manager";
 import { PageHeading } from "@/components/layout/page-heading";
+import { isSuperadminEmail } from "@/lib/auth/protected-accounts";
 import { requireRole } from "@/lib/auth/session";
 import { getUserEmails, getUsersByRole } from "@/lib/guidance/queries";
 
@@ -14,10 +15,15 @@ export default async function GuidanceAdminsPage() {
     getUsersByRole(supabase, "Guidance Counselor"),
     getUserEmails(),
   ]);
-  const admins = adminRows.map((admin) => ({
-    ...admin,
-    email: emails[admin.id] ?? null,
-  }));
+  const viewerIsSuperadmin = isSuperadminEmail(user.email);
+  const admins = adminRows
+    .map((admin) => ({
+      ...admin,
+      email: emails[admin.id] ?? null,
+    }))
+    .filter(
+      (admin) => viewerIsSuperadmin || !isSuperadminEmail(admin.email)
+    );
 
   return (
     <div className="space-y-6">
