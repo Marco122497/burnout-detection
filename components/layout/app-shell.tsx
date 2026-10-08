@@ -113,7 +113,7 @@ function AppShellContent({
         <header
           data-slot="app-topbar"
           className={cn(
-            "flex h-14 shrink-0 items-center justify-between gap-2 border-b",
+            "flex h-16 shrink-0 items-center justify-between gap-3 border-b bg-card",
             isMonitoringShell ? "pr-2 pl-3" : "px-3"
           )}
         >

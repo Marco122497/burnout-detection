@@ -191,7 +191,9 @@ export function InstructorMonitoringSplit({
       <CardHeader className="shrink-0 border-b pt-(--card-spacing) @max-3xl/card-header:flex @max-3xl/card-header:flex-col @max-3xl/card-header:gap-3">
         <CardTitle>Student list & weekly monitoring</CardTitle>
         <CardDescription>
-          Showing {filtered.length} of {rows.length} students.
+          Showing {filtered.length} of {rows.length} students.{" "}
+          {filtered.filter((row) => row.submittedThisWeek).length} submitted
+          this week.
         </CardDescription>
         <CardAction className="@max-3xl/card-header:w-full @max-3xl/card-header:justify-self-stretch">
           <form

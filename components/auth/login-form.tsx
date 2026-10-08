@@ -147,7 +147,7 @@ export function LoginForm({
           <CardFooter className="flex flex-col gap-3">
             <Button
               type="submit"
-              className="w-full rounded-full font-bold"
+              className="w-full rounded-lg font-medium"
               disabled={busy}
               size="lg"
             >

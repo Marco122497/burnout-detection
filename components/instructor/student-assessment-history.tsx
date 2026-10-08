@@ -303,6 +303,9 @@ export function StudentAssessmentHistoryView({
                 <tbody>
                   {history.map((row) => {
                     const isOpen = openId === row.monitoring_id;
+                    const nextWeek = parseEarlyWarningRemarks(
+                      row.prediction_remarks
+                    );
                     return (
                       <Fragment key={row.monitoring_id}>
                         <tr className="border-b last:border-0">
@@ -348,7 +351,10 @@ export function StudentAssessmentHistoryView({
                             />
                           </td>
                           <td className="px-2 py-1.5">
-                            <PredictionLabel level={row.prediction} />
+                            <PredictionLabel
+                              level={nextWeek?.next_week_risk}
+                              score={nextWeek?.next_week_score}
+                            />
                           </td>
                           {showAnswers ? (
                             <td className="px-2 py-1.5 text-right">

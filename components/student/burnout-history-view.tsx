@@ -92,13 +92,22 @@ function RiskLevelText({ level }: { level: string | null | undefined }) {
   );
 }
 
-function PredictionLabel({ level }: { level: string | null | undefined }) {
-  if (!level) return <span className="text-muted-foreground">—</span>;
-  const score = riskLevelToChartScore(level);
+function PredictionLabel({
+  level,
+  score,
+}: {
+  level: string | null | undefined;
+  score?: number | null;
+}) {
+  const numeric =
+    score != null && Number.isFinite(Number(score)) ? Number(score) : null;
+  if (!level && numeric == null) {
+    return <span className="text-muted-foreground">—</span>;
+  }
   return (
     <span className="tabular-nums text-foreground">
-      {level}
-      {score != null ? ` (${score.toFixed(2)})` : ""}
+      {level ?? "—"}
+      {numeric != null ? ` (${numeric.toFixed(2)})` : ""}
     </span>
   );
 }
@@ -428,6 +437,9 @@ export function BurnoutHistoryView({
                     {pageItems.map((row) => {
                       const result = unwrapMfbi(row);
                       const isOpen = openId === row.monitoring_id;
+                      const nextWeek = parseEarlyWarningRemarks(
+                        row.prediction?.remarks
+                      );
                       return (
                         <Fragment key={row.monitoring_id}>
                           <tr className="border-b last:border-0">
@@ -474,7 +486,8 @@ export function BurnoutHistoryView({
                             </td>
                             <td className="px-2 py-1.5">
                               <PredictionLabel
-                                level={row.prediction?.final_prediction}
+                                level={nextWeek?.next_week_risk}
+                                score={nextWeek?.next_week_score}
                               />
                             </td>
                             <td className="px-2 py-1.5 text-right">

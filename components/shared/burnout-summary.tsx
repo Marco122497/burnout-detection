@@ -225,7 +225,7 @@ function FactorCard({
         {factor ? (
           <>
             <div className="flex items-baseline justify-between gap-2">
-              <span className="font-[family-name:var(--font-display)] text-xl font-semibold tabular-nums">
+              <span className="font-[family-name:var(--font-plus-jakarta)] text-xl font-semibold tabular-nums">
                 {primaryLabel ?? `${percent}%`}
               </span>
               {rawLabel ? (

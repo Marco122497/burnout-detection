@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 
+import { useNavigationPending } from "@/components/layout/navigation-pending";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Card,
@@ -21,10 +22,10 @@ function HeadingSkeleton({
   return (
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div className="min-w-0 space-y-2">
-        <Skeleton className={`h-9 ${titleWidth} max-w-full`} />
+        <Skeleton className={`h-8 ${titleWidth} max-w-full`} />
         <Skeleton className={`h-4 ${descriptionWidth} max-w-full`} />
       </div>
-      {withAction ? <Skeleton className="h-8 w-52 shrink-0 rounded-xl" /> : null}
+      {withAction ? <Skeleton className="h-8 w-52 shrink-0 rounded-lg" /> : null}
     </div>
   );
 }
@@ -39,12 +40,13 @@ function DashboardHeaderSkeleton({
   return (
     <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
       <div className="min-w-0 space-y-2">
-        <Skeleton className={`h-9 ${titleWidth} max-w-full`} />
+        <Skeleton className="h-7 w-40 rounded-full" />
+        <Skeleton className={`h-8 ${titleWidth} max-w-full`} />
         <Skeleton className={`h-4 ${descriptionWidth} max-w-full`} />
       </div>
       <div className="flex w-full min-w-0 flex-col gap-1.5 sm:w-auto sm:min-w-[220px]">
         <Skeleton className="h-3 w-16" />
-        <Skeleton className="h-8 w-full rounded-xl sm:w-[240px]" />
+        <Skeleton className="h-8 w-full rounded-lg sm:w-[240px]" />
       </div>
     </div>
   );
@@ -147,8 +149,17 @@ function FilterCardSkeleton() {
   );
 }
 
+function PaginationBarSkeleton() {
+  return (
+    <div className="flex items-center justify-end gap-3 border-t pt-3">
+      <Skeleton className="h-8 w-28 rounded-lg" />
+      <Skeleton className="h-8 w-32 rounded-lg" />
+    </div>
+  );
+}
+
 function TableCardSkeleton({
-  rows = 8,
+  rows = 10,
   columns = 6,
 }: {
   rows?: number;
@@ -160,10 +171,37 @@ function TableCardSkeleton({
         <Skeleton className="h-5 w-48" />
         <Skeleton className="h-4 w-64 max-w-full" />
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
         <TableRowsSkeleton rows={rows} columns={columns} />
+        <PaginationBarSkeleton />
       </CardContent>
     </Card>
+  );
+}
+
+function SummaryCardsSkeleton() {
+  return (
+    <div className="grid min-w-0 gap-4 lg:grid-cols-3">
+      {Array.from({ length: 3 }).map((_, index) => (
+        <Card key={index}>
+          <CardHeader>
+            <Skeleton className="h-5 w-40" />
+            <Skeleton className="h-4 w-56 max-w-full" />
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {Array.from({ length: 4 }).map((_, row) => (
+              <div key={row} className="space-y-1">
+                <div className="flex items-center justify-between gap-2">
+                  <Skeleton className="h-4 w-28" />
+                  <Skeleton className="h-4 w-8" />
+                </div>
+                <Skeleton className="h-2 w-full rounded-full" />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      ))}
+    </div>
   );
 }
 
@@ -194,8 +232,9 @@ function InstructorDashboardSkeleton() {
         <ChartCardSkeleton height="h-[280px]" />
         <ChartCardSkeleton height="h-[280px]" />
       </div>
-      <TableCardSkeleton rows={6} columns={7} />
-      <TableCardSkeleton rows={6} columns={6} />
+      <TableCardSkeleton rows={10} columns={6} />
+      <TableCardSkeleton rows={10} columns={7} />
+      <SummaryCardsSkeleton />
     </div>
   );
 }
@@ -227,8 +266,9 @@ function GuidanceDashboardSkeleton() {
         <ChartCardSkeleton height="h-[220px]" />
         <ChartCardSkeleton height="h-[260px]" />
       </div>
-      <TableCardSkeleton rows={6} columns={7} />
-      <TableCardSkeleton rows={5} columns={5} />
+      <TableCardSkeleton rows={10} columns={7} />
+      <TableCardSkeleton rows={10} columns={6} />
+      <SummaryCardsSkeleton />
     </div>
   );
 }
@@ -258,7 +298,7 @@ function StudentDashboardSkeleton() {
               <Skeleton className="h-2.5 w-14" />
               <Skeleton className="h-2.5 w-8" />
             </div>
-            <Skeleton className="h-10 w-full rounded-full" />
+            <Skeleton className="h-10 w-full rounded-lg" />
           </div>
         </CardContent>
       </Card>
@@ -309,7 +349,7 @@ function StudentDashboardSkeleton() {
           <Skeleton className="h-5 w-64" />
           <Skeleton className="h-4 w-full" />
           <Skeleton className="h-4 w-5/6" />
-          <Skeleton className="h-9 w-56 rounded-full" />
+          <Skeleton className="h-9 w-56 rounded-lg" />
         </CardContent>
       </Card>
       <Card>
@@ -379,8 +419,8 @@ function GuidanceAnalyticsSkeleton() {
           </CardContent>
         </Card>
       </div>
-      <TableCardSkeleton rows={6} columns={7} />
-      <TableCardSkeleton rows={5} columns={6} />
+      <TableCardSkeleton rows={10} columns={6} />
+      <TableCardSkeleton rows={10} columns={7} />
     </div>
   );
 }
@@ -407,8 +447,26 @@ function InstructorAnalyticsSkeleton() {
         <ChartCardSkeleton height="h-[280px]" />
       </div>
       <ChartCardSkeleton height="h-[250px]" />
-      <TableCardSkeleton rows={6} columns={7} />
-      <TableCardSkeleton rows={5} columns={5} />
+      <TableCardSkeleton rows={10} columns={6} />
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-5 w-64" />
+          <Skeleton className="h-4 w-80 max-w-full" />
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-2 sm:grid-cols-3">
+            <Skeleton className="h-8 rounded-lg" />
+            <Skeleton className="h-8 rounded-lg" />
+            <Skeleton className="h-8 rounded-lg" />
+          </div>
+          <TableRowsSkeleton rows={10} columns={7} />
+          <PaginationBarSkeleton />
+        </CardContent>
+      </Card>
+      <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+        <ChartCardSkeleton height="h-[220px]" />
+        <ChartCardSkeleton height="h-[220px]" />
+      </div>
     </div>
   );
 }
@@ -455,7 +513,7 @@ function TablePageSkeleton({
               <Skeleton className="h-9" />
               <Skeleton className="h-9" />
             </div>
-            <TableRowsSkeleton rows={8} columns={6} />
+            <TableRowsSkeleton rows={10} columns={6} />
             <div className="flex items-center justify-between border-t pt-3">
               <Skeleton className="h-8 w-28" />
               <Skeleton className="h-8 w-32" />
@@ -615,8 +673,9 @@ function ReportsSkeleton() {
           <Skeleton className="h-6 w-72 max-w-full" />
           <Skeleton className="h-4 w-56" />
         </CardHeader>
-        <CardContent>
-          <TableRowsSkeleton rows={8} columns={7} />
+        <CardContent className="space-y-4">
+          <TableRowsSkeleton rows={10} columns={7} />
+          <PaginationBarSkeleton />
         </CardContent>
       </Card>
     </div>
@@ -640,7 +699,7 @@ function NotificationsSkeleton() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="overflow-hidden rounded-lg border p-3">
-            <TableRowsSkeleton rows={8} columns={7} />
+            <TableRowsSkeleton rows={10} columns={7} />
           </div>
           <div className="flex items-center justify-between">
             <Skeleton className="h-8 w-28" />
@@ -750,10 +809,31 @@ function PasswordSkeleton() {
   );
 }
 
+function MonitoringQuestionSkeleton() {
+  return (
+    <div className="space-y-3 rounded-2xl border border-border bg-muted/35 p-3.5">
+      <Skeleton className="h-4 w-11/12 max-w-xl" />
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-[repeat(auto-fit,minmax(9rem,1fr))]">
+        {Array.from({ length: 5 }).map((_, option) => (
+          <div
+            key={option}
+            className="flex min-h-12 items-center gap-2.5 rounded-2xl border border-border bg-card px-3.5 py-3"
+          >
+            <Skeleton className="size-4 shrink-0 rounded-full" />
+            <Skeleton className="h-4 w-24 max-w-full" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function MonitoringFormSkeleton() {
+  const sectionQuestions = [10, 5, 4, 4];
+
   return (
     <div className="space-y-6">
-      <HeadingSkeleton titleWidth="w-52" descriptionWidth="w-96" />
+      <HeadingSkeleton titleWidth="w-52" descriptionWidth="w-full max-w-xl" />
       <Card>
         <CardHeader>
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -761,39 +841,35 @@ function MonitoringFormSkeleton() {
               <Skeleton className="h-6 w-56" />
               <Skeleton className="h-4 w-80 max-w-full" />
             </div>
-            <Skeleton className="h-7 w-28 rounded-full" />
+            <Skeleton className="h-7 w-32 rounded-full" />
           </div>
         </CardHeader>
         <CardContent>
-          <div className="rounded-2xl border bg-muted/60 px-4 py-3">
-            <Skeleton className="h-4 w-72 max-w-full" />
+          <div className="rounded-2xl border border-border bg-muted/60 px-4 py-3">
+            <Skeleton className="h-4 w-80 max-w-full" />
           </div>
         </CardContent>
       </Card>
-      {Array.from({ length: 4 }).map((_, index) => (
+      {sectionQuestions.map((count, index) => (
         <Card key={index}>
           <CardHeader>
-            <Skeleton className="mb-1 h-6 w-20 rounded-full" />
-            <Skeleton className="h-5 w-56" />
-            <Skeleton className="h-4 w-72 max-w-full" />
+            <Skeleton className="mb-1 h-6 w-24 rounded-full" />
+            <Skeleton className="h-6 w-64 max-w-full" />
+            <Skeleton className="h-4 w-80 max-w-full" />
           </CardHeader>
-          <CardContent className="space-y-4">
-            {Array.from({ length: 3 }).map((_, row) => (
-              <div key={row} className="space-y-2">
-                <Skeleton className="h-4 w-5/6" />
-                <div className="flex flex-wrap gap-2">
-                  {Array.from({ length: 5 }).map((_, option) => (
-                    <Skeleton
-                      key={option}
-                      className="h-12 min-w-16 flex-1 rounded-2xl"
-                    />
-                  ))}
-                </div>
-              </div>
+          <CardContent className="space-y-5">
+            {Array.from({ length: count }).map((_, row) => (
+              <MonitoringQuestionSkeleton key={row} />
             ))}
           </CardContent>
         </Card>
       ))}
+      <div className="border-t border-border pt-4">
+        <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+          <Skeleton className="h-11 w-full rounded-lg sm:w-40" />
+          <Skeleton className="h-11 w-full rounded-lg sm:w-64" />
+        </div>
+      </div>
     </div>
   );
 }
@@ -841,7 +917,7 @@ function HistorySkeleton() {
         <ChartCardSkeleton />
         <ChartCardSkeleton />
       </div>
-      <TableCardSkeleton rows={6} columns={5} />
+      <TableCardSkeleton rows={10} columns={5} />
     </div>
   );
 }
@@ -972,5 +1048,6 @@ export function pageSkeletonForPath(href: string) {
 
 export function AppPageSkeleton({ href }: { href?: string | null }) {
   const pathname = usePathname();
-  return pageSkeletonForPath(href ?? pathname ?? "/");
+  const { pendingHref } = useNavigationPending();
+  return pageSkeletonForPath(pendingHref || href || pathname || "/");
 }

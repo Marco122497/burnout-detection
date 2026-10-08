@@ -10,7 +10,7 @@ export function PageHeading({
   return (
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div className="min-w-0">
-        <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight">
+        <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight text-foreground">
           <span className="student-chum-marker">{title}</span>
         </h1>
         {description ? (

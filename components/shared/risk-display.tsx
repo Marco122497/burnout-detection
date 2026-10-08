@@ -40,13 +40,25 @@ export function RiskLevelText({
   );
 }
 
-export function PredictionLabel({ level }: { level: string | null | undefined }) {
-  if (!level) return <span className="text-muted-foreground">—</span>;
-  const score = riskLevelToChartScore(level);
+export function PredictionLabel({
+  level,
+  score,
+}: {
+  level: string | null | undefined;
+  /** Next-week score. Shown as-is; a missing score is left blank. */
+  score?: number | null;
+}) {
+  const numeric =
+    score != null && Number.isFinite(Number(score)) ? Number(score) : null;
+  const displayLevel =
+    numeric != null ? resolveMfbiBurnoutLevel(numeric, level) : level;
+  if (!displayLevel && numeric == null) {
+    return <span className="text-muted-foreground">—</span>;
+  }
   return (
     <span className="tabular-nums text-foreground">
-      {level}
-      {score != null ? ` (${score.toFixed(2)})` : ""}
+      {displayLevel ?? "—"}
+      {numeric != null ? ` (${numeric.toFixed(2)})` : ""}
     </span>
   );
 }
