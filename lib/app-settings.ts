@@ -9,6 +9,7 @@ export const APP_SETTING_KEYS = {
   schoolAdministratorTitle: "school_administrator_title",
   openaiLlmEnabled: "openai_llm_enabled",
   forgotPasswordEnabled: "forgot_password_enabled",
+  otherAdminQuestionEdit: "other_admin_question_edit",
 } as const;
 
 export type SchoolAdministratorSignatory = {
@@ -77,6 +78,30 @@ export async function getOpenaiLlmEnabled(
     return parseEnabledFlag(String((data as { value?: string }).value));
   } catch {
     return true;
+  }
+}
+
+/**
+ * When false, guidance accounts other than superadmin@school.edu can view
+ * questions but cannot add, edit, delete, reorder, or change question numbers.
+ */
+export async function getOtherAdminCanEditQuestions(
+  supabase: SupabaseClient
+): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from("app_settings")
+      .select("value")
+      .eq("key", APP_SETTING_KEYS.otherAdminQuestionEdit)
+      .maybeSingle();
+
+    if (error || !data) return false;
+    const normalized = String((data as { value?: string }).value ?? "")
+      .trim()
+      .toLowerCase();
+    return ["1", "true", "on", "yes"].includes(normalized);
+  } catch {
+    return false;
   }
 }
 

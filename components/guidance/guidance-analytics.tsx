@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useTransition } from "react";
 import {
   Bar,
   BarChart,
@@ -14,11 +13,8 @@ import {
 import {
   AlertTriangleIcon,
   LightbulbIcon,
-  Loader2,
 } from "lucide-react";
 
-import { sendStudentBurnoutAlert } from "@/app/actions/guidance";
-import { useNavigationPending } from "@/components/layout/navigation-pending";
 import {
   AiEarlyWarningOverviewCards,
   AiEarlyWarningStudentsCard,
@@ -27,7 +23,6 @@ import {
 import { AiBurnoutTrendChart } from "@/components/shared/ai-burnout-trend-chart";
 import { TablePagination } from "@/components/shared/table-pagination";
 import { BurnoutByGenderCard } from "@/components/reports/burnout-by-gender-card";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -43,7 +38,6 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { openPrintReport } from "@/lib/instructor/export";
 import type { getGuidanceAnalytics } from "@/lib/guidance/monitoring";
 import type {
   AiModelStatus,
@@ -133,23 +127,14 @@ export function GuidanceAnalyticsView({
   modelEvaluation,
   aiHealthy,
   metricsSource,
-  schoolAdministratorName = "SR. LEONILA M. SAJELAN, MCM",
-  schoolAdministratorTitle = "School Vice-President",
   showAiModelStatus = false,
 }: {
   data: Analytics;
   modelEvaluation: ModelEvaluationSnapshot;
   aiHealthy: boolean;
   metricsSource?: AiModelStatus["metricsSource"];
-  schoolAdministratorName?: string;
-  schoolAdministratorTitle?: string;
   showAiModelStatus?: boolean;
 }) {
-  const { navigate, isPending, pendingHref } = useNavigationPending();
-  const [alertPendingId, setAlertPendingId] = useState<string | null>(null);
-  const [alertMessage, setAlertMessage] = useState<string | null>(null);
-  const [alertError, setAlertError] = useState<string | null>(null);
-  const [isAlertPending, startAlertTransition] = useTransition();
   const {
     page: attentionPage,
     pageSize: attentionPageSize,
@@ -210,46 +195,6 @@ export function GuidanceAnalyticsView({
           : ""
       } · MFBI ${highestCourse.average.toFixed(2)}`
     : null;
-
-  function sendAlert(studentId: string) {
-    setAlertMessage(null);
-    setAlertError(null);
-    setAlertPendingId(studentId);
-    startAlertTransition(async () => {
-      const result = await sendStudentBurnoutAlert(studentId);
-      setAlertPendingId(null);
-      if (result.error) {
-        setAlertError(result.error);
-        return;
-      }
-      setAlertMessage(result.success ?? "Alert sent.");
-    });
-  }
-
-  function generateStudentReport(student: Analytics["highRiskStudents"][number]) {
-    openPrintReport(
-      `High-risk student report · ${student.full_name}`,
-      `<table>
-        <thead><tr><th>Field</th><th>Value</th></tr></thead>
-        <tbody>
-          <tr><td>Student</td><td>${student.full_name}</td></tr>
-          <tr><td>Student ID</td><td>${student.student_number || "—"}</td></tr>
-          <tr><td>Course</td><td>${student.course || "—"}</td></tr>
-          <tr><td>Year Level</td><td>${student.year_level != null ? formatYearLevel(student.year_level) : "—"}</td></tr>
-          <tr><td>Burnout Score (MFBI)</td><td>${student.mfbi_score != null ? student.mfbi_score.toFixed(2) : "—"}</td></tr>
-          <tr><td>Risk</td><td>${student.risk}</td></tr>
-          <tr><td>Status</td><td>${student.status}</td></tr>
-        </tbody>
-      </table>
-      <p style="margin-top:16px;font-size:12px;color:#555">Generated from Burnout Analytics for immediate intervention follow-up.</p>`,
-      {
-        preparedBy: "Guidance Counselor",
-        preparedRole: "Guidance Counselor",
-        notedBy: schoolAdministratorName,
-        notedByRole: schoolAdministratorTitle,
-      }
-    );
-  }
 
   return (
     <div className="space-y-8">
@@ -673,19 +618,13 @@ export function GuidanceAnalyticsView({
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {alertMessage ? (
-              <p className="text-sm text-emerald-700">{alertMessage}</p>
-            ) : null}
-            {alertError ? (
-              <p className="text-sm text-destructive">{alertError}</p>
-            ) : null}
             {data.highRiskStudents.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 No high-risk students in the latest snapshot.
               </p>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[720px] text-left text-sm">
+                <table className="w-full min-w-[560px] text-left text-sm">
                   <thead className="border-b text-muted-foreground">
                     <tr>
                       <th className="px-2 py-1.5 font-medium">Student ID</th>
@@ -693,17 +632,10 @@ export function GuidanceAnalyticsView({
                       <th className="px-2 py-1.5 font-medium">Burnout Score</th>
                       <th className="px-2 py-1.5 font-medium">Risk</th>
                       <th className="px-2 py-1.5 font-medium">Status</th>
-                      <th className="px-2 py-1.5 font-medium">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {attentionStudents.map((student) => {
-                      const viewHref = `/guidance/monitoring/${student.id}`;
-                      const viewLoading =
-                        isPending && pendingHref === viewHref;
-                      const sending =
-                        isAlertPending && alertPendingId === student.id;
-                      return (
+                    {attentionStudents.map((student) => (
                         <tr key={student.id} className="border-b last:border-0">
                           <td className="px-2 py-1.5 tabular-nums">
                             {student.student_number || "—"}
@@ -727,53 +659,8 @@ export function GuidanceAnalyticsView({
                               {student.status}
                             </span>
                           </td>
-                          <td className="px-2 py-1.5">
-                            <div className="flex flex-wrap gap-1.5">
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                disabled={viewLoading}
-                                onClick={() => navigate(viewHref)}
-                              >
-                                {viewLoading ? (
-                                  <>
-                                    <Loader2 className="animate-spin" />
-                                    Loading…
-                                  </>
-                                ) : (
-                                  "View Student"
-                                )}
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                disabled={sending}
-                                onClick={() => sendAlert(student.id)}
-                              >
-                                {sending ? (
-                                  <>
-                                    <Loader2 className="animate-spin" />
-                                    Sending…
-                                  </>
-                                ) : (
-                                  "Send Alert"
-                                )}
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => generateStudentReport(student)}
-                              >
-                                Generate Report
-                              </Button>
-                            </div>
-                          </td>
                         </tr>
-                      );
-                    })}
+                    ))}
                   </tbody>
                 </table>
               </div>

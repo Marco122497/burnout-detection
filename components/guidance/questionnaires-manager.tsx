@@ -282,10 +282,13 @@ export function QuestionnaireDetailManager({
   questionnaire,
   questions,
   embedded = false,
+  canEdit = false,
 }: {
   questionnaire: QuestionnaireRow;
   questions: QuestionRow[];
   embedded?: boolean;
+  /** Superadmin, or another admin when the superadmin has allowed editing. */
+  canEdit?: boolean;
 }) {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
@@ -402,7 +405,9 @@ export function QuestionnaireDetailManager({
                 {displayQuestionnaireName(questionnaire.questionnaire_name)}
               </h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                Add, edit, reorder, and configure reverse-scored items.
+                {canEdit
+                  ? "Add, edit, reorder, and configure reverse-scored items."
+                  : "View only. Editing, deleting, and changing question numbers is turned off for this admin."}
               </p>
             </>
           )}
@@ -416,26 +421,28 @@ export function QuestionnaireDetailManager({
           >
             {preview ? "Hide preview" : "Preview"}
           </Button>
-          <form action={toggleQuestionnaireAction}>
-            <input
-              type="hidden"
-              name="questionnaire_id"
-              value={questionnaire.questionnaire_id}
-            />
-            <input
-              type="hidden"
-              name="is_active"
-              value={questionnaire.is_active ? "0" : "1"}
-            />
-            <Button
-              type="submit"
-              variant="secondary"
-              size={embedded ? "sm" : "default"}
-              disabled={toggleQuestionnairePending}
-            >
-              {questionnaire.is_active ? "Disable" : "Enable"}
-            </Button>
-          </form>
+          {canEdit ? (
+            <form action={toggleQuestionnaireAction}>
+              <input
+                type="hidden"
+                name="questionnaire_id"
+                value={questionnaire.questionnaire_id}
+              />
+              <input
+                type="hidden"
+                name="is_active"
+                value={questionnaire.is_active ? "0" : "1"}
+              />
+              <Button
+                type="submit"
+                variant="secondary"
+                size={embedded ? "sm" : "default"}
+                disabled={toggleQuestionnairePending}
+              >
+                {questionnaire.is_active ? "Disable" : "Enable"}
+              </Button>
+            </form>
+          ) : null}
         </div>
       </div>
 
@@ -518,14 +525,17 @@ export function QuestionnaireDetailManager({
           <div className="space-y-1.5">
             <CardTitle>Questions</CardTitle>
             <CardDescription>
-              Arrange order with the arrows. Add or edit opens a dialog.
-              Deactivate questions without deleting historical answers.
+              {canEdit
+                ? "Arrange order with the arrows. Add or edit opens a dialog. Deactivate questions without deleting historical answers."
+                : "Question text and numbers are shown for review. Changes are limited to the superadmin."}
             </CardDescription>
           </div>
-          <Button type="button" onClick={openAddQuestion}>
-            <PlusIcon className="size-4" />
-            Add question
-          </Button>
+          {canEdit ? (
+            <Button type="button" onClick={openAddQuestion}>
+              <PlusIcon className="size-4" />
+              Add question
+            </Button>
+          ) : null}
         </CardHeader>
         <CardContent className="space-y-3">
           {questions.length === 0 ? (
@@ -548,6 +558,7 @@ export function QuestionnaireDetailManager({
                     {question.is_active ? "Active" : "Inactive"}
                   </p>
                 </div>
+                {canEdit ? (
                 <div className="flex flex-wrap justify-end gap-1">
                   <form action={moveAction}>
                     <input
@@ -681,6 +692,7 @@ export function QuestionnaireDetailManager({
                     <TooltipContent>Delete</TooltipContent>
                   </Tooltip>
                 </div>
+                ) : null}
               </div>
             ))
           )}

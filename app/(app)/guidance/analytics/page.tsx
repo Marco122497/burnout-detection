@@ -1,7 +1,6 @@
 
 import { GuidanceAnalyticsView } from "@/components/guidance/guidance-analytics";
 import { PageHeading } from "@/components/layout/page-heading";
-import { getSchoolAdministratorSignatory } from "@/lib/app-settings";
 import { canViewAiModelStatus } from "@/lib/auth/protected-accounts";
 import { requireRole } from "@/lib/auth/session";
 import { getAiModelStatus } from "@/lib/guidance/model-metrics";
@@ -17,14 +16,11 @@ export const metadata = {
 
 export default async function GuidanceAnalyticsPage() {
   const { supabase, user } = await requireRole(["Guidance Counselor"]);
-  const [rows, weeklyTrends, aiStatus, schoolAdministrator] = await Promise.all(
-    [
-      getGuidanceStudentRows(supabase),
-      getUniversityWeeklySeries(supabase),
-      getAiModelStatus(),
-      getSchoolAdministratorSignatory(supabase),
-    ]
-  );
+  const [rows, weeklyTrends, aiStatus] = await Promise.all([
+    getGuidanceStudentRows(supabase),
+    getUniversityWeeklySeries(supabase),
+    getAiModelStatus(),
+  ]);
   const data = getGuidanceAnalytics(rows, weeklyTrends);
 
   return (
@@ -38,8 +34,6 @@ export default async function GuidanceAnalyticsPage() {
         modelEvaluation={aiStatus.modelEvaluation}
         aiHealthy={aiStatus.aiHealthy}
         metricsSource={aiStatus.metricsSource}
-        schoolAdministratorName={schoolAdministrator.name}
-        schoolAdministratorTitle={schoolAdministrator.title}
         showAiModelStatus={canViewAiModelStatus(user.email)}
       />
     </div>

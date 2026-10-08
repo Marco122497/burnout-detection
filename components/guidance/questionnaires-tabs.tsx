@@ -22,11 +22,13 @@ import {
 
 export function QuestionnairesTabs({
   items,
+  canEdit = false,
 }: {
   items: {
     questionnaire: QuestionnaireRow;
     questions: QuestionRow[];
   }[];
+  canEdit?: boolean;
 }) {
   const searchParams = useSearchParams();
   const listRef = useRef<HTMLDivElement>(null);
@@ -126,6 +128,7 @@ export function QuestionnairesTabs({
             questionnaire={questionnaire}
             questions={questions}
             embedded
+            canEdit={canEdit}
           />
         </TabsContent>
       ))}

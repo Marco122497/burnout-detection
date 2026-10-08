@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 
 import { toAuditLogRow } from "@/lib/audit";
+import { getOtherAdminCanEditQuestions } from "@/lib/app-settings";
+import { isSuperadminEmail } from "@/lib/auth/protected-accounts";
 import { requireRole } from "@/lib/auth/session";
 import { syncQuestionnaireQuestionCount } from "@/lib/guidance/questionnaires";
 import {
@@ -26,6 +28,18 @@ async function getIp() {
   );
 }
 
+const QUESTION_EDIT_DENIED =
+  "You can view questions only. Editing, deleting, and changing question numbers is turned off for this admin.";
+
+async function assertCanEditQuestions(
+  supabase: Awaited<ReturnType<typeof requireRole>>["supabase"],
+  email: string | undefined
+) {
+  if (isSuperadminEmail(email)) return null;
+  const allowed = await getOtherAdminCanEditQuestions(supabase);
+  return allowed ? null : QUESTION_EDIT_DENIED;
+}
+
 function revalidateQuestionnairePaths(questionnaireId?: number) {
   revalidatePath("/guidance/questionnaires");
   if (questionnaireId) {
@@ -41,6 +55,8 @@ export async function updateQuestionnaireSettings(
   const { supabase, user, profile } = await requireRole([
     "Guidance Counselor",
   ]);
+  const denied = await assertCanEditQuestions(supabase, user.email);
+  if (denied) return { error: denied };
 
   const questionnaire_id = Number(formData.get("questionnaire_id"));
   const description =
@@ -114,6 +130,8 @@ export async function toggleQuestionnaireStatus(
   const { supabase, user, profile } = await requireRole([
     "Guidance Counselor",
   ]);
+  const denied = await assertCanEditQuestions(supabase, user.email);
+  if (denied) return { error: denied };
   const questionnaire_id = Number(formData.get("questionnaire_id"));
   const is_active = String(formData.get("is_active") || "") === "1";
 
@@ -153,6 +171,8 @@ export async function createQuestion(
   const { supabase, user, profile } = await requireRole([
     "Guidance Counselor",
   ]);
+  const denied = await assertCanEditQuestions(supabase, user.email);
+  if (denied) return { error: denied };
 
   const questionnaire_id = Number(formData.get("questionnaire_id"));
   const question_text = String(formData.get("question_text") || "").trim();
@@ -246,6 +266,8 @@ export async function updateQuestion(
   const { supabase, user, profile } = await requireRole([
     "Guidance Counselor",
   ]);
+  const denied = await assertCanEditQuestions(supabase, user.email);
+  if (denied) return { error: denied };
 
   const question_id = Number(formData.get("question_id"));
   const questionnaire_id = Number(formData.get("questionnaire_id"));
@@ -331,6 +353,8 @@ export async function toggleQuestionStatus(
   const { supabase, user, profile } = await requireRole([
     "Guidance Counselor",
   ]);
+  const denied = await assertCanEditQuestions(supabase, user.email);
+  if (denied) return { error: denied };
   const question_id = Number(formData.get("question_id"));
   const questionnaire_id = Number(formData.get("questionnaire_id"));
   const is_active = String(formData.get("is_active") || "") === "1";
@@ -373,6 +397,8 @@ export async function deleteQuestion(
   const { supabase, user, profile } = await requireRole([
     "Guidance Counselor",
   ]);
+  const denied = await assertCanEditQuestions(supabase, user.email);
+  if (denied) return { error: denied };
   const question_id = Number(formData.get("question_id"));
   const questionnaire_id = Number(formData.get("questionnaire_id"));
 
@@ -430,7 +456,9 @@ export async function moveQuestionOrder(
   _prev: QuestionnaireActionState,
   formData: FormData
 ): Promise<QuestionnaireActionState> {
-  const { supabase } = await requireRole(["Guidance Counselor"]);
+  const { supabase, user } = await requireRole(["Guidance Counselor"]);
+  const denied = await assertCanEditQuestions(supabase, user.email);
+  if (denied) return { error: denied };
   const question_id = Number(formData.get("question_id"));
   const questionnaire_id = Number(formData.get("questionnaire_id"));
   const direction = String(formData.get("direction") || "");

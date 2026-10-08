@@ -2303,3 +2303,77 @@ export async function updateForgotPasswordEnabled(
     };
   }
 }
+
+export async function updateOtherAdminQuestionEdit(
+  _prev: GuidanceActionState,
+  formData: FormData
+): Promise<GuidanceActionState> {
+  try {
+    const { supabase, user, profile } = await requireRole([
+      "Guidance Counselor",
+    ]);
+
+    if (!isSuperadminEmail(user.email)) {
+      return {
+        error:
+          "Only superadmin@school.edu can change what other admins can access.",
+      };
+    }
+
+    const raw = String(formData.get("other_admin_question_edit") ?? "")
+      .trim()
+      .toLowerCase();
+    const enabled = raw === "1" || raw === "true" || raw === "on";
+
+    const { error } = await supabase.from("app_settings").upsert(
+      {
+        key: APP_SETTING_KEYS.otherAdminQuestionEdit,
+        value: enabled ? "true" : "false",
+        updated_by: user.id,
+      },
+      { onConflict: "key" }
+    );
+
+    if (error) {
+      return {
+        error:
+          error.message.includes("app_settings") ||
+          error.code === "42P01" ||
+          error.message.toLowerCase().includes("does not exist")
+            ? "App settings table is missing. Run supabase/phase11-app-settings.sql first."
+            : error.message,
+      };
+    }
+
+    await supabase.from("audit_logs").insert(
+      toAuditLogRow({
+        user_id: user.id,
+        user_role: profile.role,
+        action: "UPDATE_OTHER_ADMIN_QUESTION_EDIT",
+        action_type: "UPDATE",
+        table_name: "app_settings",
+        record_id: APP_SETTING_KEYS.otherAdminQuestionEdit,
+        description: enabled
+          ? "Allowed other admins to edit questionnaires"
+          : "Limited other admins to viewing questionnaires",
+        ip_address: await getIp(),
+      })
+    );
+
+    revalidatePath("/guidance/settings");
+    revalidatePath("/guidance/questionnaires");
+
+    return {
+      success: enabled
+        ? "Other admins can edit questionnaires."
+        : "Other admins can view questions only.",
+    };
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to update other admin access.",
+    };
+  }
+}
