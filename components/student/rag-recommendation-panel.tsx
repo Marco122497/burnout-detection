@@ -89,7 +89,7 @@ const GENERAL_WORKLOAD_TIP =
 const DEFAULT_TIPS: Record<AdviceFactorKey, string> = {
   workload: GENERAL_WORKLOAD_TIP,
   sleep:
-    "Try to sleep about 7 hours and keep a bedtime you can keep, even if one homework is not done.",
+    "Keep a bedtime that gives you enough sleep, even if one homework is not done.",
   study:
     "Sit for 40 to 50 minutes with one written goal, then take a real break. More hours are not the fix.",
   stress:
