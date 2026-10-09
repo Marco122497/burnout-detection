@@ -1,6 +1,7 @@
 
 import { StudentsManager } from "@/components/guidance/students-manager";
 import { PageHeading } from "@/components/layout/page-heading";
+import { isSuperadminEmail } from "@/lib/auth/protected-accounts";
 import { requireRole } from "@/lib/auth/session";
 import {
   getDepartments,
@@ -13,7 +14,7 @@ export const metadata = {
 };
 
 export default async function GuidanceStudentsPage() {
-  const { supabase } = await requireRole(["Guidance Counselor"]);
+  const { supabase, user } = await requireRole(["Guidance Counselor"]);
   const [studentRows, departments, emails] = await Promise.all([
     getUsersByRole(supabase, "Student"),
     getDepartments(supabase),
@@ -30,7 +31,11 @@ export default async function GuidanceStudentsPage() {
         title="Students"
         description="Create student accounts, update course details, and reset passwords."
       />
-      <StudentsManager students={students} departments={departments} />
+      <StudentsManager
+        students={students}
+        departments={departments}
+        canDeleteStudentData={isSuperadminEmail(user.email)}
+      />
     </div>
   );
 }

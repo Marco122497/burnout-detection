@@ -88,9 +88,11 @@ const selectClassName =
 export function StudentsManager({
   students,
   departments,
+  canDeleteStudentData = false,
 }: {
   students: UserListItem[];
   departments: Department[];
+  canDeleteStudentData?: boolean;
 }) {
   const router = useRouter();
   const [search, setSearch] = useState("");
@@ -1042,7 +1044,9 @@ export function StudentsManager({
         title="Delete student?"
         description={
           deleting
-            ? `This will permanently remove “${deleting.full_name}”. Students with monitoring or counseling records cannot be deleted — deactivate them instead.`
+            ? canDeleteStudentData
+              ? `This will permanently remove “${deleting.full_name}” and their monitoring, predictions, and counseling records.`
+              : `This will permanently remove “${deleting.full_name}”. Students with monitoring or counseling records cannot be deleted — deactivate them instead.`
             : "This will permanently remove the student."
         }
         formId={deleteFormId}
@@ -1061,7 +1065,11 @@ export function StudentsManager({
         onOpenChange={setBulkDeleteOpen}
         pending={bulkDeletePending}
         title={`Delete ${selectedIds.size} student${selectedIds.size === 1 ? "" : "s"}?`}
-        description="This will permanently remove the selected students. Students with monitoring or counseling records cannot be deleted — deactivate them instead."
+        description={
+          canDeleteStudentData
+            ? "This will permanently remove the selected students and their monitoring, predictions, and counseling records."
+            : "This will permanently remove the selected students. Students with monitoring or counseling records cannot be deleted — deactivate them instead."
+        }
         formId={bulkDeleteFormId}
         formAction={bulkDeleteAction}
         confirmLabel={`Delete ${selectedIds.size}`}

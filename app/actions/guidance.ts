@@ -1577,7 +1577,10 @@ export async function deleteManagedUser(
     return { error: "User role does not match this management page." };
   }
 
-  if (target.role === "Student") {
+  const purgeStudentData =
+    target.role === "Student" && isSuperadminEmail(user.email);
+
+  if (target.role === "Student" && !purgeStudentData) {
     const [{ count: monitoringCount }, { count: counselingCount }] =
       await Promise.all([
         admin
@@ -1595,6 +1598,17 @@ export async function deleteManagedUser(
         error:
           "This student still has monitoring or counseling records. Deactivate the account instead.",
       };
+    }
+  }
+
+  if (purgeStudentData) {
+    const { error: counselingError } = await admin
+      .from("counseling_records")
+      .delete()
+      .eq("student_id", user_id);
+
+    if (counselingError) {
+      return { error: counselingError.message };
     }
   }
 
@@ -1622,7 +1636,9 @@ export async function deleteManagedUser(
       action_type: "DELETE",
       table_name: "profiles",
       record_id: user_id,
-      description: `Deleted ${target.role} ${fullName}`,
+      description: purgeStudentData
+        ? `Deleted student ${fullName} and their monitoring, predictions, and counseling records`
+        : `Deleted ${target.role} ${fullName}`,
       ip_address: await getIp(),
     })
   );
@@ -1645,7 +1661,11 @@ export async function deleteManagedUser(
   revalidatePath("/guidance/admins");
   revalidatePath("/guidance/monitoring");
   revalidatePath("/guidance");
-  return { success: `${target.role} deleted.` };
+  return {
+    success: purgeStudentData
+      ? "Student and their records deleted."
+      : `${target.role} deleted.`,
+  };
 }
 
 export async function bulkDeleteManagedUsers(
