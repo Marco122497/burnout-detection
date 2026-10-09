@@ -1,7 +1,7 @@
 
 import { InstructorReportsPanel } from "@/components/instructor/instructor-reports";
 import { PageHeading } from "@/components/layout/page-heading";
-import { getSchoolAdministratorSignatory } from "@/lib/app-settings";
+import { getReportSignatories } from "@/lib/app-settings";
 import { requireRole } from "@/lib/auth/session";
 import { buildFormalName } from "@/lib/auth/roles";
 import {
@@ -52,13 +52,12 @@ export default async function InstructorReportsPage({
   const openWeek = term ? getCurrentWeekNumber(term) : 1;
   const selectedWeek = resolveReportWeek(params.week, openWeek);
 
-  const [rows, departmentName, weeklyTrends, schoolAdministrator] =
-    await Promise.all([
-      getInstructorStudentRows(supabase, departmentIds, selectedWeek),
-      getDepartmentName(supabase, departmentIds),
-      getDepartmentWeeklySeries(supabase, departmentIds, { from, to }),
-      getSchoolAdministratorSignatory(supabase),
-    ]);
+  const [rows, departmentName, weeklyTrends, signatories] = await Promise.all([
+    getInstructorStudentRows(supabase, departmentIds, selectedWeek),
+    getDepartmentName(supabase, departmentIds),
+    getDepartmentWeeklySeries(supabase, departmentIds, { from, to }),
+    getReportSignatories(supabase),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -78,8 +77,10 @@ export default async function InstructorReportsPage({
         maxWeek={openWeek}
         preparedBy={buildFormalName(profile) || profile.role}
         preparedRole={profile.role}
-        schoolAdministratorName={schoolAdministrator.name}
-        schoolAdministratorTitle={schoolAdministrator.title}
+        schoolAdministratorName={signatories.schoolAdministrator.name}
+        schoolAdministratorTitle={signatories.schoolAdministrator.title}
+        guidanceCounselorName={signatories.guidanceCounselor.name}
+        guidanceCounselorTitle={signatories.guidanceCounselor.title}
       />
     </div>
   );

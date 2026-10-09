@@ -24,8 +24,10 @@ const initialState: GuidanceActionState = {};
 
 export function ReportSignatorySettings({
   schoolAdministrator,
+  guidanceCounselor,
 }: {
   schoolAdministrator: SchoolAdministratorSignatory;
+  guidanceCounselor: SchoolAdministratorSignatory;
 }) {
   const [state, action, pending] = useActionState(
     updateSchoolAdministratorSignatory,
@@ -41,12 +43,48 @@ export function ReportSignatorySettings({
           Report signatories
         </CardTitle>
         <CardDescription>
-          Edit the approving/noting officer name and title shown on printed and
-          exported formal reports (Noted by / Approved by).
+          Edit the names and titles on printed reports. Each line appears above
+          a signature and Date: __________.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form action={action} className="grid max-w-xl gap-4 sm:grid-cols-2">
+          <div className="space-y-1 sm:col-span-2">
+            <p className="text-sm font-medium">Guidance Counselor</p>
+            <p className="text-xs text-muted-foreground">
+              Prepared by on guidance reports. Noted by on instructor reports.
+            </p>
+          </div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label htmlFor="guidance_counselor_name">Name</Label>
+            <Input
+              id="guidance_counselor_name"
+              name="guidance_counselor_name"
+              defaultValue={guidanceCounselor.name}
+              placeholder="Guidance Counselor"
+              maxLength={120}
+              required
+            />
+          </div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label htmlFor="guidance_counselor_title">Title / position</Label>
+            <Input
+              id="guidance_counselor_title"
+              name="guidance_counselor_title"
+              defaultValue={guidanceCounselor.title}
+              placeholder="Guidance Counselor"
+              maxLength={120}
+            />
+            <p className="text-xs text-muted-foreground">
+              Appears under the name. Leave blank to reuse the name.
+            </p>
+          </div>
+          <div className="space-y-1 border-t pt-4 sm:col-span-2">
+            <p className="text-sm font-medium">School administrator</p>
+            <p className="text-xs text-muted-foreground">
+              Noted by on guidance reports. Approved by on instructor reports.
+            </p>
+          </div>
           <div className="space-y-2 sm:col-span-2">
             <Label htmlFor="school_administrator_name">Name</Label>
             <Input
@@ -83,7 +121,7 @@ export function ReportSignatorySettings({
                   Saving…
                 </>
               ) : (
-                "Save signatory"
+                "Save signatories"
               )}
             </Button>
           </div>

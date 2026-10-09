@@ -1,7 +1,7 @@
 
 import { GuidanceReportsPanel } from "@/components/guidance/guidance-reports";
 import { PageHeading } from "@/components/layout/page-heading";
-import { getSchoolAdministratorSignatory } from "@/lib/app-settings";
+import { getReportSignatories } from "@/lib/app-settings";
 import { requireRole } from "@/lib/auth/session";
 import { getGuidanceStudentRows } from "@/lib/guidance/monitoring";
 import { getDepartments } from "@/lib/guidance/queries";
@@ -33,10 +33,10 @@ export default async function GuidanceReportsPage({
   const params = await searchParams;
   const reportType = resolveGuidanceReportType(params.type);
 
-  const [term, departments, schoolAdministrator] = await Promise.all([
+  const [term, departments, signatories] = await Promise.all([
     getActiveTerm(supabase),
     getDepartments(supabase),
-    getSchoolAdministratorSignatory(supabase),
+    getReportSignatories(supabase),
   ]);
   const openWeek = term ? getCurrentWeekNumber(term) : 1;
   const selectedWeek = resolveReportWeek(params.week, openWeek);
@@ -57,8 +57,10 @@ export default async function GuidanceReportsPage({
         reportType={reportType}
         week={selectedWeek}
         maxWeek={openWeek}
-        schoolAdministratorName={schoolAdministrator.name}
-        schoolAdministratorTitle={schoolAdministrator.title}
+        schoolAdministratorName={signatories.schoolAdministrator.name}
+        schoolAdministratorTitle={signatories.schoolAdministrator.title}
+        guidanceCounselorName={signatories.guidanceCounselor.name}
+        guidanceCounselorTitle={signatories.guidanceCounselor.title}
       />
     </div>
   );

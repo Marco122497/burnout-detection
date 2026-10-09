@@ -8,7 +8,7 @@ import {
   getForgotPasswordEnabled,
   getOpenaiLlmEnabled,
   getOtherAdminCanEditQuestions,
-  getSchoolAdministratorSignatory,
+  getReportSignatories,
 } from "@/lib/app-settings";
 import { isSuperadminEmail } from "@/lib/auth/protected-accounts";
 import { requireRole } from "@/lib/auth/session";
@@ -21,12 +21,12 @@ export default async function GuidanceSettingsPage() {
   const { supabase, user } = await requireRole(["Guidance Counselor"]);
   const canManageSettings = isSuperadminEmail(user.email);
   const [
-    schoolAdministrator,
+    signatories,
     openaiLlmEnabled,
     forgotPasswordEnabled,
     otherAdminCanEditQuestions,
   ] = await Promise.all([
-    getSchoolAdministratorSignatory(supabase),
+    getReportSignatories(supabase),
     canManageSettings ? getOpenaiLlmEnabled(supabase) : Promise.resolve(false),
     canManageSettings
       ? getForgotPasswordEnabled(supabase)
@@ -57,7 +57,10 @@ export default async function GuidanceSettingsPage() {
       {canManageSettings ? (
         <OpenaiLlmSettings enabled={openaiLlmEnabled} />
       ) : null}
-      <ReportSignatorySettings schoolAdministrator={schoolAdministrator} />
+      <ReportSignatorySettings
+        schoolAdministrator={signatories.schoolAdministrator}
+        guidanceCounselor={signatories.guidanceCounselor}
+      />
     </div>
   );
 }

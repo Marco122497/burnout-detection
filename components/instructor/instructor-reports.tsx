@@ -146,6 +146,8 @@ export function InstructorReportsPanel({
   preparedRole = "Instructor",
   schoolAdministratorName = "SR. LEONILA M. SAJELAN, MCM",
   schoolAdministratorTitle = "School Vice-President",
+  guidanceCounselorName = "Guidance Counselor",
+  guidanceCounselorTitle = "Guidance Counselor",
 }: {
   rows: StudentMonitorRow[];
   weeklyTrends?: WeeklyTrend[];
@@ -158,6 +160,8 @@ export function InstructorReportsPanel({
   preparedRole?: string;
   schoolAdministratorName?: string;
   schoolAdministratorTitle?: string;
+  guidanceCounselorName?: string;
+  guidanceCounselorTitle?: string;
 }) {
   const generatedAt = useMemo(() => new Date(), []);
   const deptLabel = departmentName || "Department";
@@ -455,8 +459,8 @@ export function InstructorReportsPanel({
         generatedBy={preparedBy || preparedRole}
         generatedRole={preparedRole}
         generatedAt={generatedAt}
-        notedByName="Guidance Counselor"
-        notedByRole="Guidance Counselor"
+        notedByName={guidanceCounselorName}
+        notedByRole={guidanceCounselorTitle}
         approvedByName={schoolAdministratorName}
         approvedByRole={schoolAdministratorTitle}
         periodLabel={periodLabel}

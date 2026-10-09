@@ -6,6 +6,8 @@ import { headers } from "next/headers";
 import { toAuditLogRow } from "@/lib/audit";
 import {
   APP_SETTING_KEYS,
+  DEFAULT_GUIDANCE_COUNSELOR_NAME,
+  DEFAULT_GUIDANCE_COUNSELOR_TITLE,
   DEFAULT_SCHOOL_ADMINISTRATOR_NAME,
   DEFAULT_SCHOOL_ADMINISTRATOR_TITLE,
 } from "@/lib/app-settings";
@@ -2096,8 +2098,20 @@ export async function updateSchoolAdministratorSignatory(
       String(formData.get("school_administrator_title") ?? "").trim() ||
       name ||
       DEFAULT_SCHOOL_ADMINISTRATOR_TITLE;
+    const counselorName =
+      String(formData.get("guidance_counselor_name") ?? "").trim() ||
+      DEFAULT_GUIDANCE_COUNSELOR_NAME;
+    const counselorTitle =
+      String(formData.get("guidance_counselor_title") ?? "").trim() ||
+      counselorName ||
+      DEFAULT_GUIDANCE_COUNSELOR_TITLE;
 
-    if (name.length > 120 || title.length > 120) {
+    if (
+      name.length > 120 ||
+      title.length > 120 ||
+      counselorName.length > 120 ||
+      counselorTitle.length > 120
+    ) {
       return { error: "Name and title must be 120 characters or fewer." };
     }
 
@@ -2110,6 +2124,16 @@ export async function updateSchoolAdministratorSignatory(
       {
         key: APP_SETTING_KEYS.schoolAdministratorTitle,
         value: title,
+        updated_by: user.id,
+      },
+      {
+        key: APP_SETTING_KEYS.guidanceCounselorName,
+        value: counselorName,
+        updated_by: user.id,
+      },
+      {
+        key: APP_SETTING_KEYS.guidanceCounselorTitle,
+        value: counselorTitle,
         updated_by: user.id,
       },
     ];
@@ -2137,7 +2161,7 @@ export async function updateSchoolAdministratorSignatory(
         action_type: "UPDATE",
         table_name: "app_settings",
         record_id: APP_SETTING_KEYS.schoolAdministratorName,
-        description: `Updated School Administrator signatory to "${name}" / "${title}"`,
+        description: `Updated report signatories to counselor "${counselorName}" / "${counselorTitle}" and administrator "${name}" / "${title}"`,
         ip_address: await getIp(),
       })
     );
@@ -2147,7 +2171,7 @@ export async function updateSchoolAdministratorSignatory(
     revalidatePath("/guidance/analytics");
     revalidatePath("/instructor/reports");
 
-    return { success: "School Administrator signatory saved." };
+    return { success: "Report signatories saved." };
   } catch (error) {
     return {
       error:

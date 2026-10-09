@@ -261,6 +261,8 @@ export function GuidanceReportsPanel({
   maxWeek,
   schoolAdministratorName = "SR. LEONILA M. SAJELAN, MCM",
   schoolAdministratorTitle = "School Vice-President",
+  guidanceCounselorName = "Guidance Counselor",
+  guidanceCounselorTitle = "Guidance Counselor",
 }: {
   rows: GuidanceStudentRow[];
   departments: Department[];
@@ -270,6 +272,8 @@ export function GuidanceReportsPanel({
   maxWeek: number;
   schoolAdministratorName?: string;
   schoolAdministratorTitle?: string;
+  guidanceCounselorName?: string;
+  guidanceCounselorTitle?: string;
 }) {
   const generatedAt = useMemo(() => new Date(), []);
   const periodLabel = `Week ${week}`;
@@ -573,8 +577,8 @@ export function GuidanceReportsPanel({
         sectionGroupColumns={
           "sectionGroupColumns" in report ? report.sectionGroupColumns : undefined
         }
-        generatedBy="Guidance Counselor"
-        generatedRole="Guidance Counselor"
+        generatedBy={guidanceCounselorName}
+        generatedRole={guidanceCounselorTitle}
         generatedAt={generatedAt}
         notedByName={schoolAdministratorName}
         notedByRole={schoolAdministratorTitle}
