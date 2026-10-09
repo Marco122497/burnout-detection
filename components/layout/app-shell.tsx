@@ -22,7 +22,9 @@ import {
   NavNotifications,
   type NavNotification,
 } from "@/components/layout/nav-notifications";
+import type { GuidanceMenuSettings } from "@/components/guidance/guidance-settings-panel";
 import { NavUser } from "@/components/layout/nav-user";
+import type { DeveloperProfile } from "@/lib/developer-profile";
 import { StudentBottomNav } from "@/components/student/student-bottom-nav";
 import { TopProgressBar } from "@/components/layout/top-progress-bar";
 import { ModeToggle } from "@/components/mode-toggle";
@@ -38,12 +40,16 @@ import { cn } from "@/lib/utils";
 function AppShellContent({
   profile,
   email,
+  developerProfile,
+  guidanceSettings = null,
   notifications,
   monitoringDue = false,
   children,
 }: {
   profile: Profile;
   email: string | null;
+  developerProfile: DeveloperProfile;
+  guidanceSettings?: GuidanceMenuSettings | null;
   notifications: NavNotification[];
   monitoringDue?: boolean;
   children: React.ReactNode;
@@ -103,7 +109,9 @@ function AppShellContent({
   return (
     <>
       <TopProgressBar show={lockChrome} />
-      {isStudent && isMobile ? null : <AppSidebar profile={profile} />}
+      {isStudent && isMobile ? null : (
+        <AppSidebar profile={profile} developerName={developerProfile.name} />
+      )}
       <SidebarInset
         className={cn(
           "min-h-0 overflow-hidden",
@@ -145,7 +153,12 @@ function AppShellContent({
               notifications={notifications}
               viewAllHref={viewAllHref}
             />
-            <NavUser profile={profile} email={email} />
+            <NavUser
+              profile={profile}
+              email={email}
+              developerProfile={developerProfile}
+              guidanceSettings={guidanceSettings}
+            />
           </div>
         </header>
         <div
@@ -176,12 +189,16 @@ function AppShellContent({
 export function AppShell({
   profile,
   email,
+  developerProfile,
+  guidanceSettings = null,
   notifications = [],
   monitoringDue = false,
   children,
 }: {
   profile: Profile;
   email: string | null;
+  developerProfile: DeveloperProfile;
+  guidanceSettings?: GuidanceMenuSettings | null;
   notifications?: NavNotification[];
   monitoringDue?: boolean;
   children: React.ReactNode;
@@ -193,6 +210,8 @@ export function AppShell({
           <AppShellContent
             profile={profile}
             email={email}
+            developerProfile={developerProfile}
+            guidanceSettings={guidanceSettings}
             notifications={notifications}
             monitoringDue={monitoringDue}
           >

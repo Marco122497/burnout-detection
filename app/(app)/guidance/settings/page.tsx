@@ -1,8 +1,5 @@
 
-import { ForgotPasswordSettings } from "@/components/guidance/forgot-password-settings";
-import { OpenaiLlmSettings } from "@/components/guidance/openai-llm-settings";
-import { OtherAdminAccessSettings } from "@/components/guidance/other-admin-access-settings";
-import { ReportSignatorySettings } from "@/components/guidance/report-signatory-settings";
+import { GuidanceSettingsPanel } from "@/components/guidance/guidance-settings-panel";
 import { PageHeading } from "@/components/layout/page-heading";
 import {
   getForgotPasswordEnabled,
@@ -37,29 +34,23 @@ export default async function GuidanceSettingsPage() {
   ]);
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto w-full max-w-lg space-y-6">
       <PageHeading
         title="Settings"
         description={
           canManageSettings
-            ? "Configure report signatories, other admin access, forgot password, OpenAI LLM wording, and other Guidance preferences."
-            : "Configure report signatories and other Guidance preferences."
+            ? "Report signatories, other admin access, forgot password, and OpenAI wording."
+            : "Report signatories and other Guidance preferences."
         }
       />
-      {canManageSettings ? (
-        <OtherAdminAccessSettings
-          canEditQuestions={otherAdminCanEditQuestions}
-        />
-      ) : null}
-      {canManageSettings ? (
-        <ForgotPasswordSettings enabled={forgotPasswordEnabled} />
-      ) : null}
-      {canManageSettings ? (
-        <OpenaiLlmSettings enabled={openaiLlmEnabled} />
-      ) : null}
-      <ReportSignatorySettings
-        schoolAdministrator={signatories.schoolAdministrator}
-        guidanceCounselor={signatories.guidanceCounselor}
+      <GuidanceSettingsPanel
+        settings={{
+          canManage: canManageSettings,
+          otherAdminCanEditQuestions,
+          forgotPasswordEnabled,
+          openaiLlmEnabled,
+          signatories,
+        }}
       />
     </div>
   );

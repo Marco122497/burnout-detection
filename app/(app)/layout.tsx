@@ -1,8 +1,18 @@
+import type { GuidanceMenuSettings } from "@/components/guidance/guidance-settings-panel";
 import { AppShell } from "@/components/layout/app-shell";
 import type { NavNotification } from "@/components/layout/nav-notifications";
 import { StudentGenderDialog } from "@/components/student/student-gender-dialog";
 import { StudentResearchConsentGate } from "@/components/student/student-research-consent-gate";
+import {
+  getForgotPasswordEnabled,
+  getOpenaiLlmEnabled,
+  getOtherAdminCanEditQuestions,
+  getReportSignatories,
+} from "@/lib/app-settings";
+import { isGuidanceRole } from "@/lib/auth/roles";
+import { isSuperadminEmail } from "@/lib/auth/protected-accounts";
 import { requireUser } from "@/lib/auth/session";
+import { getDeveloperProfile } from "@/lib/developer-profile";
 import { isWeeklyMonitoringDue } from "@/lib/student/queries";
 import { resolveStudentResearchConsent } from "@/lib/student/research-consent";
 
@@ -62,12 +72,39 @@ export default async function AppLayout({
   const monitoringDue = isStudent
     ? await isWeeklyMonitoringDue(supabase, user.id)
     : false;
+  const developerProfile = await getDeveloperProfile(supabase);
+  let guidanceSettings: GuidanceMenuSettings | null = null;
+  if (isGuidanceRole(profile.role)) {
+    const canManage = isSuperadminEmail(user.email);
+    const [
+      signatories,
+      openaiLlmEnabled,
+      forgotPasswordEnabled,
+      otherAdminCanEditQuestions,
+    ] = await Promise.all([
+      getReportSignatories(supabase),
+      canManage ? getOpenaiLlmEnabled(supabase) : Promise.resolve(false),
+      canManage ? getForgotPasswordEnabled(supabase) : Promise.resolve(false),
+      canManage
+        ? getOtherAdminCanEditQuestions(supabase)
+        : Promise.resolve(false),
+    ]);
+    guidanceSettings = {
+      canManage,
+      signatories,
+      openaiLlmEnabled,
+      forgotPasswordEnabled,
+      otherAdminCanEditQuestions,
+    };
+  }
 
   return (
     <>
       <AppShell
         profile={profile}
         email={user.email ?? null}
+        developerProfile={developerProfile}
+        guidanceSettings={guidanceSettings}
         notifications={notifications}
         monitoringDue={monitoringDue}
       >

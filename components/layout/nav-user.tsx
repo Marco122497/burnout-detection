@@ -4,6 +4,7 @@ import { useState } from "react";
 import { usePathname } from "next/navigation";
 import {
   ChevronsUpDownIcon,
+  InfoIcon,
   KeyRoundIcon,
   Loader2,
   LogOutIcon,
@@ -13,7 +14,12 @@ import {
 
 import { logout } from "@/app/actions/auth";
 import type { Profile } from "@/lib/auth/roles";
+import { isSuperadminEmail } from "@/lib/auth/protected-accounts";
+import type { DeveloperProfile } from "@/lib/developer-profile";
 import { getDashboardPath, isGuidanceRole } from "@/lib/auth/roles";
+import type { GuidanceMenuSettings } from "@/components/guidance/guidance-settings-panel";
+import { DevelopersInfoSheet } from "@/components/layout/developers-info-sheet";
+import { GuidanceSettingsSheet } from "@/components/layout/guidance-settings-sheet";
 import { useNavigationPending } from "@/components/layout/navigation-pending";
 import {
   AlertDialog,
@@ -56,13 +62,19 @@ function profileSubtitle(profile: Profile) {
 export function NavUser({
   profile,
   email,
+  developerProfile,
+  guidanceSettings = null,
 }: {
   profile: Profile;
   email: string | null;
+  developerProfile: DeveloperProfile;
+  guidanceSettings?: GuidanceMenuSettings | null;
 }) {
   const pathname = usePathname();
   const { navigate, isPending, isBusy, pendingHref } = useNavigationPending();
   const [logoutOpen, setLogoutOpen] = useState(false);
+  const [developersOpen, setDevelopersOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const name = displayName(profile);
   const settingsHref = `${getDashboardPath(profile.role)}/settings`;
@@ -169,7 +181,13 @@ export function NavUser({
             {showSettings ? (
               <DropdownMenuItem
                 className="cursor-pointer"
-                onClick={() => onNavigate(settingsHref)}
+                onClick={() => {
+                  if (guidanceSettings) {
+                    setSettingsOpen(true);
+                    return;
+                  }
+                  onNavigate(settingsHref);
+                }}
               >
                 {settingsLoading ? (
                   <Loader2 className="animate-spin" />
@@ -179,6 +197,13 @@ export function NavUser({
                 Settings
               </DropdownMenuItem>
             ) : null}
+            <DropdownMenuItem
+              className="cursor-pointer"
+              onClick={() => setDevelopersOpen(true)}
+            >
+              <InfoIcon />
+              Developers info
+            </DropdownMenuItem>
           </DropdownMenuGroup>
 
           <DropdownMenuSeparator />
@@ -193,6 +218,21 @@ export function NavUser({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      {guidanceSettings ? (
+        <GuidanceSettingsSheet
+          open={settingsOpen}
+          onOpenChange={setSettingsOpen}
+          settings={guidanceSettings}
+        />
+      ) : null}
+
+      <DevelopersInfoSheet
+        open={developersOpen}
+        onOpenChange={setDevelopersOpen}
+        profile={developerProfile}
+        canEdit={isSuperadminEmail(email)}
+      />
 
       <AlertDialog open={logoutOpen} onOpenChange={setLogoutOpen}>
         <AlertDialogContent>

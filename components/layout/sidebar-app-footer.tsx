@@ -35,16 +35,28 @@ function formatBuiltAgo(iso: string) {
   return `${years} year${years === 1 ? "" : "s"} ago`;
 }
 
-export function DeveloperCredit({ className }: { className?: string }) {
+export function DeveloperCredit({
+  className,
+  name = APP_DEVELOPER,
+}: {
+  className?: string;
+  name?: string;
+}) {
   return (
     <p className={cn("text-xs text-muted-foreground", className)}>
       Developed by{" "}
-      <span className="font-semibold text-primary">{APP_DEVELOPER}</span>
+      <span className="font-semibold text-primary">{name}</span>
     </p>
   );
 }
 
-export function AppMetaFooter({ className }: { className?: string }) {
+export function AppMetaFooter({
+  className,
+  developerName,
+}: {
+  className?: string;
+  developerName?: string;
+}) {
   // Avoid Date.now() during SSR/first paint — it causes hydration mismatches
   // (especially after browser back/forward when the cached HTML is older).
   const [builtAgo, setBuiltAgo] = useState<string | null>(null);
@@ -61,13 +73,16 @@ export function AppMetaFooter({ className }: { className?: string }) {
       <p className="m-0">
         {formatAppVersion()} · built {builtAgo ?? "recently"}
       </p>
-      <DeveloperCredit className="m-0 leading-tight" />
+      <DeveloperCredit name={developerName} className="m-0 leading-tight" />
     </div>
   );
 }
 
-export function SidebarAppFooter() {
+export function SidebarAppFooter({ developerName }: { developerName?: string }) {
   return (
-    <AppMetaFooter className="px-2 py-0 text-sidebar-foreground/60" />
+    <AppMetaFooter
+      developerName={developerName}
+      className="px-2 py-0 text-sidebar-foreground/60"
+    />
   );
 }

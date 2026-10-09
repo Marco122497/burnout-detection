@@ -41,8 +41,12 @@ function isItemActive(pathname: string, itemUrl: string, home: string) {
 
 export function AppSidebar({
   profile,
+  developerName,
   ...props
-}: React.ComponentProps<typeof Sidebar> & { profile: Profile }) {
+}: React.ComponentProps<typeof Sidebar> & {
+  profile: Profile;
+  developerName?: string;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const { isMobile, setOpenMobile } = useSidebar();
@@ -145,7 +149,7 @@ export function AppSidebar({
       </SidebarContent>
       <SidebarFooter className="gap-1 p-1.5 group-data-[collapsible=icon]:hidden">
         <SidebarSeparator className="mx-0" />
-        <SidebarAppFooter />
+        <SidebarAppFooter developerName={developerName} />
       </SidebarFooter>
       <SidebarRail className={isBusy ? "pointer-events-none" : undefined} />
     </Sidebar>

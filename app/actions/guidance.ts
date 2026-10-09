@@ -2167,6 +2167,7 @@ export async function updateSchoolAdministratorSignatory(
     );
 
     revalidatePath("/guidance/settings");
+    revalidatePath("/", "layout");
     revalidatePath("/guidance/reports");
     revalidatePath("/guidance/analytics");
     revalidatePath("/instructor/reports");
@@ -2236,6 +2237,7 @@ export async function updateOpenaiLlmEnabled(
     );
 
     revalidatePath("/guidance/settings");
+    revalidatePath("/", "layout");
     revalidatePath("/student");
     revalidatePath("/student/recommendations");
 
@@ -2310,6 +2312,7 @@ export async function updateForgotPasswordEnabled(
     );
 
     revalidatePath("/guidance/settings");
+    revalidatePath("/", "layout");
     revalidatePath("/login");
     revalidatePath("/forgot-password");
 
@@ -2385,6 +2388,7 @@ export async function updateOtherAdminQuestionEdit(
     );
 
     revalidatePath("/guidance/settings");
+    revalidatePath("/", "layout");
     revalidatePath("/guidance/questionnaires");
 
     return {
