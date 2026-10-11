@@ -6,6 +6,7 @@ import {
   GraduationCapIcon,
   ChartColumnIcon,
   ClipboardListIcon,
+  DownloadIcon,
   FileTextIcon,
   FlameIcon,
   HistoryIcon,
@@ -23,7 +24,11 @@ export type NavItem = {
   icon: ComponentType<{ className?: string }>;
 };
 
-export function getNavItems(role: UserRole, home: string): NavItem[] {
+export function getNavItems(
+  role: UserRole,
+  home: string,
+  options?: { researchData?: boolean }
+): NavItem[] {
   if (role === "Student") {
     return [
       { title: "Dashboard", url: home, icon: LayoutDashboardIcon },
@@ -133,5 +138,14 @@ export function getNavItems(role: UserRole, home: string): NavItem[] {
       url: `${home}/announcements`,
       icon: MegaphoneIcon,
     },
+    ...(options?.researchData
+      ? [
+          {
+            title: "Research data",
+            url: `${home}/research-data`,
+            icon: DownloadIcon,
+          },
+        ]
+      : []),
   ];
 }

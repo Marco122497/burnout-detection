@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
+import { isSuperadminEmail } from "@/lib/auth/protected-accounts";
 import type { Profile } from "@/lib/auth/roles";
 import { getDashboardPath } from "@/lib/auth/roles";
 import { getNavItems } from "@/lib/auth/navigation";
@@ -42,28 +43,34 @@ function isItemActive(pathname: string, itemUrl: string, home: string) {
 export function AppSidebar({
   profile,
   developerName,
+  email,
   ...props
 }: React.ComponentProps<typeof Sidebar> & {
   profile: Profile;
   developerName?: string;
+  email?: string | null;
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const { isMobile, setOpenMobile } = useSidebar();
   const { isPending, isBusy, pendingHref, navigate } = useNavigationPending();
   const home = getDashboardPath(profile.role);
-  const navItems = getNavItems(profile.role, home);
+  const navItems = getNavItems(profile.role, home, {
+    researchData: isSuperadminEmail(email),
+  });
   const isStudent = profile.role === "Student";
 
   useEffect(() => {
     const urls = getPrefetchUrls(
       home,
-      getNavItems(profile.role, home).map((item) => item.url)
+      getNavItems(profile.role, home, {
+        researchData: isSuperadminEmail(email),
+      }).map((item) => item.url)
     );
     for (const url of urls) {
       router.prefetch(url);
     }
-  }, [home, profile.role, router]);
+  }, [email, home, profile.role, router]);
 
   function onNavigate(url: string) {
     if (isBusy) return;

@@ -110,7 +110,11 @@ function AppShellContent({
     <>
       <TopProgressBar show={lockChrome} />
       {isStudent && isMobile ? null : (
-        <AppSidebar profile={profile} developerName={developerProfile.name} />
+        <AppSidebar
+          profile={profile}
+          developerName={developerProfile.name}
+          email={email}
+        />
       )}
       <SidebarInset
         className={cn(
