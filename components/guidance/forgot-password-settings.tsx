@@ -8,13 +8,7 @@ import {
   type GuidanceActionState,
 } from "@/app/actions/guidance";
 import { useActionToast } from "@/hooks/use-action-toast";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
@@ -30,14 +24,10 @@ export function ForgotPasswordSettings({ enabled }: { enabled: boolean }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-lg">
+        <CardTitle className="flex items-center gap-2 text-base">
           <KeyRoundIcon className="size-4" />
           Forgot password
         </CardTitle>
-        <CardDescription>
-          Turn the login-page password reset on or off. Only
-          superadmin@school.edu can change this.
-        </CardDescription>
       </CardHeader>
       <CardContent>
         <form action={action} className="flex items-center justify-between gap-4">
@@ -46,21 +36,15 @@ export function ForgotPasswordSettings({ enabled }: { enabled: boolean }) {
             name="forgot_password_enabled"
             value={enabled ? "false" : "true"}
           />
-          <div className="space-y-1">
-            <Label htmlFor="forgot-password-toggle">
-              Allow password reset by email
-            </Label>
-            <p className="text-sm text-muted-foreground">
-              {enabled
-                ? "On. The login page shows Forgot password and emails a verification code."
-                : "Off. The login page hides Forgot password."}
-            </p>
-          </div>
+          <Label htmlFor="forgot-password-toggle" className="font-normal">
+            {enabled ? "Shown on the login page" : "Hidden on the login page"}
+          </Label>
           <button
             id="forgot-password-toggle"
             type="submit"
             role="switch"
             aria-checked={enabled}
+            aria-label={enabled ? "Turn off" : "Turn on"}
             disabled={pending}
             className={cn(
               "relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border border-transparent transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50",
@@ -77,9 +61,6 @@ export function ForgotPasswordSettings({ enabled }: { enabled: boolean }) {
                 )}
               />
             )}
-            <span className="sr-only">
-              {enabled ? "Turn off forgot password" : "Turn on forgot password"}
-            </span>
           </button>
         </form>
       </CardContent>

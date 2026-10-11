@@ -23,10 +23,8 @@ export function GuidanceSettingsSheet({
       <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
         <SheetHeader>
           <SheetTitle>Settings</SheetTitle>
-          <SheetDescription>
-            {settings.canManage
-              ? "Report signatories, other admin access, forgot password, and OpenAI wording."
-              : "Report signatories and other Guidance preferences."}
+          <SheetDescription className="sr-only">
+            Guidance preferences
           </SheetDescription>
         </SheetHeader>
         <div className="px-4 pb-6">

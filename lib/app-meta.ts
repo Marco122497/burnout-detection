@@ -1,4 +1,4 @@
-export const APP_VERSION = "1.1.1.29-beta";
+export const APP_VERSION = "1.1.1.31-beta";
 
 export const APP_COMPANY = "MarcoD Solutions, Inc.";
 
@@ -17,4 +17,3 @@ export function formatAppVersion() {
 export function formatAppFooterLabel() {
   return `Generated from Burnout Detection System (${formatAppVersion()})`;
 }
-  

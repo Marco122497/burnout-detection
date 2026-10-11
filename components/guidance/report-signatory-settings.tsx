@@ -10,13 +10,7 @@ import {
 import { useActionToast } from "@/hooks/use-action-toast";
 import type { SchoolAdministratorSignatory } from "@/lib/app-settings";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -38,24 +32,15 @@ export function ReportSignatorySettings({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-lg">
+        <CardTitle className="flex items-center gap-2 text-base">
           <StampIcon className="size-4" />
-          Report signatories
+          Report names
         </CardTitle>
-        <CardDescription>
-          Edit the names and titles on printed reports. Each line appears above
-          a signature and Date: __________.
-        </CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={action} className="grid max-w-xl gap-4 sm:grid-cols-2">
-          <div className="space-y-1 sm:col-span-2">
-            <p className="text-sm font-medium">Guidance Counselor</p>
-            <p className="text-xs text-muted-foreground">
-              Prepared by on guidance reports. Noted by on instructor reports.
-            </p>
-          </div>
-          <div className="space-y-2 sm:col-span-2">
+        <form action={action} className="grid gap-3">
+          <p className="text-sm font-medium">Guidance counselor</p>
+          <div className="space-y-2">
             <Label htmlFor="guidance_counselor_name">Name</Label>
             <Input
               id="guidance_counselor_name"
@@ -66,8 +51,8 @@ export function ReportSignatorySettings({
               required
             />
           </div>
-          <div className="space-y-2 sm:col-span-2">
-            <Label htmlFor="guidance_counselor_title">Title / position</Label>
+          <div className="space-y-2">
+            <Label htmlFor="guidance_counselor_title">Title</Label>
             <Input
               id="guidance_counselor_title"
               name="guidance_counselor_title"
@@ -75,17 +60,9 @@ export function ReportSignatorySettings({
               placeholder="Guidance Counselor"
               maxLength={120}
             />
-            <p className="text-xs text-muted-foreground">
-              Appears under the name. Leave blank to reuse the name.
-            </p>
           </div>
-          <div className="space-y-1 border-t pt-4 sm:col-span-2">
-            <p className="text-sm font-medium">School administrator</p>
-            <p className="text-xs text-muted-foreground">
-              Noted by on guidance reports. Approved by on instructor reports.
-            </p>
-          </div>
-          <div className="space-y-2 sm:col-span-2">
+          <p className="pt-2 text-sm font-medium">School administrator</p>
+          <div className="space-y-2">
             <Label htmlFor="school_administrator_name">Name</Label>
             <Input
               id="school_administrator_name"
@@ -95,13 +72,9 @@ export function ReportSignatorySettings({
               maxLength={120}
               required
             />
-            <p className="text-xs text-muted-foreground">
-              Appears on the signature name line (for example, a person&apos;s
-              full name).
-            </p>
           </div>
-          <div className="space-y-2 sm:col-span-2">
-            <Label htmlFor="school_administrator_title">Title / position</Label>
+          <div className="space-y-2">
+            <Label htmlFor="school_administrator_title">Title</Label>
             <Input
               id="school_administrator_title"
               name="school_administrator_title"
@@ -109,11 +82,8 @@ export function ReportSignatorySettings({
               placeholder="School Vice-President"
               maxLength={120}
             />
-            <p className="text-xs text-muted-foreground">
-              Appears under the name. Leave blank to reuse the name.
-            </p>
           </div>
-          <div className="sm:col-span-2">
+          <div>
             <Button type="submit" disabled={pending}>
               {pending ? (
                 <>

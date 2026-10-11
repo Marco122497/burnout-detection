@@ -31,12 +31,6 @@ const pageLabels: Record<string, string> = {
   settings: "Settings",
 };
 
-const dashboardLabels: Record<string, string> = {
-  student: "Student Dashboard",
-  instructor: "Instructor Dashboard",
-  guidance: "Guidance Counselor Dashboard",
-};
-
 export function AppBreadcrumb({ dashboardHref }: { dashboardHref: string }) {
   const pathname = usePathname();
   const { navigate, isBusy } = useNavigationPending();
@@ -50,23 +44,14 @@ export function AppBreadcrumb({ dashboardHref }: { dashboardHref: string }) {
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
-            <BreadcrumbPage>
-              {dashboardLabels[root] ?? "Dashboard"}
-            </BreadcrumbPage>
+            <BreadcrumbPage>Dashboard</BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
     );
   }
 
-  const dashboardLabel =
-    dashboardLabels[dashboardHref.replace("/", "")] ?? "Dashboard";
-
-  let pageLabel =
-    pageLabels[leaf] ??
-    pageLabels[root] ??
-    dashboardLabels[root] ??
-    "Page";
+  let pageLabel = pageLabels[leaf] ?? pageLabels[root] ?? "Page";
 
   if (leaf === "monitoring" && root === "student") {
     pageLabel = "Weekly Monitoring";
@@ -101,7 +86,7 @@ export function AppBreadcrumb({ dashboardHref }: { dashboardHref: string }) {
               navigate(dashboardHref);
             }}
           >
-            {dashboardLabel}
+            Dashboard
           </BreadcrumbLink>
         </BreadcrumbItem>
         <BreadcrumbSeparator className="hidden md:block" />

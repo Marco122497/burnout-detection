@@ -25,7 +25,13 @@ export function useAuthBusy() {
   return useContext(AuthBusyContext);
 }
 
-export function AuthChrome({ children }: { children: React.ReactNode }) {
+export function AuthChrome({
+  children,
+  developerName,
+}: {
+  children: React.ReactNode;
+  developerName?: string;
+}) {
   const authBusy = useAuthBusy();
 
   return (
@@ -54,7 +60,10 @@ export function AuthChrome({ children }: { children: React.ReactNode }) {
           {children}
         </div>
         <div className="px-4 pb-3 text-center">
-          <AppMetaFooter className="text-[11px] leading-tight text-muted-foreground/70" />
+          <AppMetaFooter
+            developerName={developerName}
+            className="text-[11px] leading-tight text-muted-foreground/70"
+          />
         </div>
       </div>
     </div>

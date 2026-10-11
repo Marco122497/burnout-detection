@@ -1,10 +1,10 @@
 "use client";
 
 import { useActionState } from "react";
-import { ShieldIcon, Loader2 } from "lucide-react";
+import { CalendarClockIcon, Loader2 } from "lucide-react";
 
 import {
-  updateOtherAdminQuestionEdit,
+  updateOtherAdminMonitoringControl,
   type GuidanceActionState,
 } from "@/app/actions/guidance";
 import { useActionToast } from "@/hooks/use-action-toast";
@@ -14,13 +14,13 @@ import { cn } from "@/lib/utils";
 
 const initialState: GuidanceActionState = {};
 
-export function OtherAdminAccessSettings({
-  canEditQuestions,
+export function OtherAdminMonitoringSettings({
+  enabled,
 }: {
-  canEditQuestions: boolean;
+  enabled: boolean;
 }) {
   const [state, action, pending] = useActionState(
-    updateOtherAdminQuestionEdit,
+    updateOtherAdminMonitoringControl,
     initialState
   );
   useActionToast(state);
@@ -29,34 +29,32 @@ export function OtherAdminAccessSettings({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
-          <ShieldIcon className="size-4" />
-          Question editing
+          <CalendarClockIcon className="size-4" />
+          Weekly monitoring
         </CardTitle>
       </CardHeader>
       <CardContent>
         <form action={action} className="flex items-center justify-between gap-4">
           <input
             type="hidden"
-            name="other_admin_question_edit"
-            value={canEditQuestions ? "false" : "true"}
+            name="other_admin_monitoring_control"
+            value={enabled ? "false" : "true"}
           />
-          <Label htmlFor="other-admin-question-edit" className="font-normal">
-            {canEditQuestions
-              ? "Other admins can edit questions"
-              : "Other admins can view only"}
+          <Label htmlFor="other-admin-monitoring-control" className="font-normal">
+            {enabled
+              ? "Other admins can open and close weeks"
+              : "Hidden from other admins"}
           </Label>
           <button
-            id="other-admin-question-edit"
+            id="other-admin-monitoring-control"
             type="submit"
             role="switch"
-            aria-checked={canEditQuestions}
-            aria-label={
-              canEditQuestions ? "Turn off editing" : "Turn on editing"
-            }
+            aria-checked={enabled}
+            aria-label={enabled ? "Hide from other admins" : "Show to other admins"}
             disabled={pending}
             className={cn(
               "relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border border-transparent transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50",
-              canEditQuestions ? "bg-primary" : "bg-input"
+              enabled ? "bg-primary" : "bg-input"
             )}
           >
             {pending ? (
@@ -65,7 +63,7 @@ export function OtherAdminAccessSettings({
               <span
                 className={cn(
                   "pointer-events-none block size-5 rounded-full bg-background shadow-sm transition-transform",
-                  canEditQuestions ? "translate-x-5" : "translate-x-0.5"
+                  enabled ? "translate-x-5" : "translate-x-0.5"
                 )}
               />
             )}

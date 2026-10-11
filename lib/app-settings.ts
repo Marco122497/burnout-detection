@@ -14,6 +14,7 @@ export const APP_SETTING_KEYS = {
   openaiLlmEnabled: "openai_llm_enabled",
   forgotPasswordEnabled: "forgot_password_enabled",
   otherAdminQuestionEdit: "other_admin_question_edit",
+  otherAdminMonitoringControl: "other_admin_monitoring_control",
 } as const;
 
 export type SchoolAdministratorSignatory = {
@@ -171,6 +172,28 @@ export async function getOtherAdminCanEditQuestions(
     return ["1", "true", "on", "yes"].includes(normalized);
   } catch {
     return false;
+  }
+}
+
+/**
+ * When false, guidance accounts other than superadmin@school.edu do not see
+ * the weekly monitoring control. Superadmin always sees it.
+ * Missing key stays on, so existing schools keep the control visible.
+ */
+export async function getOtherAdminCanControlMonitoring(
+  supabase: SupabaseClient
+): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from("app_settings")
+      .select("value")
+      .eq("key", APP_SETTING_KEYS.otherAdminMonitoringControl)
+      .maybeSingle();
+
+    if (error || !data) return true;
+    return parseEnabledFlag(String((data as { value?: string }).value));
+  } catch {
+    return true;
   }
 }
 

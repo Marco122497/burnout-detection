@@ -182,6 +182,11 @@ export async function updateDeveloperProfile(
     }
 
     revalidatePath("/", "layout");
+    revalidatePath("/");
+    revalidatePath("/login");
+    revalidatePath("/forgot-password");
+    revalidatePath("/register");
+    revalidatePath("/reset-password");
 
     return { success: "Developer info saved.", profile: next };
   } catch (error) {

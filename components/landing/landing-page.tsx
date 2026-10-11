@@ -43,7 +43,7 @@ const purposes = [
   },
 ];
 
-export function LandingPage() {
+export function LandingPage({ developerName }: { developerName?: string }) {
   return (
     <div className="relative min-h-svh lg:h-svh lg:overflow-hidden">
       <LandingAiWake />
@@ -137,7 +137,10 @@ export function LandingPage() {
         </main>
 
         <footer className="pb-2 text-center">
-          <AppMetaFooter className="text-[11px] leading-tight text-muted-foreground/80" />
+          <AppMetaFooter
+            developerName={developerName}
+            className="text-[11px] leading-tight text-muted-foreground/80"
+          />
         </footer>
       </LandingForeground>
     </div>

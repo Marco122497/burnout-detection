@@ -8,13 +8,7 @@ import {
   type GuidanceActionState,
 } from "@/app/actions/guidance";
 import { useActionToast } from "@/hooks/use-action-toast";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
@@ -30,14 +24,10 @@ export function OpenaiLlmSettings({ enabled }: { enabled: boolean }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-lg">
+        <CardTitle className="flex items-center gap-2 text-base">
           <SparklesIcon className="size-4" />
-          OpenAI LLM
+          OpenAI wording
         </CardTitle>
-        <CardDescription>
-          Turn off GPT wording for student recommendations. RAG retrieval still
-          runs. MFBI and machine-learning risk are never changed by this switch.
-        </CardDescription>
       </CardHeader>
       <CardContent>
         <form action={action} className="flex items-center justify-between gap-4">
@@ -46,19 +36,15 @@ export function OpenaiLlmSettings({ enabled }: { enabled: boolean }) {
             name="openai_llm_enabled"
             value={enabled ? "false" : "true"}
           />
-          <div className="space-y-1">
-            <Label htmlFor="openai-llm-toggle">Use OpenAI after RAG</Label>
-            <p className="text-sm text-muted-foreground">
-              {enabled
-                ? "On. gpt-4o-mini writes the advice from retrieved knowledge."
-                : "Off. Students get retrieved knowledge in template wording."}
-            </p>
-          </div>
+          <Label htmlFor="openai-llm-toggle" className="font-normal">
+            {enabled ? "Writes student advice" : "Uses saved advice wording"}
+          </Label>
           <button
             id="openai-llm-toggle"
             type="submit"
             role="switch"
             aria-checked={enabled}
+            aria-label={enabled ? "Turn off" : "Turn on"}
             disabled={pending}
             className={cn(
               "relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border border-transparent transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50",
@@ -75,9 +61,6 @@ export function OpenaiLlmSettings({ enabled }: { enabled: boolean }) {
                 )}
               />
             )}
-            <span className="sr-only">
-              {enabled ? "Turn off OpenAI LLM" : "Turn on OpenAI LLM"}
-            </span>
           </button>
         </form>
       </CardContent>

@@ -6,6 +6,7 @@ import { StudentResearchConsentGate } from "@/components/student/student-researc
 import {
   getForgotPasswordEnabled,
   getOpenaiLlmEnabled,
+  getOtherAdminCanControlMonitoring,
   getOtherAdminCanEditQuestions,
   getReportSignatories,
 } from "@/lib/app-settings";
@@ -81,6 +82,7 @@ export default async function AppLayout({
       openaiLlmEnabled,
       forgotPasswordEnabled,
       otherAdminCanEditQuestions,
+      otherAdminCanControlMonitoring,
     ] = await Promise.all([
       getReportSignatories(supabase),
       canManage ? getOpenaiLlmEnabled(supabase) : Promise.resolve(false),
@@ -88,6 +90,9 @@ export default async function AppLayout({
       canManage
         ? getOtherAdminCanEditQuestions(supabase)
         : Promise.resolve(false),
+      canManage
+        ? getOtherAdminCanControlMonitoring(supabase)
+        : Promise.resolve(true),
     ]);
     guidanceSettings = {
       canManage,
@@ -95,6 +100,7 @@ export default async function AppLayout({
       openaiLlmEnabled,
       forgotPasswordEnabled,
       otherAdminCanEditQuestions,
+      otherAdminCanControlMonitoring,
     };
   }
 

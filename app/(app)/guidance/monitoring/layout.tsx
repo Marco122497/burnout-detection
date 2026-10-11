@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { GuidanceMonitoringSplit } from "@/components/guidance/guidance-monitoring-split";
 import { MonitoringWeekControls } from "@/components/guidance/monitoring-week-controls";
 import { PageHeading } from "@/components/layout/page-heading";
+import { getOtherAdminCanControlMonitoring } from "@/lib/app-settings";
 import { isSuperadminEmail } from "@/lib/auth/protected-accounts";
 import { requireRole } from "@/lib/auth/session";
 import { getDepartments, getUserEmails } from "@/lib/guidance/queries";
@@ -22,12 +23,18 @@ export default async function GuidanceMonitoringLayout({
   children: React.ReactNode;
 }) {
   const { supabase, user } = await requireRole(["Guidance Counselor"]);
-  const [rows, departments, term, emails] = await Promise.all([
-    getGuidanceStudentRows(supabase),
-    getDepartments(supabase),
-    getActiveTerm(supabase),
-    getUserEmails(),
-  ]);
+  const viewerIsSuperadmin = isSuperadminEmail(user.email);
+  const [rows, departments, term, emails, otherAdminsCanControl] =
+    await Promise.all([
+      getGuidanceStudentRows(supabase),
+      getDepartments(supabase),
+      getActiveTerm(supabase),
+      getUserEmails(),
+      viewerIsSuperadmin
+        ? Promise.resolve(true)
+        : getOtherAdminCanControlMonitoring(supabase),
+    ]);
+  const showMonitoringControl = viewerIsSuperadmin || otherAdminsCanControl;
   const rowsWithEmail = rows.map((row) => ({
     ...row,
     email: emails[row.id] ?? null,
@@ -39,7 +46,11 @@ export default async function GuidanceMonitoringLayout({
         <PageHeading
           title="Student Monitoring"
           description="Open weekly monitoring for students and review results across all departments."
-          actions={<MonitoringWeekControls term={term} />}
+          actions={
+            showMonitoringControl ? (
+              <MonitoringWeekControls term={term} />
+            ) : null
+          }
         />
       </div>
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -53,7 +64,7 @@ export default async function GuidanceMonitoringLayout({
             departments={departments}
             currentWeek={term ? getCurrentWeekNumber(term) : 1}
             monitoringOpen={isMonitoringOpen(term)}
-            canFillWeek={isSuperadminEmail(user.email)}
+            canFillWeek={viewerIsSuperadmin}
           >
             {children}
           </GuidanceMonitoringSplit>

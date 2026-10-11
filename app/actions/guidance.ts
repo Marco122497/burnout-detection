@@ -10,6 +10,7 @@ import {
   DEFAULT_GUIDANCE_COUNSELOR_TITLE,
   DEFAULT_SCHOOL_ADMINISTRATOR_NAME,
   DEFAULT_SCHOOL_ADMINISTRATOR_TITLE,
+  getOtherAdminCanControlMonitoring,
 } from "@/lib/app-settings";
 import { DEFAULT_INITIAL_PASSWORD } from "@/lib/auth/defaults";
 import {
@@ -68,6 +69,18 @@ async function assertCanManageTargetUser(
     return { error: SUPERADMIN_MANAGE_ERROR };
   }
   return null;
+}
+
+async function assertCanUseMonitoringControl(
+  supabase: Parameters<typeof getOtherAdminCanControlMonitoring>[0],
+  email: string | null | undefined
+): Promise<GuidanceActionState | null> {
+  if (isSuperadminEmail(email)) return null;
+  const allowed = await getOtherAdminCanControlMonitoring(supabase);
+  if (allowed) return null;
+  return {
+    error: "Weekly monitoring control is turned off for this admin.",
+  };
 }
 
 const CODE_STOP_WORDS = new Set(["of", "in", "and", "the", "for", "a", "an"]);
@@ -1743,6 +1756,11 @@ export async function openNextMonitoringWeek(
     }
 
     const { supabase, user, profile } = session;
+    const controlBlock = await assertCanUseMonitoringControl(
+      supabase,
+      user.email
+    );
+    if (controlBlock) return controlBlock;
 
     const { data: term, error: termError } = await supabase
       .from("academic_terms")
@@ -1875,6 +1893,11 @@ export async function closeMonitoringWindow(
     }
 
     const { supabase, user, profile } = session;
+    const controlBlock = await assertCanUseMonitoringControl(
+      supabase,
+      user.email
+    );
+    if (controlBlock) return controlBlock;
 
     const { data: term, error: termError } = await supabase
       .from("academic_terms")
@@ -1957,6 +1980,11 @@ export async function resetMonitoringToWeek1(
     }
 
     const { supabase, user, profile } = session;
+    const controlBlock = await assertCanUseMonitoringControl(
+      supabase,
+      user.email
+    );
+    if (controlBlock) return controlBlock;
 
     const { data: term, error: termError } = await supabase
       .from("academic_terms")
@@ -2422,6 +2450,81 @@ export async function updateOtherAdminQuestionEdit(
         error instanceof Error
           ? error.message
           : "Failed to update other admin access.",
+    };
+  }
+}
+
+export async function updateOtherAdminMonitoringControl(
+  _prev: GuidanceActionState,
+  formData: FormData
+): Promise<GuidanceActionState> {
+  try {
+    const { supabase, user, profile } = await requireRole([
+      "Guidance Counselor",
+    ]);
+
+    if (!isSuperadminEmail(user.email)) {
+      return {
+        error:
+          "Only superadmin@school.edu can change the weekly monitoring control.",
+      };
+    }
+
+    const raw = String(formData.get("other_admin_monitoring_control") ?? "")
+      .trim()
+      .toLowerCase();
+    const enabled = raw === "1" || raw === "true" || raw === "on";
+
+    const { error } = await supabase.from("app_settings").upsert(
+      {
+        key: APP_SETTING_KEYS.otherAdminMonitoringControl,
+        value: enabled ? "true" : "false",
+        updated_by: user.id,
+      },
+      { onConflict: "key" }
+    );
+
+    if (error) {
+      return {
+        error:
+          error.message.includes("app_settings") ||
+          error.code === "42P01" ||
+          error.message.toLowerCase().includes("does not exist")
+            ? "App settings table is missing. Run supabase/phase11-app-settings.sql first."
+            : error.message,
+      };
+    }
+
+    await supabase.from("audit_logs").insert(
+      toAuditLogRow({
+        user_id: user.id,
+        user_role: profile.role,
+        action: "UPDATE_OTHER_ADMIN_MONITORING_CONTROL",
+        action_type: "UPDATE",
+        table_name: "app_settings",
+        record_id: APP_SETTING_KEYS.otherAdminMonitoringControl,
+        description: enabled
+          ? "Showed weekly monitoring control to other admins"
+          : "Hid weekly monitoring control from other admins",
+        ip_address: await getIp(),
+      })
+    );
+
+    revalidatePath("/guidance/settings");
+    revalidatePath("/", "layout");
+    revalidatePath("/guidance/monitoring");
+
+    return {
+      success: enabled
+        ? "Other admins can see the weekly monitoring control."
+        : "Other admins can no longer see the weekly monitoring control.",
+    };
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to update the weekly monitoring control.",
     };
   }
 }

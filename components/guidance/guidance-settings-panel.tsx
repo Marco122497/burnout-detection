@@ -3,12 +3,14 @@
 import { ForgotPasswordSettings } from "@/components/guidance/forgot-password-settings";
 import { OpenaiLlmSettings } from "@/components/guidance/openai-llm-settings";
 import { OtherAdminAccessSettings } from "@/components/guidance/other-admin-access-settings";
+import { OtherAdminMonitoringSettings } from "@/components/guidance/other-admin-monitoring-settings";
 import { ReportSignatorySettings } from "@/components/guidance/report-signatory-settings";
 import type { ReportSignatories } from "@/lib/app-settings";
 
 export type GuidanceMenuSettings = {
   canManage: boolean;
   otherAdminCanEditQuestions: boolean;
+  otherAdminCanControlMonitoring: boolean;
   forgotPasswordEnabled: boolean;
   openaiLlmEnabled: boolean;
   signatories: ReportSignatories;
@@ -20,10 +22,15 @@ export function GuidanceSettingsPanel({
   settings: GuidanceMenuSettings;
 }) {
   return (
-    <div className="space-y-2 [&_[data-slot=card]]:rounded-none [&_[data-slot=card]]:border-0 [&_[data-slot=card]]:bg-transparent [&_[data-slot=card]]:py-0 [&_[data-slot=card]]:shadow-none [&_[data-slot=card-header]]:px-0 [&_[data-slot=card-content]]:px-0">
+    <div className="divide-y [&_[data-slot=card]]:rounded-none [&_[data-slot=card]]:border-0 [&_[data-slot=card]]:bg-transparent [&_[data-slot=card]]:py-4 [&_[data-slot=card]]:shadow-none [&_[data-slot=card-header]]:px-0 [&_[data-slot=card-header]]:pb-2 [&_[data-slot=card-content]]:px-0">
       {settings.canManage ? (
         <OtherAdminAccessSettings
           canEditQuestions={settings.otherAdminCanEditQuestions}
+        />
+      ) : null}
+      {settings.canManage ? (
+        <OtherAdminMonitoringSettings
+          enabled={settings.otherAdminCanControlMonitoring}
         />
       ) : null}
       {settings.canManage ? (

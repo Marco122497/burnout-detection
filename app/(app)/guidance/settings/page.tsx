@@ -4,6 +4,7 @@ import { PageHeading } from "@/components/layout/page-heading";
 import {
   getForgotPasswordEnabled,
   getOpenaiLlmEnabled,
+  getOtherAdminCanControlMonitoring,
   getOtherAdminCanEditQuestions,
   getReportSignatories,
 } from "@/lib/app-settings";
@@ -22,6 +23,7 @@ export default async function GuidanceSettingsPage() {
     openaiLlmEnabled,
     forgotPasswordEnabled,
     otherAdminCanEditQuestions,
+    otherAdminCanControlMonitoring,
   ] = await Promise.all([
     getReportSignatories(supabase),
     canManageSettings ? getOpenaiLlmEnabled(supabase) : Promise.resolve(false),
@@ -31,6 +33,9 @@ export default async function GuidanceSettingsPage() {
     canManageSettings
       ? getOtherAdminCanEditQuestions(supabase)
       : Promise.resolve(false),
+    canManageSettings
+      ? getOtherAdminCanControlMonitoring(supabase)
+      : Promise.resolve(true),
   ]);
 
   return (
@@ -39,14 +44,15 @@ export default async function GuidanceSettingsPage() {
         title="Settings"
         description={
           canManageSettings
-            ? "Report signatories, other admin access, forgot password, and OpenAI wording."
-            : "Report signatories and other Guidance preferences."
+            ? "Switches and report names."
+            : "Report names."
         }
       />
       <GuidanceSettingsPanel
         settings={{
           canManage: canManageSettings,
           otherAdminCanEditQuestions,
+          otherAdminCanControlMonitoring,
           forgotPasswordEnabled,
           openaiLlmEnabled,
           signatories,
