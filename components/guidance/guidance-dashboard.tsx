@@ -68,11 +68,92 @@ const riskConfig = {
   high: { label: "High Risk", color: "oklch(0.68 0.19 40)" },
 } satisfies ChartConfig;
 
+const COURSE_FUSE_COLORS = {
+  low: "oklch(0.72 0.15 160)",
+  moderate: "oklch(0.8 0.15 85)",
+  high: "oklch(0.68 0.19 40)",
+} as const;
+
 const courseRiskConfig = {
-  low: { label: "Low", color: "oklch(0.72 0.15 160)" },
-  moderate: { label: "Moderate", color: "oklch(0.8 0.15 85)" },
-  high: { label: "High", color: "oklch(0.68 0.19 40)" },
+  low: { label: "Low", color: COURSE_FUSE_COLORS.low },
+  moderate: { label: "Moderate", color: COURSE_FUSE_COLORS.moderate },
+  high: { label: "High", color: COURSE_FUSE_COLORS.high },
+  share: { label: "Department share", color: COURSE_FUSE_COLORS.moderate },
 } satisfies ChartConfig;
+
+function CourseFusedBar({
+  x = 0,
+  y = 0,
+  width = 0,
+  height = 0,
+  payload,
+}: {
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  payload?: {
+    code?: string;
+    low?: number;
+    moderate?: number;
+    high?: number;
+  };
+}) {
+  if (width <= 0 || height <= 0) return null;
+  const parts = [
+    { value: Number(payload?.low ?? 0), color: COURSE_FUSE_COLORS.low },
+    {
+      value: Number(payload?.moderate ?? 0),
+      color: COURSE_FUSE_COLORS.moderate,
+    },
+    { value: Number(payload?.high ?? 0), color: COURSE_FUSE_COLORS.high },
+  ].filter((part) => part.value > 0);
+  const sum = parts.reduce((total, part) => total + part.value, 0) || 1;
+  const id = `course-fuse-${String(payload?.code ?? "program").replace(/[^a-zA-Z0-9]/g, "")}`;
+  let cursor = 0;
+  const stops = parts.flatMap((part, index) => {
+    const start = (cursor / sum) * 100;
+    cursor += part.value;
+    const end = (cursor / sum) * 100;
+    const next = parts[index + 1];
+    if (!next) {
+      return [
+        { offset: `${start}%`, color: part.color },
+        { offset: "100%", color: part.color },
+      ];
+    }
+    const blend = Math.min(6, (end - start) / 2, ((next.value / sum) * 100) / 2);
+    return [
+      { offset: `${start}%`, color: part.color },
+      { offset: `${Math.max(end - blend, start)}%`, color: part.color },
+      { offset: `${Math.min(end + blend, 100)}%`, color: next.color },
+    ];
+  });
+
+  return (
+    <g>
+      <defs>
+        <linearGradient id={id} x1="0" y1="1" x2="0" y2="0">
+          {stops.map((stop) => (
+            <stop
+              key={`${id}-${stop.offset}-${stop.color}`}
+              offset={stop.offset}
+              stopColor={stop.color}
+            />
+          ))}
+        </linearGradient>
+      </defs>
+      <rect
+        x={x}
+        y={y}
+        width={width}
+        height={height}
+        rx={4}
+        fill={`url(#${id})`}
+      />
+    </g>
+  );
+}
 
 function OverviewCard({
   label,
@@ -235,25 +316,46 @@ export function GuidanceDashboard({
   const dominantRisk = [...pieData].sort((a, b) => b.count - a.count)[0];
 
   const courseChartData = data.byCourse
-    .map((item) => ({
-      ...item,
-      code: item.code || item.label,
-      low: item.low,
-      moderate: item.moderate,
-      high: item.high,
-      attention: item.moderate + item.high,
-    }))
+    .flatMap((item) => {
+      const total = item.count;
+      if (total <= 0) return [];
+      const bands = [
+        { key: "low" as const, name: "Low", count: item.low },
+        { key: "moderate" as const, name: "Moderate", count: item.moderate },
+        { key: "high" as const, name: "High", count: item.high },
+      ];
+      const lead = [...bands].sort((a, b) => b.count - a.count)[0];
+      const percent = (count: number) =>
+        Math.round((count / total) * 1000) / 10;
+      return [
+        {
+          code: item.code || item.label,
+          label: item.label,
+          total,
+          low: percent(item.low),
+          moderate: percent(item.moderate),
+          high: percent(item.high),
+          lowRatio: `${item.low}/${total}`,
+          moderateRatio: `${item.moderate}/${total}`,
+          highRatio: `${item.high}/${total}`,
+          share:
+            percent(item.low) + percent(item.moderate) + percent(item.high),
+          leadName: lead.name,
+          leadRatio: `${lead.count}/${total}`,
+          attention: lead.count / total,
+        },
+      ];
+    })
     .sort((a, b) => b.attention - a.attention || a.code.localeCompare(b.code));
 
-  const highestCourse =
-    courseChartData.find((item) => item.attention > 0) ?? null;
+  const highestCourse = courseChartData[0] ?? null;
 
   const highestCourseSummary = highestCourse
     ? `Most attention: ${highestCourse.code}${
         highestCourse.label !== highestCourse.code
           ? ` · ${highestCourse.label}`
           : ""
-      } · ${highestCourse.low} Low · ${highestCourse.moderate} Moderate · ${highestCourse.high} High`
+      } · ${highestCourse.leadName} ${highestCourse.leadRatio}`
     : null;
 
   const filteredHighRisk =
@@ -296,7 +398,7 @@ export function GuidanceDashboard({
       meta: "This week",
     },
     {
-      text: `${data.byCourse.length} program${data.byCourse.length === 1 ? "" : "s"} shown with Low, Moderate, and High risk counts`,
+      text: `${courseChartData.length} program${courseChartData.length === 1 ? "" : "s"} shown as each risk level over the department total`,
       meta: "Active term",
     },
   ];
@@ -466,8 +568,8 @@ export function GuidanceDashboard({
               Burnout by Program / Course
             </CardTitle>
             <CardDescription>
-              Low, Moderate, and High MFBI counts by academic program —
-              highlights programs that may need extra support.
+              Each bar is that risk count over the department total. Every
+              program stays on the chart, including those not yet above half.
               {highestCourseSummary ? (
                 <>
                   {" "}
@@ -510,45 +612,64 @@ export function GuidanceDashboard({
                   />
                   <YAxis
                     type="number"
+                    domain={[0, 100]}
                     allowDecimals={false}
+                    tickFormatter={(value) => `${value}%`}
                     tickLine={false}
                     axisLine={false}
                     tickMargin={8}
-                    width={40}
+                    width={48}
                   />
                   <ChartTooltip
-                    content={
-                      <ChartTooltipContent
-                        labelFormatter={(_, payload) => {
-                          const row = payload?.[0]?.payload as
-                            | { code?: string; label?: string }
-                            | undefined;
-                          return row?.code || row?.label || "";
-                        }}
-                      />
-                    }
+                    content={({ active, payload }) => {
+                      const row = payload?.[0]?.payload as
+                        | {
+                            code?: string;
+                            label?: string;
+                            lowRatio?: string;
+                            moderateRatio?: string;
+                            highRatio?: string;
+                          }
+                        | undefined;
+                      if (!active || !row) return null;
+                      return (
+                        <div className="grid min-w-32 gap-1 rounded-lg border border-border/50 bg-background px-2.5 py-1.5 text-xs shadow-xl">
+                          <p className="font-medium">
+                            {row.code || row.label}
+                          </p>
+                          <p>Low {row.lowRatio}</p>
+                          <p>Moderate {row.moderateRatio}</p>
+                          <p>High {row.highRatio}</p>
+                        </div>
+                      );
+                    }}
                   />
-                  <ChartLegend content={<ChartLegendContent />} />
-                  <Bar
-                    dataKey="low"
-                    stackId="risk"
-                    fill="var(--color-low)"
-                    radius={[0, 0, 4, 4]}
-                    maxBarSize={56}
+                  <ChartLegend
+                    content={() => (
+                      <div className="flex flex-wrap items-center justify-center gap-4 pt-2 text-xs">
+                        {(
+                          [
+                            ["low", "Low"],
+                            ["moderate", "Moderate"],
+                            ["high", "High"],
+                          ] as const
+                        ).map(([key, label]) => (
+                          <div key={key} className="flex items-center gap-1.5">
+                            <span
+                              className="size-2.5 rounded-[2px]"
+                              style={{ background: COURSE_FUSE_COLORS[key] }}
+                            />
+                            {label}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   />
                   <Bar
-                    dataKey="moderate"
-                    stackId="risk"
-                    fill="var(--color-moderate)"
-                    radius={[0, 0, 0, 0]}
+                    dataKey="share"
+                    fill="var(--color-share)"
                     maxBarSize={56}
-                  />
-                  <Bar
-                    dataKey="high"
-                    stackId="risk"
-                    fill="var(--color-high)"
-                    radius={[4, 4, 0, 0]}
-                    maxBarSize={56}
+                    shape={CourseFusedBar}
                   />
                 </BarChart>
               </ChartContainer>
