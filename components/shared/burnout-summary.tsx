@@ -209,15 +209,26 @@ function FactorCard({
   footnote?: string;
 }) {
   const percent = factor ? Math.round(factor.normalized * 100) : null;
+  const full = percent === 100;
 
   return (
-    <Card size="sm">
+    <Card
+      size="sm"
+      className={
+        full ? "border-red-500/40 bg-red-50/50 dark:bg-red-950/20" : undefined
+      }
+    >
       <CardHeader className="gap-1">
         <div className="flex items-center gap-2">
           <span className="flex size-7 items-center justify-center rounded-md bg-muted text-muted-foreground [&_svg]:size-4">
             {icon}
           </span>
           <CardTitle className="text-sm">{label}</CardTitle>
+          {full ? (
+            <span className="ml-auto rounded-md bg-red-600 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-white uppercase">
+              100%
+            </span>
+          ) : null}
         </div>
         <CardDescription className="student-chum-prose text-xs">{description}</CardDescription>
       </CardHeader>
@@ -225,11 +236,21 @@ function FactorCard({
         {factor ? (
           <>
             <div className="flex items-baseline justify-between gap-2">
-              <span className="font-[family-name:var(--font-plus-jakarta)] text-xl font-semibold tabular-nums">
+              <span
+                className={cn(
+                  "font-[family-name:var(--font-plus-jakarta)] text-xl font-semibold tabular-nums",
+                  full && "text-red-700 dark:text-red-400"
+                )}
+              >
                 {primaryLabel ?? `${percent}%`}
               </span>
               {rawLabel ? (
-                <span className="student-chum-prose text-xs text-muted-foreground">
+                <span
+                  className={cn(
+                    "student-chum-prose text-xs text-muted-foreground",
+                    full && "font-semibold text-red-800 dark:text-red-300"
+                  )}
+                >
                   {rawLabel}
                 </span>
               ) : null}

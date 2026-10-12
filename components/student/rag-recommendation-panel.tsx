@@ -114,15 +114,64 @@ function factorsNeedingAdvice(factors: StudentFactors) {
     .sort((a, b) => bandRank(a.level) - bandRank(b.level) || b.score - a.score);
 }
 
-function currentFactorLines(factors: StudentFactors) {
+type ShownFactor = {
+  id: string;
+  label: string;
+  text: string;
+  full: boolean;
+  high: boolean;
+  percent: number | null;
+};
+
+function isFullFactorScore(score: number) {
+  return Number(score.toFixed(2)) >= 1;
+}
+
+function percentFromAdviceText(text: string) {
+  const score = text.match(/\((\d+\.\d{2})\)/)?.[1];
+  if (score) return Math.round(Number(score) * 100);
+  const percent = text.match(/(\d+)%/);
+  return percent ? Number(percent[1]) : null;
+}
+
+function currentFactorLines(factors: StudentFactors): ShownFactor[] {
   return factorsNeedingAdvice(factors).map((item) => {
     const label = item.name.charAt(0).toUpperCase() + item.name.slice(1);
     const score = item.score.toFixed(2);
+    const full = isFullFactorScore(item.score);
+    const percent = Math.round(item.score * 100);
     if (bandRank(item.level) === 0) {
-      return `${label} is high this week (${score}). Start here.`;
+      return {
+        id: item.key,
+        label,
+        full,
+        high: true,
+        percent,
+        text: full
+          ? `${label} is at 100% this week (${score}). Start here.`
+          : `${label} is high this week (${score}). Start here.`,
+      };
     }
-    return `${label} is moderate this week (${score}). These steps can bring it toward low.`;
+    return {
+      id: item.key,
+      label,
+      full: false,
+      high: false,
+      percent,
+      text: `${label} is moderate this week (${score}). These steps can bring it toward low.`,
+    };
   });
+}
+
+function referralSentence(factors: ShownFactor[]) {
+  const labels = factors.map((factor) => factor.label);
+  const variables =
+    labels.length <= 1
+      ? (labels[0] ?? "")
+      : labels.length === 2
+        ? `${labels[0]} and ${labels[1]}`
+        : `${labels.slice(0, -1).join(", ")}, and ${labels[labels.length - 1]}`;
+  return `${variables}. You are required to seek counseling at the Guidance Office.`;
 }
 
 /** High factors first, then moderate, so each one still gets a tip toward low. */
@@ -185,12 +234,22 @@ export function RagRecommendationPanel({
   const forecast = hasPrediction
     ? predictionLine(Number(nextWeekScore), nextWeekRisk)
     : null;
-  const shownFactors = factors
+  const shownFactors: ShownFactor[] = factors
     ? currentFactorLines(factors)
     : (compact
         ? recommendation.contributing_factors.slice(0, 4)
         : recommendation.contributing_factors
-      ).map(stripQuestionnaireItemLabel);
+      )
+        .map(stripQuestionnaireItemLabel)
+        .map((text) => ({
+          id: text,
+          label: text,
+          text,
+          full: /\(1\.00\)|100%/.test(text),
+          high: /is high|100%|\(1\.00\)/i.test(text),
+          percent: percentFromAdviceText(text),
+        }));
+  const highFactors = shownFactors.filter((factor) => factor.high);
   const shownActions = orderTips(actions, factors);
   const support = recommendation.human_support;
 
@@ -232,14 +291,32 @@ export function RagRecommendationPanel({
         ) : null}
       </div>
 
+      {highFactors.length ? (
+        <div className="space-y-1 rounded-lg border border-red-500/25 bg-red-50/60 px-3 py-2 dark:bg-red-950/25">
+          <p className="text-xs font-medium uppercase tracking-wide text-red-800 dark:text-red-300">
+            Guidance referral
+          </p>
+          <p className="text-sm text-foreground">
+            {referralSentence(highFactors)}
+          </p>
+        </div>
+      ) : null}
+
       {shownFactors.length ? (
         <div className="space-y-2">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             What is weighing on you this week
           </p>
-          <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+          <ul className="list-disc space-y-1 pl-5 text-sm text-foreground">
             {shownFactors.map((factor) => (
-              <li key={factor}>{factor}</li>
+              <li key={factor.id} className="flex items-baseline gap-2">
+                {factor.high && factor.percent != null ? (
+                  <span className="inline-flex shrink-0 rounded-md bg-red-600 px-1.5 py-0.5 text-xs font-semibold text-white tabular-nums">
+                    {factor.percent}%
+                  </span>
+                ) : null}
+                <span>{factor.text}</span>
+              </li>
             ))}
           </ul>
         </div>
