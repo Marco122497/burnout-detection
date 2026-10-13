@@ -8,6 +8,7 @@ import {
   getDepartmentName,
   getDepartmentWeeklySeries,
   getInstructorDepartmentIds,
+  getInstructorDepartmentOptions,
   getInstructorStudentRows,
 } from "@/lib/instructor/queries";
 import {
@@ -36,6 +37,7 @@ export default async function InstructorReportsPage({
     from?: string;
     to?: string;
     week?: string;
+    department?: string;
   }>;
 }) {
   const { supabase, user, profile } = await requireRole(["Instructor"]);
@@ -51,11 +53,22 @@ export default async function InstructorReportsPage({
   const term = await getActiveTerm(supabase);
   const openWeek = term ? getCurrentWeekNumber(term) : 1;
   const selectedWeek = resolveReportWeek(params.week, openWeek);
+  const departmentOptions = await getInstructorDepartmentOptions(
+    supabase,
+    departmentIds
+  );
+  const selectedDepartmentId = Number(params.department);
+  const selectedDepartment = departmentOptions.find(
+    (department) => department.department_id === selectedDepartmentId
+  );
+  const scopedDepartmentIds = selectedDepartment
+    ? [selectedDepartment.department_id]
+    : departmentIds;
 
   const [rows, departmentName, weeklyTrends, signatories] = await Promise.all([
-    getInstructorStudentRows(supabase, departmentIds, selectedWeek),
-    getDepartmentName(supabase, departmentIds),
-    getDepartmentWeeklySeries(supabase, departmentIds, { from, to }),
+    getInstructorStudentRows(supabase, scopedDepartmentIds, selectedWeek),
+    getDepartmentName(supabase, scopedDepartmentIds),
+    getDepartmentWeeklySeries(supabase, scopedDepartmentIds, { from, to }),
     getReportSignatories(supabase),
   ]);
 
@@ -64,7 +77,11 @@ export default async function InstructorReportsPage({
       <div className="print:hidden">
         <PageHeading
           title="Reports"
-          description="Choose a monitoring week, then print or export the burnout breakdown for that week."
+          description={
+            departmentOptions.length > 0
+              ? "Choose a monitoring week and department, then print or export the burnout breakdown."
+              : "Choose a monitoring week, then print or export the burnout breakdown for that week."
+          }
         />
       </div>
       <InstructorReportsPanel
@@ -72,6 +89,13 @@ export default async function InstructorReportsPage({
         weeklyTrends={weeklyTrends}
         currentWeek={selectedWeek}
         departmentName={departmentName}
+        departmentOptions={departmentOptions.map((department) => ({
+          id: String(department.department_id),
+          label: department.department_name,
+        }))}
+        department={
+          selectedDepartment ? String(selectedDepartment.department_id) : "all"
+        }
         reportType={reportType}
         week={selectedWeek}
         maxWeek={openWeek}

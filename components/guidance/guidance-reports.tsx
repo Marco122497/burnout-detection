@@ -4,7 +4,10 @@ import { useMemo } from "react";
 
 import { FormalReportDocument } from "@/components/reports/formal-report-document";
 import { ReportExportButtons } from "@/components/reports/report-export-buttons";
-import { ReportFilters } from "@/components/reports/report-filters";
+import {
+  ReportFilters,
+  type ReportDepartmentOption,
+} from "@/components/reports/report-filters";
 import type { Department } from "@/lib/auth/roles";
 import {
   getGuidanceAnalytics,
@@ -166,14 +169,19 @@ function buildDepartmentYearLevelGroups(
   });
 }
 
-function buildInstitutionalTotalsGroup(rows: GuidanceStudentRow[]) {
+function buildInstitutionalTotalsGroup(
+  rows: GuidanceStudentRow[],
+  departmentName?: string | null
+) {
   const entry = emptyRiskStats();
   for (const row of rows) {
     accumulateRiskStats(entry, row);
   }
 
   return {
-    title: "Institutional Total (All Departments)",
+    title: departmentName
+      ? `${departmentName} Total`
+      : "Institutional Total (All Departments)",
     rows: [statsToRow(entry, "Total")],
   };
 }
@@ -255,6 +263,9 @@ function followUpStatus(row: GuidanceStudentRow) {
 export function GuidanceReportsPanel({
   rows,
   departments,
+  departmentOptions = [],
+  department = "all",
+  departmentName = null,
   currentWeek,
   reportType,
   week,
@@ -266,6 +277,9 @@ export function GuidanceReportsPanel({
 }: {
   rows: GuidanceStudentRow[];
   departments: Department[];
+  departmentOptions?: readonly ReportDepartmentOption[];
+  department?: string;
+  departmentName?: string | null;
   currentWeek: number | null;
   reportType: GuidanceReportType;
   week: number;
@@ -276,7 +290,9 @@ export function GuidanceReportsPanel({
   guidanceCounselorTitle?: string;
 }) {
   const generatedAt = useMemo(() => new Date(), []);
-  const periodLabel = `Week ${week}`;
+  const periodLabel = departmentName
+    ? `Week ${week} · ${departmentName}`
+    : `Week ${week}`;
   const filteredRows = rows;
   const analytics = useMemo(
     () => getGuidanceAnalytics(filteredRows),
@@ -400,7 +416,7 @@ export function GuidanceReportsPanel({
           ],
           sectionGroups: [
             ...departmentYearLevelGroups,
-            buildInstitutionalTotalsGroup(filteredRows),
+            buildInstitutionalTotalsGroup(filteredRows, departmentName),
           ],
           sectionGroupColumns: DEPARTMENT_YEAR_LEVEL_COLUMNS,
           total: analytics.totalStudents,
@@ -551,6 +567,7 @@ export function GuidanceReportsPanel({
     interventionSectionGroups,
     filteredRows.length,
     currentWeek,
+    departmentName,
   ]);
 
   return (
@@ -562,6 +579,8 @@ export function GuidanceReportsPanel({
           maxWeek={maxWeek}
           basePath="/guidance/reports"
           types={GUIDANCE_REPORT_TYPES}
+          departments={departmentOptions}
+          department={department}
         />
         <ReportExportButtons title={report.title} />
       </div>

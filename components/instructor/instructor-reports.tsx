@@ -4,7 +4,10 @@ import { useMemo } from "react";
 
 import { FormalReportDocument } from "@/components/reports/formal-report-document";
 import { ReportExportButtons } from "@/components/reports/report-export-buttons";
-import { ReportFilters } from "@/components/reports/report-filters";
+import {
+  ReportFilters,
+  type ReportDepartmentOption,
+} from "@/components/reports/report-filters";
 import {
   getInstructorAnalytics,
   type StudentMonitorRow,
@@ -139,6 +142,8 @@ export function InstructorReportsPanel({
   weeklyTrends = [],
   currentWeek,
   departmentName,
+  departmentOptions = [],
+  department = "all",
   reportType,
   week,
   maxWeek,
@@ -153,6 +158,8 @@ export function InstructorReportsPanel({
   weeklyTrends?: WeeklyTrend[];
   currentWeek: number | null;
   departmentName: string | null;
+  departmentOptions?: readonly ReportDepartmentOption[];
+  department?: string;
   reportType: InstructorReportType;
   week: number;
   maxWeek: number;
@@ -165,7 +172,10 @@ export function InstructorReportsPanel({
 }) {
   const generatedAt = useMemo(() => new Date(), []);
   const deptLabel = departmentName || "Department";
-  const periodLabel = `Week ${week}`;
+  const periodLabel =
+    department !== "all" && departmentName
+      ? `Week ${week} · ${departmentName}`
+      : `Week ${week}`;
   const filteredRows = rows;
   const analytics = useMemo(
     () => getInstructorAnalytics(filteredRows, weeklyTrends),
@@ -438,6 +448,8 @@ export function InstructorReportsPanel({
           maxWeek={maxWeek}
           basePath="/instructor/reports"
           types={INSTRUCTOR_REPORT_TYPES}
+          departments={departmentOptions}
+          department={department}
         />
         <ReportExportButtons title={report.title} />
       </div>
