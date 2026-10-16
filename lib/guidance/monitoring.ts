@@ -26,6 +26,10 @@ export type GuidanceStudentRow = StudentMonitorRow & {
   department_id: number | null;
   department_name: string | null;
   department_code: string | null;
+  /** True when this student has a submitted monitoring row in the active term. */
+  hasMonitoringRecord?: boolean;
+  /** Highest week number that already has a submitted record. */
+  latestRecordWeek?: number | null;
 };
 
 export type GuidanceSearchFilters = {
@@ -56,6 +60,36 @@ function countBy(values: string[]) {
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([label, count]) => ({ label, count }));
 }
+
+/** Student ids that already have a submitted monitoring row this term, with their latest week. */
+export const getMonitoringRecordWeeks = cache(async function getMonitoringRecordWeeks(
+  supabase: SupabaseClient
+) {
+  const term = await getActiveTerm(supabase);
+  const latest = new Map<string, number>();
+  if (!term?.term_id) return latest;
+
+  const rows = await fetchAllPages(async (from, to) =>
+    supabase
+      .from("weekly_monitoring")
+      .select("student_id, week_number, status")
+      .eq("term_id", term.term_id)
+      .order("monitoring_id", { ascending: true })
+      .range(from, to)
+  );
+
+  for (const row of rows) {
+    if (row.status === "Draft") continue;
+    const week = Number(row.week_number);
+    if (!Number.isFinite(week)) continue;
+    const previous = latest.get(row.student_id);
+    if (previous == null || week > previous) {
+      latest.set(row.student_id, week);
+    }
+  }
+
+  return latest;
+});
 
 export const getGuidanceStudentRows = cache(async function getGuidanceStudentRows(
   supabase: SupabaseClient,

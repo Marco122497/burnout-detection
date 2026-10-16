@@ -7,7 +7,10 @@ import { getOtherAdminCanControlMonitoring } from "@/lib/app-settings";
 import { isSuperadminEmail } from "@/lib/auth/protected-accounts";
 import { requireRole } from "@/lib/auth/session";
 import { getDepartments, getUserEmails } from "@/lib/guidance/queries";
-import { getGuidanceStudentRows } from "@/lib/guidance/monitoring";
+import {
+  getGuidanceStudentRows,
+  getMonitoringRecordWeeks,
+} from "@/lib/guidance/monitoring";
 import {
   getActiveTerm,
   getCurrentWeekNumber,
@@ -24,7 +27,7 @@ export default async function GuidanceMonitoringLayout({
 }) {
   const { supabase, user } = await requireRole(["Guidance Counselor"]);
   const viewerIsSuperadmin = isSuperadminEmail(user.email);
-  const [rows, departments, term, emails, otherAdminsCanControl] =
+  const [rows, departments, term, emails, otherAdminsCanControl, recordWeeks] =
     await Promise.all([
       getGuidanceStudentRows(supabase),
       getDepartments(supabase),
@@ -33,11 +36,14 @@ export default async function GuidanceMonitoringLayout({
       viewerIsSuperadmin
         ? Promise.resolve(true)
         : getOtherAdminCanControlMonitoring(supabase),
+      getMonitoringRecordWeeks(supabase),
     ]);
   const showMonitoringControl = viewerIsSuperadmin || otherAdminsCanControl;
   const rowsWithEmail = rows.map((row) => ({
     ...row,
     email: emails[row.id] ?? null,
+    hasMonitoringRecord: recordWeeks.has(row.id),
+    latestRecordWeek: recordWeeks.get(row.id) ?? null,
   }));
 
   return (

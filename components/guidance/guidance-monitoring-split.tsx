@@ -78,6 +78,7 @@ export function GuidanceMonitoringSplit({
   const [submission, setSubmission] = useState(
     searchParams.get("submission") ?? ""
   );
+  const [record, setRecord] = useState(searchParams.get("record") ?? "");
 
   const filtered = useMemo(() => {
     const matched = rows.filter((row) => {
@@ -108,6 +109,8 @@ export function GuidanceMonitoringSplit({
       }
       if (submission === "submitted" && !row.submittedThisWeek) return false;
       if (submission === "pending" && row.submittedThisWeek) return false;
+      if (record === "yes" && !row.hasMonitoringRecord) return false;
+      if (record === "no" && row.hasMonitoringRecord) return false;
       return true;
     });
 
@@ -136,7 +139,7 @@ export function GuidanceMonitoringSplit({
       if (byFirst !== 0) return byFirst;
       return a.full_name.localeCompare(b.full_name, "en");
     });
-  }, [rows, q, departmentId, yearLevel, risk, submission]);
+  }, [rows, q, departmentId, yearLevel, risk, submission, record]);
 
   const selectedDepartment = departments.find(
     (dept) => String(dept.department_id) === departmentId
@@ -176,7 +179,7 @@ export function GuidanceMonitoringSplit({
 
   useEffect(() => {
     setPage(1);
-  }, [q, departmentId, yearLevel, risk, submission, setPage]);
+  }, [q, departmentId, yearLevel, risk, submission, record, setPage]);
 
   function filterQuery() {
     const params = new URLSearchParams();
@@ -185,6 +188,7 @@ export function GuidanceMonitoringSplit({
     if (yearLevel) params.set("year_level", yearLevel);
     if (risk) params.set("risk", risk);
     if (submission) params.set("submission", submission);
+    if (record) params.set("record", record);
     return params.toString();
   }
 
@@ -229,7 +233,9 @@ export function GuidanceMonitoringSplit({
         <CardDescription>
           Showing {filtered.length} of {rows.length} students.{" "}
           {filtered.filter((row) => row.submittedThisWeek).length} submitted
-          this week.
+          this week.{" "}
+          {filtered.filter((row) => row.hasMonitoringRecord).length} have a
+          monitoring record.
         </CardDescription>
         <CardAction className="@max-3xl/card-header:w-full @max-3xl/card-header:justify-self-stretch">
           <div className="flex flex-wrap items-center justify-end gap-2">
@@ -310,6 +316,20 @@ export function GuidanceMonitoringSplit({
                 <option value="submitted">Submitted</option>
                 <option value="pending">Not submitted</option>
               </select>
+              <Label htmlFor="record" className="sr-only">
+                Monitoring record
+              </Label>
+              <select
+                id="record"
+                value={record}
+                onChange={(e) => setRecord(e.target.value)}
+                className={cn(selectClassName, "w-auto min-w-[8.5rem]")}
+                aria-label="Monitoring record"
+              >
+                <option value="">Record</option>
+                <option value="yes">Has record</option>
+                <option value="no">No record</option>
+              </select>
               <Button type="submit" size="sm">
                 Apply
               </Button>
@@ -323,6 +343,7 @@ export function GuidanceMonitoringSplit({
                   setYearLevel("");
                   setRisk("");
                   setSubmission("");
+                  setRecord("");
                   router.push(
                     activeId
                       ? `/guidance/monitoring/${activeId}`
@@ -405,16 +426,32 @@ export function GuidanceMonitoringSplit({
                                   ? `${row.student_number || "—"} | ${row.email}`
                                   : row.student_number || "—"}
                               </p>
-                              <p className="mt-0.5 text-[11px] text-muted-foreground">
-                                {row.submittedThisWeek
-                                  ? "Submitted this week"
-                                  : "Pending this week"}
-                                {row.department_code
-                                  ? ` · ${row.department_code}`
-                                  : ""}
-                                {row.year_level != null
-                                  ? ` · Year ${row.year_level}`
-                                  : ""}
+                              <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] text-muted-foreground">
+                                <span
+                                  className={cn(
+                                    "inline-flex rounded-full px-1.5 py-0.5 font-medium",
+                                    row.hasMonitoringRecord
+                                      ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
+                                      : "bg-muted text-muted-foreground"
+                                  )}
+                                >
+                                  {row.hasMonitoringRecord
+                                    ? row.latestRecordWeek != null
+                                      ? `Has record · Week ${row.latestRecordWeek}`
+                                      : "Has record"
+                                    : "No record"}
+                                </span>
+                                <span>
+                                  {row.submittedThisWeek
+                                    ? "Submitted this week"
+                                    : "Pending this week"}
+                                  {row.department_code
+                                    ? ` · ${row.department_code}`
+                                    : ""}
+                                  {row.year_level != null
+                                    ? ` · Year ${row.year_level}`
+                                    : ""}
+                                </span>
                               </p>
                             </div>
                           </button>
