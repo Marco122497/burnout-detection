@@ -25,6 +25,7 @@ import {
 import { getSessionUser, requireRole } from "@/lib/auth/session";
 import type { BulkStudentDraft } from "@/lib/guidance/bulk-students";
 import { fillDepartmentMonitoring } from "@/lib/guidance/fill-department-monitoring";
+import { isFillDateInput } from "@/lib/guidance/fill-week-dates";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type GuidanceActionState = {
@@ -1078,6 +1079,8 @@ export async function generateDepartmentMonitoring(
     const lowPercent = Number(formData.get("risk_low_percent"));
     const moderatePercent = Number(formData.get("risk_moderate_percent"));
     const highPercent = Number(formData.get("risk_high_percent"));
+    const dateFrom = String(formData.get("date_from") || "").trim();
+    const dateTo = String(formData.get("date_to") || "").trim();
 
     let studentIds: string[] | undefined;
     if (studentIdsRaw) {
@@ -1122,12 +1125,20 @@ export async function generateDepartmentMonitoring(
       }
     }
 
+    if (!isFillDateInput(dateFrom) || !isFillDateInput(dateTo)) {
+      return { error: "Choose a start date and an end date for this week." };
+    }
+    if (dateFrom > dateTo) {
+      return { error: "The start date must be on or before the end date." };
+    }
+
     const fill = await fillDepartmentMonitoring({
       supabase,
       departmentId,
       skipExisting,
       studentIds,
       riskPercents,
+      submittedRange: { from: dateFrom, to: dateTo },
     });
 
     if (!fill.ok) {
@@ -2525,6 +2536,81 @@ export async function updateOtherAdminMonitoringControl(
         error instanceof Error
           ? error.message
           : "Failed to update the weekly monitoring control.",
+    };
+  }
+}
+
+export async function updateLoginEnabled(
+  _prev: GuidanceActionState,
+  formData: FormData
+): Promise<GuidanceActionState> {
+  try {
+    const { supabase, user, profile } = await requireRole([
+      "Guidance Counselor",
+    ]);
+
+    if (!isSuperadminEmail(user.email)) {
+      return {
+        error: "Only superadmin@school.edu can close or open login.",
+      };
+    }
+
+    const raw = String(formData.get("login_enabled") ?? "")
+      .trim()
+      .toLowerCase();
+    const enabled = raw === "1" || raw === "true" || raw === "on";
+
+    const { error } = await supabase.from("app_settings").upsert(
+      {
+        key: APP_SETTING_KEYS.loginEnabled,
+        value: enabled ? "true" : "false",
+        updated_by: user.id,
+      },
+      { onConflict: "key" }
+    );
+
+    if (error) {
+      return {
+        error:
+          error.message.includes("app_settings") ||
+          error.code === "42P01" ||
+          error.message.toLowerCase().includes("does not exist")
+            ? "App settings table is missing. Run supabase/phase11-app-settings.sql first."
+            : error.message,
+      };
+    }
+
+    await supabase.from("audit_logs").insert(
+      toAuditLogRow({
+        user_id: user.id,
+        user_role: profile.role,
+        action: "UPDATE_LOGIN_ENABLED",
+        action_type: "UPDATE",
+        table_name: "app_settings",
+        record_id: APP_SETTING_KEYS.loginEnabled,
+        description: enabled
+          ? "Opened login for students, instructors, and other admins"
+          : "Closed login for students and instructors",
+        ip_address: await getIp(),
+      })
+    );
+
+    revalidatePath("/guidance/settings");
+    revalidatePath("/", "layout");
+    revalidatePath("/login");
+    revalidatePath("/maintenance");
+
+    return {
+      success: enabled
+        ? "Login is open."
+        : "Login is closed for students and instructors. Admins can still sign in.",
+    };
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to update login access.",
     };
   }
 }

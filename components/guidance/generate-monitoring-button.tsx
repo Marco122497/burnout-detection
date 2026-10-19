@@ -14,6 +14,7 @@ import {
   generateDepartmentMonitoring,
   type GuidanceActionState,
 } from "@/app/actions/guidance";
+import { fillDatePresets } from "@/lib/guidance/fill-week-dates";
 import { useActionToast } from "@/hooks/use-action-toast";
 import {
   AlertDialog,
@@ -77,6 +78,7 @@ export type GenerateMonitoringStudent = {
   full_name: string;
   student_number: string | null;
   week_number: number | null;
+  submittedWeek1?: boolean;
 };
 
 export function GenerateMonitoringButton({
@@ -101,6 +103,9 @@ export function GenerateMonitoringButton({
     moderate: 33,
     high: 33,
   });
+  const datePresets = fillDatePresets();
+  const [dateFrom, setDateFrom] = useState(datePresets[2].range.from);
+  const [dateTo, setDateTo] = useState(datePresets[2].range.to);
 
   const [generateState, generateAction, generatePending] = useActionState(
     generateDepartmentMonitoring,
@@ -126,6 +131,9 @@ export function GenerateMonitoringButton({
     if (open) {
       setSelectedIds(new Set(students.map((student) => student.id)));
       setRiskMix({ low: 34, moderate: 33, high: 33 });
+      const presets = fillDatePresets();
+      setDateFrom(presets[2].range.from);
+      setDateTo(presets[2].range.to);
     }
   }, [open, students]);
 
@@ -138,6 +146,10 @@ export function GenerateMonitoringButton({
     () =>
       students.filter((student) => student.week_number === currentWeek).length,
     [students, currentWeek]
+  );
+  const week1Count = useMemo(
+    () => students.filter((student) => student.submittedWeek1).length,
+    [students]
   );
 
   const riskMixTotal = riskMix.low + riskMix.moderate + riskMix.high;
@@ -178,6 +190,16 @@ export function GenerateMonitoringButton({
       return;
     }
     setSelectedIds(new Set());
+  }
+
+  function selectWeek1Submitted() {
+    setSelectedIds(
+      new Set(
+        students
+          .filter((student) => student.submittedWeek1)
+          .map((student) => student.id)
+      )
+    );
   }
 
   function selectPercent(percent: number) {
@@ -272,9 +294,10 @@ export function GenerateMonitoringButton({
                 </span>{" "}
                 — week {currentWeek}
                 {monitoringOpen ? " (open week)" : ""}. Set how many percent
-                should land in Low, Moderate, and High. Submission dates are
-                randomized within the last 7 days of the open week and never
-                after the current date and time. This uses the same PSS,
+                should land in Low, Moderate, and High. Each student gets a
+                random submission time inside the dates you choose. A week runs
+                Monday to Sunday, and those dates can be this week or a later
+                week. This uses the same PSS,
                 Workload, Study Time, and Sleep questions students fill in, then
                 saves scores, MFBI, and predictions.
               </AlertDialogDescription>
@@ -299,6 +322,8 @@ export function GenerateMonitoringButton({
               value={riskMix.moderate}
             />
             <input type="hidden" name="risk_high_percent" value={riskMix.high} />
+            <input type="hidden" name="date_from" value={dateFrom} />
+            <input type="hidden" name="date_to" value={dateTo} />
 
             {students.length > 0 ? (
               <div className="mt-4 space-y-2">
@@ -312,6 +337,16 @@ export function GenerateMonitoringButton({
                     </span>
                   </p>
                   <div className="flex flex-wrap items-center gap-1.5">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 px-2.5 text-xs"
+                      disabled={generatePending || week1Count === 0}
+                      onClick={selectWeek1Submitted}
+                    >
+                      Week 1 submitted ({week1Count})
+                    </Button>
                     {([40, 50, 60] as const).map((percent) => (
                       <Button
                         key={percent}
@@ -382,7 +417,9 @@ export function GenerateMonitoringButton({
                             <TableCell className="text-xs text-muted-foreground">
                               {submittedThisWeek
                                 ? `Week ${currentWeek} submitted`
-                                : "No submission this week"}
+                                : student.submittedWeek1
+                                  ? "Submitted Week 1"
+                                  : "No Week 1 submission"}
                             </TableCell>
                           </TableRow>
                         );
@@ -466,6 +503,58 @@ export function GenerateMonitoringButton({
               </p>
             </div>
 
+            <div className="mt-4 space-y-2 rounded-lg border p-3">
+              <p className="text-sm font-medium">Submission dates</p>
+              <div className="flex flex-wrap gap-1.5">
+                {datePresets.map((preset) => {
+                  const active =
+                    dateFrom === preset.range.from && dateTo === preset.range.to;
+                  return (
+                    <Button
+                      key={preset.id}
+                      type="button"
+                      variant={active ? "default" : "outline"}
+                      size="sm"
+                      className="h-7 px-2.5 text-xs"
+                      disabled={generatePending}
+                      onClick={() => {
+                        setDateFrom(preset.range.from);
+                        setDateTo(preset.range.to);
+                      }}
+                    >
+                      {preset.label}
+                    </Button>
+                  );
+                })}
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="space-y-1 text-xs">
+                  <span className="font-medium">From</span>
+                  <input
+                    type="date"
+                    value={dateFrom}
+                    disabled={generatePending}
+                    onChange={(event) => setDateFrom(event.target.value)}
+                    className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                  />
+                </label>
+                <label className="space-y-1 text-xs">
+                  <span className="font-medium">To</span>
+                  <input
+                    type="date"
+                    value={dateTo}
+                    disabled={generatePending}
+                    onChange={(event) => setDateTo(event.target.value)}
+                    className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                  />
+                </label>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                These dates are the submission times for the open week. Next
+                week (Mon–Sat) is the coming Monday through Saturday.
+              </p>
+            </div>
+
             <label className="mt-3 flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
@@ -497,7 +586,10 @@ export function GenerateMonitoringButton({
                   generatePending ||
                   students.length === 0 ||
                   selectedStudents.length === 0 ||
-                  !riskMixValid
+                  !riskMixValid ||
+                  !dateFrom ||
+                  !dateTo ||
+                  dateFrom > dateTo
                 }
               >
                 {generatePending ? (

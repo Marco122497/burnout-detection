@@ -5,6 +5,7 @@ import { StudentGenderDialog } from "@/components/student/student-gender-dialog"
 import { StudentResearchConsentGate } from "@/components/student/student-research-consent-gate";
 import {
   getForgotPasswordEnabled,
+  getLoginEnabled,
   getOpenaiLlmEnabled,
   getOtherAdminCanControlMonitoring,
   getOtherAdminCanEditQuestions,
@@ -81,12 +82,14 @@ export default async function AppLayout({
       signatories,
       openaiLlmEnabled,
       forgotPasswordEnabled,
+      loginEnabled,
       otherAdminCanEditQuestions,
       otherAdminCanControlMonitoring,
     ] = await Promise.all([
       getReportSignatories(supabase),
       canManage ? getOpenaiLlmEnabled(supabase) : Promise.resolve(false),
       canManage ? getForgotPasswordEnabled(supabase) : Promise.resolve(false),
+      canManage ? getLoginEnabled(supabase) : Promise.resolve(true),
       canManage
         ? getOtherAdminCanEditQuestions(supabase)
         : Promise.resolve(false),
@@ -99,6 +102,7 @@ export default async function AppLayout({
       signatories,
       openaiLlmEnabled,
       forgotPasswordEnabled,
+      loginEnabled,
       otherAdminCanEditQuestions,
       otherAdminCanControlMonitoring,
     };

@@ -35,6 +35,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { StudentAiStatus } from "@/components/student/student-ai-status";
 import { parseEarlyWarningRemarks } from "@/lib/student/ai-client";
 import { resolveMfbiBurnoutLevel } from "@/lib/student/mfbi";
 import { cn, formatYearLevel } from "@/lib/utils";
@@ -96,6 +97,7 @@ export function StudentAssessmentHistoryView({
   showAnswers = true,
   backHref = "/instructor/monitoring",
   embedded = false,
+  showAiStatus = false,
 }: {
   student: StudentMonitorRow & { department_name?: string | null };
   history: StudentHistoryRow[];
@@ -103,6 +105,7 @@ export function StudentAssessmentHistoryView({
   showAnswers?: boolean;
   backHref?: string;
   embedded?: boolean;
+  showAiStatus?: boolean;
 }) {
   const { navigate, isPending, pendingHref } = useNavigationPending();
   const [openId, setOpenId] = useState<number | null>(null);
@@ -194,6 +197,11 @@ export function StudentAssessmentHistoryView({
               .filter(Boolean)
               .join(" · ")}
           </p>
+          {showAiStatus ? (
+            <div className="mt-2">
+              <StudentAiStatus key={student.id} wake />
+            </div>
+          ) : null}
         </div>
         {embedded ? (
           <Button

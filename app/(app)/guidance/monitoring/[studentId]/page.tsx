@@ -35,6 +35,7 @@ export default async function GuidanceStudentHistoryPage({
       answers={answers}
       backHref="/guidance/monitoring"
       embedded
+      showAiStatus
     />
   );
 }

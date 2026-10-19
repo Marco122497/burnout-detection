@@ -12,7 +12,7 @@ import {
   type UserRole,
 } from "@/lib/auth/roles";
 import { toAuditLogRow } from "@/lib/audit";
-import { getForgotPasswordEnabled } from "@/lib/app-settings";
+import { getForgotPasswordEnabled, getLoginEnabled } from "@/lib/app-settings";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { sendPasswordResetEmail } from "@/lib/email/resend";
@@ -394,6 +394,19 @@ export async function login(
       return {
         error: "Your account is deactivated. Contact the Guidance Office.",
       };
+    }
+
+    if (profile.role !== "Guidance Counselor") {
+      let loginOpen = true;
+      try {
+        loginOpen = await getLoginEnabled(createAdminClient());
+      } catch {
+        loginOpen = true;
+      }
+      if (!loginOpen) {
+        await supabase.auth.signOut();
+        return { redirectTo: "/maintenance" };
+      }
     }
 
     const meta = await getRequestMeta();

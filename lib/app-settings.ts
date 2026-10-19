@@ -15,6 +15,7 @@ export const APP_SETTING_KEYS = {
   forgotPasswordEnabled: "forgot_password_enabled",
   otherAdminQuestionEdit: "other_admin_question_edit",
   otherAdminMonitoringControl: "other_admin_monitoring_control",
+  loginEnabled: "login_enabled",
 } as const;
 
 export type SchoolAdministratorSignatory = {
@@ -188,6 +189,28 @@ export async function getOtherAdminCanControlMonitoring(
       .from("app_settings")
       .select("value")
       .eq("key", APP_SETTING_KEYS.otherAdminMonitoringControl)
+      .maybeSingle();
+
+    if (error || !data) return true;
+    return parseEnabledFlag(String((data as { value?: string }).value));
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * When false, only superadmin@school.edu can sign in.
+ * Everyone else is sent to the maintenance page.
+ * Missing key stays on, so login remains open until the switch is turned off.
+ */
+export async function getLoginEnabled(
+  supabase: SupabaseClient
+): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from("app_settings")
+      .select("value")
+      .eq("key", APP_SETTING_KEYS.loginEnabled)
       .maybeSingle();
 
     if (error || !data) return true;

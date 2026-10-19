@@ -3,6 +3,7 @@ import { GuidanceSettingsPanel } from "@/components/guidance/guidance-settings-p
 import { PageHeading } from "@/components/layout/page-heading";
 import {
   getForgotPasswordEnabled,
+  getLoginEnabled,
   getOpenaiLlmEnabled,
   getOtherAdminCanControlMonitoring,
   getOtherAdminCanEditQuestions,
@@ -22,6 +23,7 @@ export default async function GuidanceSettingsPage() {
     signatories,
     openaiLlmEnabled,
     forgotPasswordEnabled,
+    loginEnabled,
     otherAdminCanEditQuestions,
     otherAdminCanControlMonitoring,
   ] = await Promise.all([
@@ -30,6 +32,7 @@ export default async function GuidanceSettingsPage() {
     canManageSettings
       ? getForgotPasswordEnabled(supabase)
       : Promise.resolve(false),
+    canManageSettings ? getLoginEnabled(supabase) : Promise.resolve(true),
     canManageSettings
       ? getOtherAdminCanEditQuestions(supabase)
       : Promise.resolve(false),
@@ -54,6 +57,7 @@ export default async function GuidanceSettingsPage() {
           otherAdminCanEditQuestions,
           otherAdminCanControlMonitoring,
           forgotPasswordEnabled,
+          loginEnabled,
           openaiLlmEnabled,
           signatories,
         }}

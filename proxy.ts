@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 
+import { getLoginEnabled } from "@/lib/app-settings";
 import { getDashboardPath, type UserRole } from "@/lib/auth/roles";
 import { updateSession, type SessionCookieJar } from "@/lib/supabase/proxy";
 
@@ -12,6 +13,7 @@ const PUBLIC_ROUTES = [
   "/reset-password",
   "/auth/callback",
   "/api/ai/warm",
+  "/maintenance",
 ];
 
 /** Redirect while preserving Supabase session cookies from updateSession. */
@@ -74,6 +76,22 @@ export async function proxy(request: NextRequest) {
     url.pathname = "/login";
     url.searchParams.set("error", profile ? "inactive" : "noprofile");
     return redirectWithSession(url, cookieJar);
+  }
+
+  if (profile.role !== "Guidance Counselor") {
+    let loginOpen = true;
+    try {
+      loginOpen = await getLoginEnabled(supabase);
+    } catch {
+      loginOpen = true;
+    }
+    if (!loginOpen) {
+      await supabase.auth.signOut();
+      const url = request.nextUrl.clone();
+      url.pathname = "/maintenance";
+      url.search = "";
+      return redirectWithSession(url, cookieJar);
+    }
   }
 
   const roleHome = getDashboardPath(profile.role as UserRole);

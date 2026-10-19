@@ -12,13 +12,17 @@ const COPY: Record<AiStatus, string> = {
   offline: "AI offline",
 };
 
-export function StudentAiStatus() {
+export function StudentAiStatus({ wake = false }: { wake?: boolean }) {
   const [status, setStatus] = useState<AiStatus>("checking");
 
   useEffect(() => {
     let cancelled = false;
     let timer = 0;
     const started = Date.now();
+
+    if (wake) {
+      void fetch("/api/ai/warm", { cache: "no-store" }).catch(() => {});
+    }
 
     async function check() {
       try {
@@ -48,7 +52,7 @@ export function StudentAiStatus() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, []);
+  }, [wake]);
 
   return (
     <p

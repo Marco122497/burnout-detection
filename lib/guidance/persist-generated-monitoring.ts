@@ -1,3 +1,7 @@
+import {
+  randomSubmittedAtInRange,
+  type FillDateRange,
+} from "@/lib/guidance/fill-week-dates";
 import { classifyTrendDirection } from "@/lib/student/burnout-trends";
 import { computeMfbi } from "@/lib/student/mfbi";
 import {
@@ -16,13 +20,17 @@ type AdminClient = ReturnType<typeof createAdminClient>;
 export type { PriorWeekScores };
 
 /**
- * Random submission time for the currently open monitoring week.
- *
- * Monitoring weeks are guidance-opened counters (not calendar offsets from
- * term.start_date). Use a rolling 7-day window ending at `now` so fill-week
- * dates stay in the present week and never exceed the current day/time.
+ * Random submission time inside the dates chosen in the fill dialog.
+ * Weeks are Monday–Sunday. The chosen range may include today or later days.
  */
-export function randomSubmittedAtWithinOpenWeek(now = new Date()): string {
+export function randomSubmittedAtWithinOpenWeek(
+  range?: FillDateRange,
+  now = new Date()
+): string {
+  if (range?.from && range?.to) {
+    return randomSubmittedAtInRange(range.from, range.to);
+  }
+
   const weekStart = new Date(now);
   weekStart.setDate(weekStart.getDate() - 6);
   weekStart.setHours(0, 0, 0, 0);
@@ -49,6 +57,7 @@ export async function persistGeneratedMonitoringRow(input: {
   historyMfbi: number[];
   historyLevels: string[];
   skipExisting: boolean;
+  submittedRange?: FillDateRange;
   departmentCode?: string | null;
   /** Prefer for bulk auto-fill — avoids per-student AI round-trips that time out. */
   useRuleBasedPrediction?: boolean;
@@ -56,7 +65,7 @@ export async function persistGeneratedMonitoringRow(input: {
   const { admin, termId, studentId, weekNumber, scores, answers, skipExisting } =
     input;
 
-  const submittedAt = randomSubmittedAtWithinOpenWeek();
+  const submittedAt = randomSubmittedAtWithinOpenWeek(input.submittedRange);
 
   const { data: existing } = await admin
     .from("weekly_monitoring")

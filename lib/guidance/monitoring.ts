@@ -30,6 +30,8 @@ export type GuidanceStudentRow = StudentMonitorRow & {
   hasMonitoringRecord?: boolean;
   /** Highest week number that already has a submitted record. */
   latestRecordWeek?: number | null;
+  /** True when this student already submitted Week 1 this term. */
+  submittedWeek1?: boolean;
 };
 
 export type GuidanceSearchFilters = {
@@ -67,7 +69,8 @@ export const getMonitoringRecordWeeks = cache(async function getMonitoringRecord
 ) {
   const term = await getActiveTerm(supabase);
   const latest = new Map<string, number>();
-  if (!term?.term_id) return latest;
+  const week1 = new Set<string>();
+  if (!term?.term_id) return { latest, week1 };
 
   const rows = await fetchAllPages(async (from, to) =>
     supabase
@@ -82,13 +85,14 @@ export const getMonitoringRecordWeeks = cache(async function getMonitoringRecord
     if (row.status === "Draft") continue;
     const week = Number(row.week_number);
     if (!Number.isFinite(week)) continue;
+    if (week === 1) week1.add(row.student_id);
     const previous = latest.get(row.student_id);
     if (previous == null || week > previous) {
       latest.set(row.student_id, week);
     }
   }
 
-  return latest;
+  return { latest, week1 };
 });
 
 export const getGuidanceStudentRows = cache(async function getGuidanceStudentRows(

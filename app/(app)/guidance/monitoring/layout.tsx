@@ -42,8 +42,9 @@ export default async function GuidanceMonitoringLayout({
   const rowsWithEmail = rows.map((row) => ({
     ...row,
     email: emails[row.id] ?? null,
-    hasMonitoringRecord: recordWeeks.has(row.id),
-    latestRecordWeek: recordWeeks.get(row.id) ?? null,
+    hasMonitoringRecord: recordWeeks.latest.has(row.id),
+    latestRecordWeek: recordWeeks.latest.get(row.id) ?? null,
+    submittedWeek1: recordWeeks.week1.has(row.id),
   }));
 
   return (

@@ -5,6 +5,7 @@ import {
   generateMonitoringAnswersForRisk,
   type RiskPercentMix,
 } from "@/lib/guidance/generate-monitoring";
+import type { FillDateRange } from "@/lib/guidance/fill-week-dates";
 import {
   persistGeneratedMonitoringRow,
   type PriorWeekScores,
@@ -91,6 +92,7 @@ export async function fillDepartmentMonitoring(input: {
   skipExisting: boolean;
   studentIds?: string[];
   riskPercents?: RiskPercentMix;
+  submittedRange?: FillDateRange;
 }): Promise<
   | { ok: true; result: FillDepartmentResult }
   | { ok: false; error: string; result?: Partial<FillDepartmentResult> }
@@ -220,6 +222,7 @@ export async function fillDepartmentMonitoring(input: {
       historyMfbi: context.historyMfbi,
       historyLevels: context.historyLevels,
       skipExisting: input.skipExisting,
+      submittedRange: input.submittedRange,
       departmentCode: department.department_code,
       useRuleBasedPrediction: true,
     });

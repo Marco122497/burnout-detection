@@ -1,6 +1,7 @@
 "use client";
 
 import { ForgotPasswordSettings } from "@/components/guidance/forgot-password-settings";
+import { LoginAccessSettings } from "@/components/guidance/login-access-settings";
 import { OpenaiLlmSettings } from "@/components/guidance/openai-llm-settings";
 import { OtherAdminAccessSettings } from "@/components/guidance/other-admin-access-settings";
 import { OtherAdminMonitoringSettings } from "@/components/guidance/other-admin-monitoring-settings";
@@ -12,6 +13,7 @@ export type GuidanceMenuSettings = {
   otherAdminCanEditQuestions: boolean;
   otherAdminCanControlMonitoring: boolean;
   forgotPasswordEnabled: boolean;
+  loginEnabled: boolean;
   openaiLlmEnabled: boolean;
   signatories: ReportSignatories;
 };
@@ -32,6 +34,9 @@ export function GuidanceSettingsPanel({
         <OtherAdminMonitoringSettings
           enabled={settings.otherAdminCanControlMonitoring}
         />
+      ) : null}
+      {settings.canManage ? (
+        <LoginAccessSettings enabled={settings.loginEnabled} />
       ) : null}
       {settings.canManage ? (
         <ForgotPasswordSettings enabled={settings.forgotPasswordEnabled} />

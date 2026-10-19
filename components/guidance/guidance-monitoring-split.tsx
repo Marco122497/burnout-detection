@@ -165,11 +165,12 @@ export function GuidanceMonitoringSplit({
         full_name: row.full_name,
         student_number: row.student_number,
         week_number: row.week_number,
+        submittedWeek1: row.submittedWeek1 === true,
       }));
   }, [rows, departmentId]);
 
   const {
-    page,
+    page, 
     pageSize,
     totalItems,
     pageItems,
@@ -202,6 +203,7 @@ export function GuidanceMonitoringSplit({
   }
 
   function openStudent(studentId: string) {
+    void fetch("/api/ai/warm", { cache: "no-store" }).catch(() => {});
     const query = filterQuery();
     const href = query
       ? `/guidance/monitoring/${studentId}?${query}`
