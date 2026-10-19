@@ -347,7 +347,7 @@ export function GenerateMonitoringButton({
                     >
                       Week 1 submitted ({week1Count})
                     </Button>
-                    {([40, 50, 60] as const).map((percent) => (
+                    {([10, 20, 30, 40, 50, 60] as const).map((percent) => (
                       <Button
                         key={percent}
                         type="button"
