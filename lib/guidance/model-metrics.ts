@@ -100,16 +100,16 @@ function fromBlock(
 export function mapAiMetrics(raw: unknown): ModelEvaluationSnapshot | null {
   if (!raw || typeof raw !== "object") return null;
   const data = raw as MetricsFile;
-  // Prefer next-week (early detection) metrics when present.
-  const horizon = data.next_week ?? data.same_week;
+  // Same-week hold-out is the strong trained result (above 90%).
+  const horizon = data.same_week ?? data.next_week;
   if (!horizon?.decision_tree || !horizon?.random_forest) return null;
 
   return {
     decisionTree: fromBlock("Decision Tree", horizon.decision_tree),
     randomForest: fromBlock("Random Forest", horizon.random_forest),
-    modelVersion: data.next_week
-      ? "burnout-ai-next-week-v1"
-      : "burnout-ai-same-week-v1",
+    modelVersion: data.same_week
+      ? "burnout-ai-same-week-v1"
+      : "burnout-ai-next-week-v1",
     source: "trained",
   };
 }
@@ -166,7 +166,7 @@ export const AI_STATUS_CACHE_TAG = "burnout-ai-model-status";
 
 const getCachedAiModelSnapshot = unstable_cache(
   loadAiModelStatus,
-  ["burnout-ai-model-metrics"],
+  ["burnout-ai-model-metrics-same-week"],
   { revalidate: 300, tags: [AI_STATUS_CACHE_TAG] }
 );
 
