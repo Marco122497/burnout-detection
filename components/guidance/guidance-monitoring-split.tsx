@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { GenerateMonitoringButton } from "@/components/guidance/generate-monitoring-button";
+import { PredictCurrentWeekButton } from "@/components/shared/predict-current-week-button";
 import type { Department } from "@/lib/auth/roles";
 import type { GuidanceStudentRow } from "@/lib/guidance/monitoring";
 import { useTablePagination } from "@/hooks/use-table-pagination";
@@ -52,6 +53,7 @@ export function GuidanceMonitoringSplit({
   currentWeek,
   monitoringOpen,
   canFillWeek = false,
+  canPredictWeek = false,
   children,
 }: {
   rows: GuidanceStudentRow[];
@@ -59,6 +61,7 @@ export function GuidanceMonitoringSplit({
   currentWeek: number;
   monitoringOpen: boolean;
   canFillWeek?: boolean;
+  canPredictWeek?: boolean;
   children: React.ReactNode;
 }) {
   const router = useRouter();
@@ -356,6 +359,14 @@ export function GuidanceMonitoringSplit({
                 Reset
               </Button>
             </form>
+            {canPredictWeek ? (
+              <PredictCurrentWeekButton
+                currentWeek={currentWeek}
+                submittedCount={
+                  rows.filter((row) => row.submittedThisWeek).length
+                }
+              />
+            ) : null}
             {canFillWeek && departmentId ? (
               <GenerateMonitoringButton
                 departmentId={departmentId}

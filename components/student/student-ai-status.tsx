@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { browserCanReachAi, wakeBurnoutAiInBrowser } from "@/lib/student/wake-ai-browser";
 import { cn } from "@/lib/utils";
 
 type AiStatus = "checking" | "online" | "offline";
@@ -20,16 +21,17 @@ export function StudentAiStatus({ wake = false }: { wake?: boolean }) {
     let timer = 0;
     const started = Date.now();
 
-    if (wake) {
-      void fetch("/api/ai/warm", { cache: "no-store" }).catch(() => {});
-    }
+    wakeBurnoutAiInBrowser();
+    void browserCanReachAi().then((online) => {
+      if (!cancelled && online) setStatus("online");
+    });
 
     async function check() {
       try {
         const response = await fetch("/api/ai/status", { cache: "no-store" });
         const data = (await response.json()) as { online?: boolean };
         if (cancelled) return;
-        if (data.online) {
+        if (response.ok && data.online) {
           setStatus("online");
           return;
         }
@@ -38,11 +40,11 @@ export function StudentAiStatus({ wake = false }: { wake?: boolean }) {
       }
 
       if (Date.now() - started >= 60_000) {
-        setStatus("offline");
+        setStatus((current) => (current === "online" ? current : "offline"));
         return;
       }
 
-      setStatus("checking");
+      setStatus((current) => (current === "online" ? current : "checking"));
       timer = window.setTimeout(check, 5000);
     }
 

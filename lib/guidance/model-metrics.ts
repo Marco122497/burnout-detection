@@ -134,27 +134,17 @@ async function readMetricsFromFile(): Promise<ModelEvaluationSnapshot | null> {
   }
 }
 
-async function loadAiModelStatus(): Promise<AiModelStatus> {
+async function loadAiModelStatus(): Promise<
+  Pick<AiModelStatus, "modelEvaluation" | "metricsSource">
+> {
   const { fetchBurnoutAiMetrics } = await import("@/lib/student/ai-client");
 
-  // Prefer local metrics first so dashboards do not wait on Render cold starts.
   const fileMapped = await readMetricsFromFile();
-
-  let liveMapped: ModelEvaluationSnapshot | null = null;
-  try {
-    const liveMetrics = await Promise.race([
-      fetchBurnoutAiMetrics(),
-      new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500)),
-    ]);
-    liveMapped = mapAiMetrics(liveMetrics);
-  } catch {
-    liveMapped = null;
-  }
+  const liveMapped = mapAiMetrics(await fetchBurnoutAiMetrics().catch(() => null));
 
   if (liveMapped) {
     return {
       modelEvaluation: liveMapped,
-      aiHealthy: true,
       metricsSource: "live",
     };
   }
@@ -162,25 +152,33 @@ async function loadAiModelStatus(): Promise<AiModelStatus> {
   if (fileMapped) {
     return {
       modelEvaluation: fileMapped,
-      aiHealthy: false,
       metricsSource: "file",
     };
   }
 
   return {
     modelEvaluation: PLACEHOLDER,
-    aiHealthy: false,
     metricsSource: "unavailable",
   };
 }
 
 export const AI_STATUS_CACHE_TAG = "burnout-ai-model-status";
 
-export const getAiModelStatus = unstable_cache(
+const getCachedAiModelSnapshot = unstable_cache(
   loadAiModelStatus,
-  ["burnout-ai-model-status"],
+  ["burnout-ai-model-metrics"],
   { revalidate: 300, tags: [AI_STATUS_CACHE_TAG] }
 );
+
+/** Health is checked on each load so a woken Render service is not stuck offline. */
+export async function getAiModelStatus(): Promise<AiModelStatus> {
+  const { getBurnoutAiOnline } = await import("@/lib/student/ai-client");
+  const [snapshot, aiHealthy] = await Promise.all([
+    getCachedAiModelSnapshot(),
+    getBurnoutAiOnline(8000),
+  ]);
+  return { ...snapshot, aiHealthy };
+}
 
 export async function getModelEvaluation(): Promise<ModelEvaluationSnapshot> {
   const status = await getAiModelStatus();

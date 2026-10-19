@@ -3,11 +3,14 @@ import { notFound } from "next/navigation";
 import { StudentAssessmentHistoryView } from "@/components/instructor/student-assessment-history";
 import { requireRole } from "@/lib/auth/session";
 import { getGuidanceStudentHistory } from "@/lib/guidance/monitoring";
+import { ensureStudentNextWeekPrediction } from "@/lib/student/ensure-early-warning";
 import { getMonitoringAnswers } from "@/lib/student/queries";
 
 export const metadata = {
   title: "Student Assessment History",
 };
+
+export const maxDuration = 300;
 
 export default async function GuidanceStudentHistoryPage({
   params,
@@ -16,6 +19,7 @@ export default async function GuidanceStudentHistoryPage({
 }) {
   const { studentId } = await params;
   const { supabase } = await requireRole(["Guidance Counselor"]);
+  await ensureStudentNextWeekPrediction(supabase, studentId);
   const { student, history } = await getGuidanceStudentHistory(
     supabase,
     studentId

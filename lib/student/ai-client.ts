@@ -141,21 +141,44 @@ function aiRequestTimeoutMs(kind: "health" | "warm" | "predict") {
   return render ? 60000 : 2000;
 }
 
-/** Short live check for the student dashboard. Does not use the cached health fetch. */
-export async function getBurnoutAiOnline(timeoutMs = 8000): Promise<boolean> {
-  const baseUrl = aiBaseUrl();
-  if (!baseUrl) return false;
+async function fetchAiJson(url: string, timeoutMs: number): Promise<unknown | null> {
   try {
-    const response = await fetch(`${baseUrl}/health`, {
+    const response = await fetch(url, {
       cache: "no-store",
       signal: AbortSignal.timeout(timeoutMs),
     });
-    if (!response.ok) return false;
-    const data = (await response.json()) as { models_ready?: boolean };
-    return Boolean(data.models_ready);
+    if (!response.ok) return null;
+    return await response.json();
   } catch {
-    return false;
+    return null;
   }
+}
+
+/**
+ * Online when the Render home page says the service is running. /health is
+ * only used when that page does not answer, because a stalled health check
+ * must not keep the dashboard on Offline.
+ */
+export async function getBurnoutAiOnline(timeoutMs = 8000): Promise<boolean> {
+  const baseUrl = aiBaseUrl();
+  if (!baseUrl) return false;
+
+  const [home, health] = await Promise.all([
+    fetchAiJson(baseUrl, timeoutMs),
+    fetchAiJson(`${baseUrl}/health`, timeoutMs),
+  ]);
+  if (
+    home &&
+    typeof home === "object" &&
+    (home as { message?: string }).message === "Burnout AI is running"
+  ) {
+    return true;
+  }
+  if (health && typeof health === "object" && "models_ready" in health) {
+    return Boolean((health as { models_ready?: boolean }).models_ready);
+  }
+
+  return false;
 }
 
 export async function checkBurnoutAiHealth(): Promise<boolean> {
@@ -174,24 +197,9 @@ export async function checkBurnoutAiHealth(): Promise<boolean> {
   }
 }
 
-/**
- * Best-effort wake for Render cold starts. Guidance dashboards already hit
- * /metrics; students do not — call this on student entry so submit is faster.
- */
+/** Wake Render, then treat the same home-page response as online. */
 export async function warmBurnoutAi(): Promise<boolean> {
-  const baseUrl = aiBaseUrl();
-  if (!baseUrl) return false;
-  try {
-    const response = await fetch(`${baseUrl}/health`, {
-      cache: "no-store",
-      signal: AbortSignal.timeout(aiRequestTimeoutMs("warm")),
-    });
-    if (!response.ok) return false;
-    const data = (await response.json()) as { models_ready?: boolean };
-    return data.models_ready !== false;
-  } catch {
-    return false;
-  }
+  return getBurnoutAiOnline(aiRequestTimeoutMs("warm"));
 }
 
 export async function fetchBurnoutAiMetrics(): Promise<unknown | null> {
@@ -199,8 +207,8 @@ export async function fetchBurnoutAiMetrics(): Promise<unknown | null> {
   if (!baseUrl) return null;
   try {
     const response = await fetch(`${baseUrl}/metrics`, {
-      next: { revalidate: 300 },
-      signal: AbortSignal.timeout(aiRequestTimeoutMs("health")),
+      cache: "no-store",
+      signal: AbortSignal.timeout(8000),
     });
     if (!response.ok) return null;
     return response.json();

@@ -17,8 +17,8 @@ import {
   isMonitoringOpen,
 } from "@/lib/student/terms";
 
-/** Bulk auto-fill can write many monitoring rows in one request. */
-export const maxDuration = 120;
+/** Bulk fill and current-week predictions can run for many students. */
+export const maxDuration = 300;
 
 export default async function GuidanceMonitoringLayout({
   children,
@@ -72,6 +72,7 @@ export default async function GuidanceMonitoringLayout({
             currentWeek={term ? getCurrentWeekNumber(term) : 1}
             monitoringOpen={isMonitoringOpen(term)}
             canFillWeek={viewerIsSuperadmin}
+            canPredictWeek={viewerIsSuperadmin}
           >
             {children}
           </GuidanceMonitoringSplit>

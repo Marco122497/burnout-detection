@@ -67,7 +67,7 @@ export function StudentDashboard({
           Track your burnout risk, finish weekly monitoring, and follow
           counseling tips — all in one place.
         </p>
-        <StudentAiStatus />
+        <StudentAiStatus wake />
       </div>
 
       <BurnoutHero

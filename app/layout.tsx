@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import { Outfit } from "next/font/google";
 
+import { AiWakeOnLoad } from "@/components/ai-wake-on-load";
 import { SafePointerCapturePatch } from "@/components/safe-pointer-capture-patch";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { AI_WAKE_SCRIPT } from "@/lib/student/wake-ai-browser";
 import "./globals.css";
 
 const outfit = Outfit({
@@ -35,6 +37,8 @@ export default function RootLayout({
       className={`${outfit.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col font-sans">
+        <script dangerouslySetInnerHTML={{ __html: AI_WAKE_SCRIPT }} />
+        <AiWakeOnLoad />
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

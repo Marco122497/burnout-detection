@@ -1,3 +1,4 @@
+import type { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   getBurnoutAiOnline,
@@ -13,6 +14,8 @@ import type { MonitoringRow } from "@/lib/student/queries";
 import { predictBurnoutRiskWithAi } from "@/lib/student/predict";
 import type { SectionScores } from "@/lib/student/scoring";
 
+type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
+
 function unwrapMfbi(row: MonitoringRow) {
   const mfbi = row.mfbi_results;
   if (!mfbi) return null;
@@ -25,36 +28,57 @@ function stressLevel(score: number): SectionScores["stress_level"] {
   return "Low";
 }
 
+export type EarlyWarningFillResult =
+  | "updated"
+  | "skipped"
+  | "offline"
+  | "failed";
+
 /**
  * Week rows saved while the AI was asleep have MFBI and recommendations, but
  * no next-week or week-2 forecast. Fill that forecast once the service is up.
  */
 export async function ensureLatestEarlyWarning(
   studentId: string,
-  history: MonitoringRow[]
-) {
+  history: MonitoringRow[],
+  options?: { assumeOnline?: boolean }
+): Promise<EarlyWarningFillResult> {
   try {
-    await fillLatestEarlyWarning(studentId, history);
+    return await fillLatestEarlyWarning(studentId, history, options);
   } catch (error) {
     console.error("ensureLatestEarlyWarning:", error);
+    return "failed";
   }
+}
+
+/** Same next-week forecast the student dashboard runs when it opens. */
+export async function ensureStudentNextWeekPrediction(
+  supabase: SupabaseClient,
+  studentId: string
+) {
+  const { getWeeklyMonitoringHistory } = await import("@/lib/student/queries");
+  const history = await getWeeklyMonitoringHistory(supabase, studentId);
+  await ensureLatestEarlyWarning(studentId, history);
 }
 
 async function fillLatestEarlyWarning(
   studentId: string,
-  history: MonitoringRow[]
-) {
+  history: MonitoringRow[],
+  options?: { assumeOnline?: boolean }
+): Promise<EarlyWarningFillResult> {
   const latest = history[0];
-  if (!latest?.prediction) return;
+  if (!latest?.prediction) return "skipped";
 
   const existing = parseEarlyWarningRemarks(latest.prediction.remarks);
-  if (existing?.has_ml_next_week) return;
+  if (existing?.has_ml_next_week) return "skipped";
 
   const mfbi = unwrapMfbi(latest);
-  if (!mfbi?.mfbi_id) return;
+  if (!mfbi?.mfbi_id) return "skipped";
 
-  const online = await getBurnoutAiOnline();
-  if (!online) return;
+  if (!options?.assumeOnline) {
+    const online = await getBurnoutAiOnline();
+    if (!online) return "offline";
+  }
 
   const older = [...history].slice(1).reverse();
   const historyLevels: string[] = [];
@@ -109,7 +133,7 @@ async function fillLatestEarlyWarning(
   });
 
   const refreshed = parseEarlyWarningRemarks(prediction.remarks);
-  if (!refreshed?.has_ml_next_week) return;
+  if (!refreshed?.has_ml_next_week) return "failed";
 
   try {
     const admin = createAdminClient();
@@ -123,7 +147,7 @@ async function fillLatestEarlyWarning(
 
     if (lookupError || !row?.prediction_id) {
       console.error("ensureLatestEarlyWarning lookup:", lookupError?.message);
-      return;
+      return "failed";
     }
 
     const { error: updateError } = await admin
@@ -142,11 +166,11 @@ async function fillLatestEarlyWarning(
 
     if (updateError) {
       console.error("ensureLatestEarlyWarning update:", updateError.message);
-      return;
+      return "failed";
     }
   } catch (error) {
     console.error("ensureLatestEarlyWarning:", error);
-    return;
+    return "failed";
   }
 
   latest.prediction = {
@@ -160,4 +184,5 @@ async function fillLatestEarlyWarning(
     model_version: prediction.model_version,
     remarks: prediction.remarks,
   };
+  return "updated";
 }

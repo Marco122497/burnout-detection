@@ -7,9 +7,13 @@ import {
   getInstructorDepartmentIds,
   getStudentAssessmentHistory,
 } from "@/lib/instructor/queries";
+import { ensureStudentNextWeekPrediction } from "@/lib/student/ensure-early-warning";
+
 export const metadata = {
   title: "Student Assessment History",
 };
+
+export const maxDuration = 120;
 
 export default async function InstructorStudentHistoryPage({
   params,
@@ -23,6 +27,18 @@ export default async function InstructorStudentHistoryPage({
     user.id,
     profile.department_id
   );
+  if (departmentIds.length) {
+    const { data: inDepartment } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("id", studentId)
+      .eq("role", "Student")
+      .in("department_id", departmentIds)
+      .maybeSingle();
+    if (inDepartment) {
+      await ensureStudentNextWeekPrediction(supabase, studentId);
+    }
+  }
   const { student, history } = await getStudentAssessmentHistory(
     supabase,
     studentId,

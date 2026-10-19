@@ -162,6 +162,7 @@ export function InstructorMonitoringSplit({
   }
 
   function openStudent(studentId: string) {
+    void fetch("/api/ai/warm", { cache: "no-store" }).catch(() => {});
     const query = filterQuery();
     const href = query
       ? `/instructor/monitoring/${studentId}?${query}`
