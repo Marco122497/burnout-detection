@@ -7,10 +7,7 @@ import {
   type QuestionnaireKey,
   type QuestionRow,
 } from "@/lib/student/questionnaires";
-import {
-  getAnswerLabelForQuestion,
-  resolveScaleOptions,
-} from "@/lib/student/scale-options";
+import { parseEarlyWarningRemarks } from "@/lib/student/ai-client";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchAllPages } from "@/lib/supabase/fetch-all";
 
@@ -45,20 +42,6 @@ type MonitoringRow = {
   submitted_at: string | null;
 };
 
-type ProfileRow = {
-  id: string;
-  course: string | null;
-  year_level: number | null;
-  section: string | null;
-  department_id: number | null;
-};
-
-type DepartmentRow = {
-  department_id: number;
-  department_code: string;
-  department_name: string;
-};
-
 type AnswerRow = {
   monitoring_id: number;
   question_id: number;
@@ -87,27 +70,7 @@ type PredictionRow = {
   selected_model: string;
   model_version: string | null;
   prediction_date: string | null;
-};
-
-type NotificationRow = {
-  notification_id: number;
-  user_id: string;
-  notification_type: string;
-  priority: string | null;
-  is_read: boolean | null;
-  created_at: string;
-  monitoring_id: number | null;
-};
-
-type RecommendationRow = {
-  id: number;
-  student_id: string;
-  monitoring_id: number | null;
-  risk_level: string | null;
-  prediction_model: string | null;
-  llm_model: string | null;
-  used_fallback: boolean | null;
-  created_at: string;
+  remarks: string | null;
 };
 
 type QuestionExport = QuestionRow & {
@@ -118,14 +81,11 @@ type QuestionExport = QuestionRow & {
 };
 
 export type ResearchFileName =
-  | "chapter4-analysis.csv"
-  | "questionnaire-items.csv"
-  | "weekly-monitoring.csv"
-  | "weekly-monitoring-answers.csv"
-  | "mfbi-results.csv"
-  | "ml-predictions.csv"
-  | "model-evaluation.csv"
-  | "alerts-and-recommendations.csv"
+  | "weekly_monitoring_week1_week2.csv"
+  | "mfbi_weekly_results.csv"
+  | "ml_predictions.csv"
+  | "ml_evaluation_results.csv"
+  | "chapter4_system_screenshots.txt"
   | "README.txt";
 
 function csvCell(value: string | number | null | undefined) {
@@ -219,6 +179,7 @@ type TrainedBlock = {
   classification_report?: {
     "weighted avg"?: { support?: number };
   };
+  feature_importance?: Record<string, number>;
 };
 
 type TrainedHorizon = {
@@ -246,75 +207,66 @@ function appendTrainedHorizon(
     const testRows = Number(
       metrics.classification_report?.["weighted avg"]?.support ?? ""
     );
-    const trainRows =
-      samples && Number.isFinite(testRows) ? samples - testRows : "";
+    const blank = ["", "", "", "", "", ""] as const;
     rows.push([
+      "metrics",
       "trained_holdout",
       horizon,
       model,
-      "samples",
-      "",
-      "",
-      samples || "",
-    ]);
-    rows.push([
-      "trained_holdout",
-      horizon,
-      model,
-      "train_rows",
-      "",
-      "",
-      trainRows,
-    ]);
-    rows.push([
-      "trained_holdout",
-      horizon,
-      model,
-      "test_rows",
-      "",
-      "",
+      metrics.accuracy == null ? "" : round4(Number(metrics.accuracy)),
+      metrics.precision == null ? "" : round4(Number(metrics.precision)),
+      metrics.recall == null ? "" : round4(Number(metrics.recall)),
+      metrics.f1 == null ? "" : round4(Number(metrics.f1)),
       Number.isFinite(testRows) ? testRows : "",
+      samples || "",
+      ...blank.slice(0, 5),
+      note ?? "",
     ]);
-    for (const metric of ["accuracy", "precision", "recall", "f1"] as const) {
-      const value = metrics[metric];
-      rows.push([
-        "trained_holdout",
-        horizon,
-        model,
-        metric,
-        "",
-        "",
-        value == null ? "" : round4(Number(value)),
-      ]);
-    }
     const labels = metrics.confusion_matrix?.labels ?? [];
     const matrix = metrics.confusion_matrix?.matrix ?? [];
     labels.forEach((actual, rowIndex) => {
       labels.forEach((predicted, columnIndex) => {
         rows.push([
+          "confusion",
           "trained_holdout",
           horizon,
           model,
-          "confusion",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
           actual,
           predicted,
           matrix[rowIndex]?.[columnIndex] ?? 0,
+          "",
+          "",
+          "",
         ]);
       });
     });
-    if (block.features?.length) {
+    for (const [feature, importance] of Object.entries(
+      metrics.feature_importance ?? {}
+    )) {
       rows.push([
+        "feature_importance",
         "trained_holdout",
         horizon,
         model,
-        "features",
         "",
         "",
-        block.features.join("; "),
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        feature,
+        importance,
+        "Influence inside the trained model, not a cause of burnout.",
       ]);
-    }
-    if (note) {
-      rows.push(["trained_holdout", horizon, model, "note", "", "", note]);
     }
   }
 }
@@ -326,15 +278,11 @@ export async function buildResearchFiles(): Promise<
 
   const [
     monitoring,
-    profiles,
-    departments,
     questionnaires,
     questions,
     answers,
     mfbiRows,
     predictions,
-    notifications,
-    recommendations,
     trained,
   ] = await Promise.all([
     fetchAllPages<MonitoringRow>((from, to) =>
@@ -344,21 +292,6 @@ export async function buildResearchFiles(): Promise<
           "monitoring_id, student_id, term_id, week_number, stress_score, academic_workload_score, study_time_score, sleep_hours_score, status, submitted_at"
         )
         .order("monitoring_id", { ascending: true })
-        .range(from, to)
-    ),
-    fetchAllPages<ProfileRow>((from, to) =>
-      admin
-        .from("profiles")
-        .select("id, course, year_level, section, department_id")
-        .eq("role", "Student")
-        .order("id", { ascending: true })
-        .range(from, to)
-    ),
-    fetchAllPages<DepartmentRow>((from, to) =>
-      admin
-        .from("departments")
-        .select("department_id, department_code, department_name")
-        .order("department_id", { ascending: true })
         .range(from, to)
     ),
     fetchAllPages<{ questionnaire_id: number; questionnaire_name: string }>(
@@ -398,34 +331,21 @@ export async function buildResearchFiles(): Promise<
       admin
         .from("ml_predictions")
         .select(
-          "mfbi_id, decision_tree_prediction, decision_tree_confidence, random_forest_prediction, random_forest_confidence, final_prediction, selected_model, model_version, prediction_date"
+          "mfbi_id, decision_tree_prediction, decision_tree_confidence, random_forest_prediction, random_forest_confidence, final_prediction, selected_model, model_version, prediction_date, remarks"
         )
         .order("prediction_id", { ascending: true })
-        .range(from, to)
-    ),
-    fetchAllPages<NotificationRow>((from, to) =>
-      admin
-        .from("notifications")
-        .select(
-          "notification_id, user_id, notification_type, priority, is_read, created_at, monitoring_id"
-        )
-        .in("notification_type", ["Burnout Alert", "Assessment"])
-        .order("notification_id", { ascending: true })
-        .range(from, to)
-    ),
-    fetchAllPages<RecommendationRow>((from, to) =>
-      admin
-        .from("rag_recommendations")
-        .select(
-          "id, student_id, monitoring_id, risk_level, prediction_model, llm_model, used_fallback, created_at"
-        )
-        .order("id", { ascending: true })
         .range(from, to)
     ),
     readTrainedMetrics(),
   ]);
 
-  const studentIds = [...new Set(monitoring.map((row) => row.student_id))].sort();
+  const studentIds = [
+    ...new Set(
+      monitoring
+        .filter((row) => row.week_number === 1 || row.week_number === 2)
+        .map((row) => row.student_id)
+    ),
+  ].sort();
   const respondentWidth = Math.max(3, String(studentIds.length).length);
   const respondentByStudent = new Map(
     studentIds.map((id, index) => [
@@ -433,15 +353,12 @@ export async function buildResearchFiles(): Promise<
       `S${String(index + 1).padStart(respondentWidth, "0")}`,
     ])
   );
-  const profileById = new Map(profiles.map((row) => [row.id, row]));
-  const departmentById = new Map(
-    departments.map((row) => [row.department_id, row])
-  );
   const questionnaireName = new Map(
     questionnaires.map((row) => [row.questionnaire_id, row.questionnaire_name])
   );
 
   const exportedQuestions: QuestionExport[] = questions
+    .filter((question) => question.is_active)
     .map((question) => {
       const name = questionnaireName.get(question.questionnaire_id) ?? "Other";
       const sectionKey = sectionKeyForName(name);
@@ -463,12 +380,6 @@ export async function buildResearchFiles(): Promise<
       return a.question_order - b.question_order;
     });
 
-  const questionById = new Map(
-    exportedQuestions.map((question) => [question.question_id, question])
-  );
-  const monitoringById = new Map(
-    monitoring.map((row) => [row.monitoring_id, row])
-  );
   const mfbiByMonitoring = new Map(
     mfbiRows.map((row) => [row.monitoring_id, row])
   );
@@ -476,25 +387,11 @@ export async function buildResearchFiles(): Promise<
     predictions.map((row) => [row.mfbi_id, row])
   );
 
-  function profileFields(studentId: string) {
-    const profile = profileById.get(studentId);
-    const department = profile?.department_id
-      ? departmentById.get(profile.department_id)
-      : undefined;
-    return {
-      respondent: respondentByStudent.get(studentId) ?? "",
-      programCode: department?.department_code ?? "",
-      programName: department?.department_name ?? profile?.course ?? "",
-      yearLevel: profile?.year_level ?? "",
-      section: profile?.section ?? "",
-    };
-  }
-
-  const submitted = monitoring.filter((row) =>
-    SUBMITTED.has(row.status ?? "Submitted")
+  const submittedIds = new Set(
+    monitoring
+      .filter((row) => SUBMITTED.has(row.status ?? "Submitted"))
+      .map((row) => row.monitoring_id)
   );
-  const submittedIds = new Set(submitted.map((row) => row.monitoring_id));
-
   const answersByMonitoring = new Map<number, Map<number, number>>();
   for (const answer of answers) {
     if (!submittedIds.has(answer.monitoring_id)) continue;
@@ -504,65 +401,40 @@ export async function buildResearchFiles(): Promise<
     answersByMonitoring.set(answer.monitoring_id, bucket);
   }
 
-  const analysisHeader = [
+  const chapterRows = monitoring
+    .filter((row) => row.week_number === 1 || row.week_number === 2)
+    .sort((a, b) => {
+      const respondent = (respondentByStudent.get(a.student_id) ?? "").localeCompare(
+        respondentByStudent.get(b.student_id) ?? ""
+      );
+      if (respondent !== 0) return respondent;
+      return a.week_number - b.week_number;
+    });
+
+  const weekByStudent = new Map<string, Map<number, MonitoringRow>>();
+  for (const row of chapterRows) {
+    const weeks = weekByStudent.get(row.student_id) ?? new Map();
+    weeks.set(row.week_number, row);
+    weekByStudent.set(row.student_id, weeks);
+  }
+
+  const monitoringHeader = [
     "respondent_id",
     "week_number",
     "submitted_at",
-    "monitoring_id",
-    "program_code",
-    "program_name",
-    "year_level",
-    "section",
-    "stress_score",
-    "workload_score",
-    "study_time_score",
-    "sleep_score",
-    "stress_norm",
-    "workload_norm",
-    "study_time_norm",
-    "sleep_norm",
-    "mfbi_score",
-    "mfbi_risk",
-    "decision_tree_prediction",
-    "random_forest_prediction",
+    "submission_status",
     ...exportedQuestions.map((question) => question.itemCode),
   ];
-
-  const analysisRows: (string | number | null | undefined)[][] = [analysisHeader];
-  const sortedSubmitted = [...submitted].sort((a, b) => {
-    const respondent = profileFields(a.student_id).respondent.localeCompare(
-      profileFields(b.student_id).respondent
-    );
-    if (respondent !== 0) return respondent;
-    return a.week_number - b.week_number;
-  });
-
-  for (const row of sortedSubmitted) {
-    const who = profileFields(row.student_id);
-    const mfbi = mfbiByMonitoring.get(row.monitoring_id);
-    const prediction = mfbi ? predictionByMfbi.get(mfbi.mfbi_id) : undefined;
+  const monitoringExport: (string | number | null | undefined)[][] = [
+    monitoringHeader,
+  ];
+  for (const row of chapterRows) {
     const answerMap = answersByMonitoring.get(row.monitoring_id);
-    analysisRows.push([
-      who.respondent,
+    monitoringExport.push([
+      respondentByStudent.get(row.student_id) ?? "",
       row.week_number,
       row.submitted_at ?? "",
-      row.monitoring_id,
-      who.programCode,
-      who.programName,
-      who.yearLevel,
-      who.section,
-      num(row.stress_score),
-      num(row.academic_workload_score),
-      num(row.study_time_score),
-      num(row.sleep_hours_score),
-      num(mfbi?.normalized_stress),
-      num(mfbi?.normalized_academic_workload),
-      num(mfbi?.normalized_study_time),
-      num(mfbi?.normalized_sleep_hours),
-      num(mfbi?.mfbi_score),
-      mfbi?.burnout_risk_level ?? "",
-      prediction?.decision_tree_prediction ?? "",
-      prediction?.random_forest_prediction ?? "",
+      row.status ?? "",
       ...exportedQuestions.map((question) => {
         const value = answerMap?.get(question.question_id);
         return value == null ? "" : value;
@@ -570,133 +442,27 @@ export async function buildResearchFiles(): Promise<
     ]);
   }
 
-  const questionnaireRows: (string | number | null | undefined)[][] = [
-    [
-      "item_code",
-      "variable",
-      "questionnaire",
-      "question_order",
-      "question_text",
-      "response_type",
-      "reverse_scored",
-      "response_scale",
-    ],
-  ];
-  for (const question of exportedQuestions) {
-    const scale =
-      question.sectionKey == null
-        ? ""
-        : resolveScaleOptions(
-            question.sectionKey,
-            question,
-            question.questionnaire_name
-          )
-            .map((option) => `${option.value}=${option.label}`)
-            .join("; ");
-    questionnaireRows.push([
-      question.itemCode,
-      question.variable,
-      question.questionnaire_name,
-      question.question_order,
-      question.question_text,
-      question.response_type,
-      question.reverse_scored ? "yes" : "no",
-      scale,
-    ]);
-  }
-
-  const monitoringRows: (string | number | null | undefined)[][] = [
-    [
-      "monitoring_id",
-      "respondent_id",
-      "week_number",
-      "status",
-      "submitted_at",
-      "program_code",
-      "program_name",
-      "year_level",
-      "section",
-      "term_id",
-    ],
-  ];
-  for (const row of monitoring) {
-    const who = profileFields(row.student_id);
-    monitoringRows.push([
-      row.monitoring_id,
-      who.respondent,
-      row.week_number,
-      row.status ?? "",
-      row.submitted_at ?? "",
-      who.programCode,
-      who.programName,
-      who.yearLevel,
-      who.section,
-      row.term_id,
-    ]);
-  }
-
-  const answerRows: (string | number | null | undefined)[][] = [
-    [
-      "monitoring_id",
-      "respondent_id",
-      "week_number",
-      "question_id",
-      "item_code",
-      "variable",
-      "answer_value",
-      "answer_label",
-    ],
-  ];
-  for (const answer of answers) {
-    if (!submittedIds.has(answer.monitoring_id)) continue;
-    const row = monitoringById.get(answer.monitoring_id);
-    const question = questionById.get(answer.question_id);
-    if (!row || !question) continue;
-    const label =
-      question.sectionKey == null
-        ? ""
-        : (getAnswerLabelForQuestion(
-            question.sectionKey,
-            question,
-            answer.answer_value,
-            question.questionnaire_name
-          ) ?? "");
-    answerRows.push([
-      answer.monitoring_id,
-      profileFields(row.student_id).respondent,
-      row.week_number,
-      answer.question_id,
-      question.itemCode,
-      question.variable,
-      answer.answer_value,
-      label,
-    ]);
-  }
-
   const mfbiExport: (string | number | null | undefined)[][] = [
     [
-      "monitoring_id",
       "respondent_id",
       "week_number",
       "stress_score",
-      "workload_score",
+      "academic_workload_score",
       "study_time_score",
-      "sleep_score",
-      "stress_norm",
-      "workload_norm",
-      "study_time_norm",
-      "sleep_norm",
+      "sleep_hours_score",
+      "normalized_stress",
+      "normalized_academic_workload",
+      "normalized_study_time",
+      "normalized_sleep_hours",
       "mfbi_score",
-      "mfbi_risk",
-      "computed_at",
+      "mfbi_risk_category",
     ],
   ];
-  for (const mfbi of mfbiRows) {
-    const row = monitoringById.get(mfbi.monitoring_id);
-    if (!row || !submittedIds.has(row.monitoring_id)) continue;
+  for (const row of chapterRows) {
+    const mfbi = mfbiByMonitoring.get(row.monitoring_id);
+    if (!mfbi || !submittedIds.has(row.monitoring_id)) continue;
     mfbiExport.push([
-      mfbi.monitoring_id,
-      profileFields(row.student_id).respondent,
+      respondentByStudent.get(row.student_id) ?? "",
       row.week_number,
       num(row.stress_score),
       num(row.academic_workload_score),
@@ -708,276 +474,243 @@ export async function buildResearchFiles(): Promise<
       num(mfbi.normalized_sleep_hours),
       num(mfbi.mfbi_score),
       mfbi.burnout_risk_level,
-      mfbi.computed_at ?? "",
     ]);
   }
 
   const predictionExport: (string | number | null | undefined)[][] = [
     [
-      "monitoring_id",
       "respondent_id",
-      "week_number",
-      "mfbi_risk",
-      "decision_tree_prediction",
-      "decision_tree_confidence",
-      "random_forest_prediction",
-      "random_forest_confidence",
-      "final_prediction",
-      "selected_model",
-      "model_version",
-      "prediction_date",
+      "input_week",
+      "target_week",
+      "model",
+      "actual_label",
+      "predicted_label",
+      "evaluation_setup",
     ],
   ];
-  const livePairs: {
-    model: string;
-    actual: string;
-    predicted: string;
-  }[] = [];
-  for (const mfbi of mfbiRows) {
-    const row = monitoringById.get(mfbi.monitoring_id);
-    const prediction = predictionByMfbi.get(mfbi.mfbi_id);
-    if (!row || !prediction || !submittedIds.has(row.monitoring_id)) continue;
+  const livePairs: { horizon: string; model: string; actual: string; predicted: string }[] =
+    [];
+
+  for (const row of chapterRows) {
+    if (!submittedIds.has(row.monitoring_id)) continue;
+    const mfbi = mfbiByMonitoring.get(row.monitoring_id);
+    const prediction = mfbi ? predictionByMfbi.get(mfbi.mfbi_id) : undefined;
+    if (!mfbi || !prediction) continue;
+    const respondent = respondentByStudent.get(row.student_id) ?? "";
+    const sameWeek = [
+      ["Decision Tree", prediction.decision_tree_prediction],
+      ["Random Forest", prediction.random_forest_prediction],
+    ] as const;
+    for (const [model, predicted] of sameWeek) {
+      predictionExport.push([
+        respondent,
+        row.week_number,
+        row.week_number,
+        model,
+        mfbi.burnout_risk_level,
+        predicted,
+        "same_week_classification",
+      ]);
+      livePairs.push({
+        horizon: "same_week",
+        model,
+        actual: mfbi.burnout_risk_level,
+        predicted,
+      });
+    }
+  }
+
+  for (const [studentId, weeks] of weekByStudent) {
+    const week1 = weeks.get(1);
+    const week2 = weeks.get(2);
+    if (!week1 || !week2) continue;
+    if (!submittedIds.has(week1.monitoring_id) || !submittedIds.has(week2.monitoring_id)) {
+      continue;
+    }
+    const current = mfbiByMonitoring.get(week1.monitoring_id);
+    const next = mfbiByMonitoring.get(week2.monitoring_id);
+    const prediction = current ? predictionByMfbi.get(current.mfbi_id) : undefined;
+    if (!current || !next || !prediction) continue;
+    const forecast = parseEarlyWarningRemarks(prediction.remarks);
+    const predicted = forecast?.next_week_risk ?? "";
+    const model = prediction.selected_model || "Random Forest";
     predictionExport.push([
-      row.monitoring_id,
-      profileFields(row.student_id).respondent,
-      row.week_number,
-      mfbi.burnout_risk_level,
-      prediction.decision_tree_prediction,
-      num(prediction.decision_tree_confidence),
-      prediction.random_forest_prediction,
-      num(prediction.random_forest_confidence),
-      prediction.final_prediction,
-      prediction.selected_model,
-      prediction.model_version ?? "",
-      prediction.prediction_date ?? "",
+      respondentByStudent.get(studentId) ?? "",
+      1,
+      2,
+      model,
+      next.burnout_risk_level,
+      predicted,
+      "next_week_week1_input_week2_label",
     ]);
-    livePairs.push(
-      {
-        model: "Decision Tree",
-        actual: mfbi.burnout_risk_level,
-        predicted: prediction.decision_tree_prediction,
-      },
-      {
-        model: "Random Forest",
-        actual: mfbi.burnout_risk_level,
-        predicted: prediction.random_forest_prediction,
-      }
-    );
+    if (predicted) {
+      livePairs.push({
+        horizon: "next_week",
+        model,
+        actual: next.burnout_risk_level,
+        predicted,
+      });
+    }
   }
 
   const evaluationRows: (string | number | null | undefined)[][] = [
     [
+      "record_type",
       "source",
       "horizon",
       "model",
-      "metric",
-      "actual",
-      "predicted",
-      "value",
+      "accuracy",
+      "precision",
+      "recall",
+      "f1",
+      "test_rows",
+      "samples",
+      "actual_label",
+      "predicted_label",
+      "count",
+      "feature",
+      "importance",
+      "note",
     ],
   ];
-  const riskCounts = new Map<string, number>();
-  for (const mfbi of mfbiRows) {
-    if (!submittedIds.has(mfbi.monitoring_id)) continue;
-    riskCounts.set(
-      mfbi.burnout_risk_level,
-      (riskCounts.get(mfbi.burnout_risk_level) ?? 0) + 1
-    );
-  }
-  for (const label of RISK_ORDER) {
-    if (!riskCounts.has(label)) continue;
-    evaluationRows.push([
-      "live_monitoring",
-      "submitted_weeks",
-      "",
-      "risk_count",
-      label,
-      "",
-      riskCounts.get(label) ?? 0,
-    ]);
-  }
-  evaluationRows.push([
-    "live_monitoring",
-    "submitted_weeks",
-    "",
-    "submitted_rows",
-    "",
-    "",
-    submitted.length,
-  ]);
-  evaluationRows.push([
-    "live_monitoring",
-    "submitted_weeks",
-    "",
-    "respondents",
-    "",
-    "",
-    studentIds.length,
-  ]);
 
-  for (const model of ["Decision Tree", "Random Forest"]) {
-    const pairs = livePairs.filter((pair) => pair.model === model);
-    const labels = RISK_ORDER.filter((label) =>
-      pairs.some((pair) => pair.actual === label || pair.predicted === label)
-    );
-    const matrix = labels.map(() => labels.map(() => 0));
-    for (const pair of pairs) {
-      const actual = labels.indexOf(pair.actual);
-      const predicted = labels.indexOf(pair.predicted);
-      if (actual >= 0 && predicted >= 0) matrix[actual][predicted] += 1;
-    }
-    const scores = weightedScores(labels, matrix, pairs.length);
-    evaluationRows.push([
-      "stored_predictions_vs_mfbi",
-      "submitted_weeks",
-      model,
-      "rows",
-      "",
-      "",
-      pairs.length,
-    ]);
-    for (const metric of ["accuracy", "precision", "recall", "f1"] as const) {
+  function addLiveEvaluation(horizon: string, note: string) {
+    for (const model of ["Decision Tree", "Random Forest"]) {
+      const pairs = livePairs.filter(
+        (pair) => pair.horizon === horizon && pair.model === model
+      );
+      if (!pairs.length) continue;
+      const labels = RISK_ORDER.filter((label) =>
+        pairs.some((pair) => pair.actual === label || pair.predicted === label)
+      );
+      const matrix = labels.map(() => labels.map(() => 0));
+      for (const pair of pairs) {
+        const actual = labels.indexOf(pair.actual);
+        const predicted = labels.indexOf(pair.predicted);
+        if (actual >= 0 && predicted >= 0) matrix[actual][predicted] += 1;
+      }
+      const scores = weightedScores(labels, matrix, pairs.length);
       evaluationRows.push([
-        "stored_predictions_vs_mfbi",
-        "submitted_weeks",
+        "metrics",
+        "stored_monitoring",
+        horizon,
         model,
-        metric,
+        round4(scores.accuracy),
+        round4(scores.precision),
+        round4(scores.recall),
+        round4(scores.f1),
+        pairs.length,
+        pairs.length,
         "",
         "",
-        round4(scores[metric]),
+        "",
+        "",
+        "",
+        note,
       ]);
-    }
-    labels.forEach((actual, rowIndex) => {
-      labels.forEach((predicted, columnIndex) => {
-        evaluationRows.push([
-          "stored_predictions_vs_mfbi",
-          "submitted_weeks",
-          model,
-          "confusion",
-          actual,
-          predicted,
-          matrix[rowIndex][columnIndex],
-        ]);
+      labels.forEach((actual, rowIndex) => {
+        labels.forEach((predicted, columnIndex) => {
+          evaluationRows.push([
+            "confusion",
+            "stored_monitoring",
+            horizon,
+            model,
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            actual,
+            predicted,
+            matrix[rowIndex][columnIndex],
+            "",
+            "",
+            "",
+          ]);
+        });
       });
-    });
+    }
   }
-  evaluationRows.push([
-    "stored_predictions_vs_mfbi",
-    "submitted_weeks",
-    "",
-    "note",
-    "",
-    "",
-    "These rows compare saved predictions with the MFBI risk already stored for the same week. They do not replace a held-out train/test evaluation.",
-  ]);
 
-  appendTrainedHorizon(
-    evaluationRows,
+  addLiveEvaluation(
     "same_week",
-    trained?.same_week,
-    "test_size 0.2, random_state 42, stratified split, class_weight balanced. From burnout-ai/models/metrics.json."
+    "Saved Decision Tree and Random Forest labels compared with the MFBI category of the same week. This is current-week classification, not the training hold-out."
   );
+  addLiveEvaluation(
+    "next_week",
+    "Week 1 saved next-week forecast compared with the Week 2 MFBI category. Rows appear only after that forecast has been saved."
+  );
+
+  appendTrainedHorizon(evaluationRows, "same_week", trained?.same_week, trained?.notes?.same_week);
   appendTrainedHorizon(
     evaluationRows,
     "next_week",
     trained?.next_week,
-    trained?.notes?.next_week ??
-      "Next-week hold-out from burnout-ai/models/metrics.json."
+    trained?.notes?.next_week
   );
   if (!trained) {
     evaluationRows.push([
+      "note",
       "trained_holdout",
       "",
       "",
-      "note",
       "",
       "",
-      "burnout-ai/models/metrics.json was not found. Run npm run train to generate hold-out metrics.",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "burnout-ai/models/metrics.json was not found. Run npm run train before using the hold-out metrics in Chapter 4.7–4.9.",
     ]);
   }
 
-  const seenAlerts = new Set<string>();
-  const alertRows: (string | number | null | undefined)[][] = [
-    [
-      "record_type",
-      "respondent_id",
-      "monitoring_id",
-      "week_number",
-      "kind",
-      "risk_level",
-      "priority",
-      "is_read",
-      "created_at",
-      "model",
-    ],
-  ];
-  const orderedNotifications = [...notifications].sort(
-    (a, b) =>
-      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-  );
-  for (const notice of orderedNotifications) {
-    const linked = notice.monitoring_id
-      ? monitoringById.get(notice.monitoring_id)
-      : undefined;
-    const studentId = linked?.student_id ?? notice.user_id;
-    const respondent = respondentByStudent.get(studentId);
-    if (!respondent) continue;
-    const key = `${notice.monitoring_id ?? "none"}:${notice.notification_type}:${respondent}`;
-    if (notice.monitoring_id && seenAlerts.has(key)) continue;
-    if (notice.monitoring_id) seenAlerts.add(key);
-    const mfbi = linked ? mfbiByMonitoring.get(linked.monitoring_id) : undefined;
-    alertRows.push([
-      "notification",
-      respondent,
-      notice.monitoring_id ?? "",
-      linked?.week_number ?? "",
-      notice.notification_type,
-      mfbi?.burnout_risk_level ?? "",
-      notice.priority ?? "",
-      notice.is_read ? "yes" : "no",
-      notice.created_at,
-      "",
-    ]);
-  }
-  for (const recommendation of recommendations) {
-    const linked = recommendation.monitoring_id
-      ? monitoringById.get(recommendation.monitoring_id)
-      : undefined;
-    const respondent = respondentByStudent.get(recommendation.student_id);
-    if (!respondent) continue;
-    alertRows.push([
-      "recommendation",
-      respondent,
-      recommendation.monitoring_id ?? "",
-      linked?.week_number ?? "",
-      "recommendation",
-      recommendation.risk_level ?? "",
-      "",
-      "",
-      recommendation.created_at,
-      recommendation.prediction_model ?? recommendation.llm_model ?? "",
-    ]);
-  }
+  const itemList = exportedQuestions
+    .map((question) => `${question.itemCode}: ${question.question_text}`)
+    .join("\r\n");
 
   const readme = `${BOM}Chapter 4 research export
-Respondent IDs such as S001 replace student names. Names, email addresses, phone numbers, and student numbers are not included.
-program_code and program_name are the academic program. year_level and section are included.
-chapter4-analysis.csv has one row for each submitted monitoring week.
-weekly-monitoring-answers.csv keeps the original item responses and labels.
-mfbi-results.csv is the score saved when the student submitted, including the Low, Moderate, High, or Severe category.
-model-evaluation.csv has two sources. stored_predictions_vs_mfbi compares saved predictions with the MFBI category for the same week. trained_holdout is the Decision Tree and Random Forest test result from burnout-ai/models/metrics.json when that file is present.
-alerts-and-recommendations.csv keeps the warning type, risk, and date. Notification message text is omitted because it can contain a student name.
+Respondent IDs such as S001 replace names, email addresses, phone numbers, and student numbers.
+Files include monitoring weeks 1 and 2 only.
+
+weekly_monitoring_week1_week2.csv — one row per student per week, with the numeric answer for each questionnaire item.
+mfbi_weekly_results.csv — stored variable scores, normalized scores, MFBI score, and Low / Moderate / High category.
+ml_predictions.csv — actual label and predicted label.
+  same_week_classification compares the model with that week's MFBI category.
+  next_week_week1_input_week2_label uses Week 1 as the input and Week 2 MFBI as the actual label.
+ml_evaluation_results.csv — metrics, confusion counts, and feature importance.
+  trained_holdout is the Decision Tree and Random Forest test from burnout-ai/models/metrics.json.
+  stored_monitoring is the live Week 1 and Week 2 comparison, not a replacement for that hold-out.
+Feature importance shows influence inside the trained model. It is not a cause of burnout.
+
+Questionnaire items
+${itemList}
+`;
+
+  const screenshots = `${BOM}Chapter 4.10 system screenshots
+Save these from the running system as PNG or JPG. This download does not include images.
+
+1. Student weekly monitoring questionnaire, showing the items for one open week.
+2. Student dashboard with the current MFBI result.
+3. Week 1 and Week 2 results, or the trend view that shows both weeks.
+4. Guidance AI Model Status card with Decision Tree and Random Forest metrics.
+5. A student record that shows the next-week early-warning outlook.
+6. The recommendation or alert shown after a monitoring result.
+
+Use the same anonymous IDs as the CSV files if a student must be identified in a caption. Do not include names, email addresses, or student numbers in the published shots.
 `;
 
   return [
-    { name: "chapter4-analysis.csv", text: toCsv(analysisRows) },
-    { name: "questionnaire-items.csv", text: toCsv(questionnaireRows) },
-    { name: "weekly-monitoring.csv", text: toCsv(monitoringRows) },
-    { name: "weekly-monitoring-answers.csv", text: toCsv(answerRows) },
-    { name: "mfbi-results.csv", text: toCsv(mfbiExport) },
-    { name: "ml-predictions.csv", text: toCsv(predictionExport) },
-    { name: "model-evaluation.csv", text: toCsv(evaluationRows) },
-    { name: "alerts-and-recommendations.csv", text: toCsv(alertRows) },
+    { name: "weekly_monitoring_week1_week2.csv", text: toCsv(monitoringExport) },
+    { name: "mfbi_weekly_results.csv", text: toCsv(mfbiExport) },
+    { name: "ml_predictions.csv", text: toCsv(predictionExport) },
+    { name: "ml_evaluation_results.csv", text: toCsv(evaluationRows) },
+    { name: "chapter4_system_screenshots.txt", text: screenshots },
     { name: "README.txt", text: readme },
   ];
 }

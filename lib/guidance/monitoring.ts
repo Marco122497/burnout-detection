@@ -95,6 +95,206 @@ export const getMonitoringRecordWeeks = cache(async function getMonitoringRecord
   return { latest, week1 };
 });
 
+export type ScoredRiskCategory = {
+  label: "Low" | "Moderate" | "High";
+  count: number;
+  averageScore: number | null;
+};
+
+export type ValidScoredSummary = {
+  total: number;
+  categories: ScoredRiskCategory[];
+  byYear: {
+    year_level: number;
+    total: number;
+    categories: ScoredRiskCategory[];
+  }[];
+};
+
+function summarizeScoredCategories(
+  items: { bucket: "Low" | "Moderate" | "High"; score: number }[]
+): { total: number; categories: ScoredRiskCategory[] } {
+  const groups: Record<"Low" | "Moderate" | "High", number[]> = {
+    Low: [],
+    Moderate: [],
+    High: [],
+  };
+  for (const item of items) groups[item.bucket].push(item.score);
+  const categories = (["Low", "Moderate", "High"] as const).map((label) => {
+    const scores = groups[label];
+    const sum = scores.reduce((left, right) => left + right, 0);
+    return {
+      label,
+      count: scores.length,
+      averageScore: scores.length ? Math.round((sum / scores.length) * 100) / 100 : null,
+    };
+  });
+  return { total: items.length, categories };
+}
+
+/** Every submitted monitoring row in the active term that has an MFBI score. */
+export const getValidScoredSummary = cache(async function getValidScoredSummary(
+  supabase: SupabaseClient
+): Promise<ValidScoredSummary> {
+  const term = await getActiveTerm(supabase);
+  const empty = summarizeScoredCategories([]);
+  if (!term?.term_id) return { ...empty, byYear: [] };
+
+  const [monitoringRows, students] = await Promise.all([
+    fetchAllPages(async (from, to) =>
+      supabase
+        .from("weekly_monitoring")
+        .select(
+          "student_id, status, mfbi_results(mfbi_score, burnout_risk_level)"
+        )
+        .eq("term_id", term.term_id)
+        .order("monitoring_id", { ascending: true })
+        .range(from, to)
+    ),
+    fetchAllPages(async (from, to) =>
+      supabase
+        .from("profiles")
+        .select("id, year_level")
+        .eq("role", "Student")
+        .order("id", { ascending: true })
+        .range(from, to)
+    ),
+  ]);
+
+  const yearByStudent = new Map(
+    students.map((student) => [student.id, student.year_level as number | null])
+  );
+  const items: {
+    year: number | null;
+    bucket: "Low" | "Moderate" | "High";
+    score: number;
+  }[] = [];
+
+  for (const row of monitoringRows) {
+    if (row.status === "Draft") continue;
+    const mfbiRaw = row.mfbi_results;
+    const mfbi = Array.isArray(mfbiRaw) ? mfbiRaw[0] : mfbiRaw;
+    if (mfbi?.mfbi_score == null) continue;
+    const score = Number(mfbi.mfbi_score);
+    const bucket = mfbiRiskBucket(score, mfbi.burnout_risk_level);
+    if (!bucket || !Number.isFinite(score)) continue;
+    items.push({
+      year: yearByStudent.get(row.student_id) ?? null,
+      bucket,
+      score,
+    });
+  }
+
+  const overall = summarizeScoredCategories(items);
+  const years = [...new Set(items.map((item) => item.year).filter((year): year is number => year != null))].sort(
+    (a, b) => a - b
+  );
+  return {
+    total: overall.total,
+    categories: overall.categories,
+    byYear: years.map((year_level) => {
+      const summary = summarizeScoredCategories(
+        items.filter((item) => item.year === year_level)
+      );
+      return { year_level, total: summary.total, categories: summary.categories };
+    }),
+  };
+});
+
+export type LevelCounts = {
+  low: number;
+  moderate: number;
+  high: number;
+};
+
+export type WeekVariableAverages = {
+  week: number;
+  count: number;
+  stress: LevelCounts;
+  workload: LevelCounts;
+  study: LevelCounts;
+  sleep: LevelCounts;
+};
+
+function unitScore(value: unknown, max: number) {
+  const score = Number(value);
+  if (!Number.isFinite(score) || max <= 0) return null;
+  return Math.min(1, Math.max(0, score / max));
+}
+
+function emptyLevels(): LevelCounts {
+  return { low: 0, moderate: 0, high: 0 };
+}
+
+function addLevel(counts: LevelCounts, level: "Low" | "Moderate" | "High" | null) {
+  if (level === "Low") counts.low += 1;
+  else if (level === "Moderate") counts.moderate += 1;
+  else if (level === "High") counts.high += 1;
+}
+
+function factorLevel(value: unknown, max: number) {
+  const unit = unitScore(value, max);
+  if (unit == null) return null;
+  const level = classifyMfbiScore(unit);
+  if (level === "Severe") return "High" as const;
+  return level;
+}
+
+/** Low, Moderate, and High counts for every valid scored monitoring week. */
+export const getWeekVariableAverages = cache(async function getWeekVariableAverages(
+  supabase: SupabaseClient
+): Promise<WeekVariableAverages[]> {
+  const term = await getActiveTerm(supabase);
+  const empty = (week: number): WeekVariableAverages => ({
+    week,
+    count: 0,
+    stress: emptyLevels(),
+    workload: emptyLevels(),
+    study: emptyLevels(),
+    sleep: emptyLevels(),
+  });
+  if (!term?.term_id) return [empty(1), empty(2)];
+
+  const rows = await fetchAllPages(async (from, to) =>
+    supabase
+      .from("weekly_monitoring")
+      .select(
+        "week_number, status, stress_score, academic_workload_score, study_time_score, sleep_hours_score, mfbi_results(mfbi_score)"
+      )
+      .eq("term_id", term.term_id)
+      .order("monitoring_id", { ascending: true })
+      .range(from, to)
+  );
+
+  const groups = new Map<number, WeekVariableAverages>();
+
+  for (const row of rows) {
+    if (row.status === "Draft") continue;
+    const week = Number(row.week_number);
+    if (!Number.isFinite(week) || week < 1) continue;
+    const mfbiRaw = row.mfbi_results;
+    const mfbi = Array.isArray(mfbiRaw) ? mfbiRaw[0] : mfbiRaw;
+    if (mfbi?.mfbi_score == null) continue;
+    const stress = stressLevelFromScore(row.stress_score);
+    const workload = factorLevel(row.academic_workload_score, 10);
+    const study = factorLevel(row.study_time_score, STUDY_TIME_SCORE_MAX);
+    const sleep = factorLevel(row.sleep_hours_score, 100);
+    if (!stress || !workload || !study || !sleep) continue;
+    const bucket = groups.get(week) ?? empty(week);
+    bucket.count += 1;
+    addLevel(bucket.stress, stress);
+    addLevel(bucket.workload, workload);
+    addLevel(bucket.study, study);
+    addLevel(bucket.sleep, sleep);
+    groups.set(week, bucket);
+  }
+
+  if (!groups.has(1)) groups.set(1, empty(1));
+  if (!groups.has(2)) groups.set(2, empty(2));
+
+  return [...groups.values()].sort((left, right) => left.week - right.week);
+});
+
 export const getGuidanceStudentRows = cache(async function getGuidanceStudentRows(
   supabase: SupabaseClient,
   week?: number
@@ -535,11 +735,18 @@ export function getGuidanceAnalytics(
   const riskOverview = (
     ["Low", "Moderate", "High"] as const
   ).map((label) => {
-    const count = classified.filter((item) => item.bucket === label).length;
+    const matches = classified.filter((item) => item.bucket === label);
+    const scores = matches
+      .map((item) => item.row.mfbi_score)
+      .filter((score): score is number => score != null);
+    const count = matches.length;
     return {
       label,
       count,
-      percent: Math.round((count / classifiedTotal) * 1000) / 10,
+      percent: Math.round((count / classifiedTotal) * 10000) / 100,
+      averageScore: scores.length
+        ? Math.round((scores.reduce((left, right) => left + right, 0) / scores.length) * 100) / 100
+        : null,
     };
   });
 
@@ -570,6 +777,9 @@ export function getGuidanceAnalytics(
       low: number;
       moderate: number;
       high: number;
+      lowScores: number[];
+      moderateScores: number[];
+      highScores: number[];
       earlyWarning: number;
       nextWeekHigh: number;
       week2High: number;
@@ -585,6 +795,9 @@ export function getGuidanceAnalytics(
       low: 0,
       moderate: 0,
       high: 0,
+      lowScores: [],
+      moderateScores: [],
+      highScores: [],
       earlyWarning: 0,
       nextWeekHigh: 0,
       week2High: 0,
@@ -596,9 +809,16 @@ export function getGuidanceAnalytics(
     }
     if (row.submittedThisWeek) entry.submitted += 1;
     const bucket = rowMfbiRiskBucket(row);
-    if (bucket === "Low") entry.low += 1;
-    else if (bucket === "Moderate") entry.moderate += 1;
-    else if (bucket === "High") entry.high += 1;
+    if (bucket === "Low") {
+      entry.low += 1;
+      if (row.mfbi_score != null) entry.lowScores.push(row.mfbi_score);
+    } else if (bucket === "Moderate") {
+      entry.moderate += 1;
+      if (row.mfbi_score != null) entry.moderateScores.push(row.mfbi_score);
+    } else if (bucket === "High") {
+      entry.high += 1;
+      if (row.mfbi_score != null) entry.highScores.push(row.mfbi_score);
+    }
     if (row.early_warning_attention) entry.earlyWarning += 1;
     if (row.next_week_risk === "High") entry.nextWeekHigh += 1;
     if (row.week2_risk === "High") entry.week2High += 1;
@@ -625,6 +845,11 @@ export function getGuidanceAnalytics(
       low: entry.low,
       moderate: entry.moderate,
       high: entry.high,
+      lowAverage: entry.lowScores.length ? avg(entry.lowScores) : null,
+      moderateAverage: entry.moderateScores.length
+        ? avg(entry.moderateScores)
+        : null,
+      highAverage: entry.highScores.length ? avg(entry.highScores) : null,
       earlyWarningCount: entry.earlyWarning,
       nextWeekHighCount: entry.nextWeekHigh,
       week2HighCount: entry.week2High,

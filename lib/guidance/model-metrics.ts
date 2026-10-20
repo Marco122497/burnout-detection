@@ -25,6 +25,7 @@ export type ModelEvaluationSnapshot = {
 
 export type AiModelStatus = {
   modelEvaluation: ModelEvaluationSnapshot;
+  nextWeekEvaluation: ModelEvaluationSnapshot;
   aiHealthy: boolean;
   metricsSource: "live" | "file" | "unavailable";
 };
@@ -114,10 +115,23 @@ export function mapAiMetrics(raw: unknown): ModelEvaluationSnapshot | null {
   };
 }
 
+export function mapNextWeekMetrics(raw: unknown): ModelEvaluationSnapshot | null {
+  if (!raw || typeof raw !== "object") return null;
+  const next = (raw as MetricsFile).next_week;
+  if (!next?.decision_tree || !next?.random_forest) return null;
+
+  return {
+    decisionTree: fromBlock("Decision Tree", next.decision_tree),
+    randomForest: fromBlock("Random Forest", next.random_forest),
+    modelVersion: "burnout-ai-next-week-v1",
+    source: "trained",
+  };
+}
+
 /** Client-safe constant for existing imports; prefer getModelEvaluation(). */
 export const MODEL_EVALUATION = PLACEHOLDER;
 
-async function readMetricsFromFile(): Promise<ModelEvaluationSnapshot | null> {
+async function readMetricsRaw(): Promise<unknown | null> {
   try {
     const fs = await import("node:fs/promises");
     const path = await import("node:path");
@@ -128,37 +142,30 @@ async function readMetricsFromFile(): Promise<ModelEvaluationSnapshot | null> {
       "metrics.json"
     );
     const text = await fs.readFile(file, "utf8");
-    return mapAiMetrics(JSON.parse(text));
+    return JSON.parse(text);
   } catch {
     return null;
   }
 }
 
 async function loadAiModelStatus(): Promise<
-  Pick<AiModelStatus, "modelEvaluation" | "metricsSource">
+  Pick<AiModelStatus, "modelEvaluation" | "nextWeekEvaluation" | "metricsSource">
 > {
   const { fetchBurnoutAiMetrics } = await import("@/lib/student/ai-client");
 
-  const fileMapped = await readMetricsFromFile();
-  const liveMapped = mapAiMetrics(await fetchBurnoutAiMetrics().catch(() => null));
-
-  if (liveMapped) {
-    return {
-      modelEvaluation: liveMapped,
-      metricsSource: "live",
-    };
-  }
-
-  if (fileMapped) {
-    return {
-      modelEvaluation: fileMapped,
-      metricsSource: "file",
-    };
-  }
+  const [fileRaw, liveRaw] = await Promise.all([
+    readMetricsRaw(),
+    fetchBurnoutAiMetrics().catch(() => null),
+  ]);
+  const liveMapped = mapAiMetrics(liveRaw);
+  const fileMapped = mapAiMetrics(fileRaw);
+  const liveNext = mapNextWeekMetrics(liveRaw);
+  const fileNext = mapNextWeekMetrics(fileRaw);
 
   return {
-    modelEvaluation: PLACEHOLDER,
-    metricsSource: "unavailable",
+    modelEvaluation: liveMapped ?? fileMapped ?? PLACEHOLDER,
+    nextWeekEvaluation: liveNext ?? fileNext ?? PLACEHOLDER,
+    metricsSource: liveMapped ? "live" : fileMapped ? "file" : "unavailable",
   };
 }
 
@@ -166,7 +173,7 @@ export const AI_STATUS_CACHE_TAG = "burnout-ai-model-status";
 
 const getCachedAiModelSnapshot = unstable_cache(
   loadAiModelStatus,
-  ["burnout-ai-model-metrics-same-week"],
+  ["burnout-ai-model-metrics-same-and-next-week"],
   { revalidate: 300, tags: [AI_STATUS_CACHE_TAG] }
 );
 

@@ -50,10 +50,19 @@ import type {
   AiModelStatus,
   ModelEvaluationSnapshot,
 } from "@/lib/guidance/model-metrics";
-import type { getGuidanceAnalytics } from "@/lib/guidance/monitoring";
+import type {
+  getGuidanceAnalytics,
+  ValidScoredSummary,
+  WeekVariableAverages,
+} from "@/lib/guidance/monitoring";
 import { cn, formatYearLevel } from "@/lib/utils";
 
 type Analytics = ReturnType<typeof getGuidanceAnalytics>;
+
+function sharePercent(count: number, total: number) {
+  if (!total) return 0;
+  return Math.round((count / total) * 10000) / 100;
+}
 
 const YEAR_FILTER_OPTIONS = [
   { value: "1", label: "1st Year" },
@@ -67,6 +76,20 @@ const riskConfig = {
   moderate: { label: "Moderate Risk", color: "oklch(0.8 0.15 85)" },
   high: { label: "High Risk", color: "oklch(0.68 0.19 40)" },
 } satisfies ChartConfig;
+
+const variableClassConfig = {
+  low: { label: "Low", color: "oklch(0.72 0.15 160)" },
+  moderate: { label: "Moderate", color: "oklch(0.8 0.15 85)" },
+  high: { label: "High", color: "oklch(0.68 0.19 40)" },
+} satisfies ChartConfig;
+
+const VARIABLE_OPTIONS = [
+  { value: "all", short: "All", label: "All variables" },
+  { value: "stress", short: "SL", label: "Stress Level" },
+  { value: "workload", short: "AW", label: "Academic Workload" },
+  { value: "study", short: "ST", label: "Study Time" },
+  { value: "sleep", short: "SH", label: "Sleep Hours" },
+] as const;
 
 const COURSE_FUSE_COLORS = {
   low: "oklch(0.72 0.15 160)",
@@ -237,6 +260,11 @@ export function GuidanceDashboard({
   aiHealthy,
   metricsSource,
   showAiModelStatus = false,
+  weeks,
+  selectedWeek,
+  validScored,
+  weekVariables,
+  nextWeekEvaluation,
 }: {
   firstName: string;
   data: Analytics;
@@ -244,9 +272,19 @@ export function GuidanceDashboard({
   aiHealthy: boolean;
   metricsSource?: AiModelStatus["metricsSource"];
   showAiModelStatus?: boolean;
+  weeks: number[];
+  selectedWeek: number;
+  validScored: ValidScoredSummary;
+  weekVariables: WeekVariableAverages[];
+  nextWeekEvaluation: ModelEvaluationSnapshot;
 }) {
   const { navigate, isPending, pendingHref } = useNavigationPending();
   const [yearFilter, setYearFilter] = React.useState("all");
+  const [riskBasis, setRiskBasis] = React.useState<"week" | "total">("week");
+  const [variableScope, setVariableScope] = React.useState("total");
+  const [variableKey, setVariableKey] = React.useState<
+    (typeof VARIABLE_OPTIONS)[number]["value"]
+  >("all");
 
   const allLow =
     data.riskOverview.find((item) => item.label === "Low")?.count ?? 0;
@@ -300,16 +338,68 @@ export function GuidanceDashboard({
       : (YEAR_FILTER_OPTIONS.find((o) => o.value === yearFilter)?.label ??
         `Year ${yearFilter}`);
 
-  const classifiedTotal = scoped.low + scoped.moderate + scoped.high || 1;
-  const pieData = (
-    [
-      { label: "Low", count: scoped.low },
-      { label: "Moderate", count: scoped.moderate },
-      { label: "High", count: scoped.high },
-    ] as const
-  ).map((item) => ({
+  const riskChart = React.useMemo(() => {
+    const year = yearFilter === "all" ? null : Number(yearFilter);
+    if (riskBasis === "total") {
+      const source =
+        year == null
+          ? validScored
+          : (validScored.byYear.find((item) => item.year_level === year) ?? {
+              total: 0,
+              categories: validScored.categories.map((category) => ({
+                label: category.label,
+                count: 0,
+                averageScore: null,
+              })),
+            });
+      return {
+        total: source.total,
+        categories: source.categories.map((category) => ({
+          label: category.label,
+          count: category.count,
+          averageScore: category.averageScore,
+          percent: sharePercent(category.count, source.total),
+        })),
+      };
+    }
+
+    if (year == null) {
+      return {
+        total: data.classifiedCount,
+        categories: data.riskOverview.map((item) => ({
+          label: item.label,
+          count: item.count,
+          averageScore: item.averageScore,
+          percent: sharePercent(item.count, data.classifiedCount),
+        })),
+      };
+    }
+
+    const stats = data.yearStats.find((item) => item.year_level === year);
+    const counts = {
+      Low: stats?.low ?? 0,
+      Moderate: stats?.moderate ?? 0,
+      High: stats?.high ?? 0,
+    };
+    const averages = {
+      Low: stats?.lowAverage ?? null,
+      Moderate: stats?.moderateAverage ?? null,
+      High: stats?.highAverage ?? null,
+    };
+    const total = counts.Low + counts.Moderate + counts.High;
+    return {
+      total,
+      categories: (["Low", "Moderate", "High"] as const).map((label) => ({
+        label,
+        count: counts[label],
+        averageScore: averages[label],
+        percent: sharePercent(counts[label], total),
+      })),
+    };
+  }, [riskBasis, yearFilter, validScored, data]);
+
+  const pieData = riskChart.categories.map((item) => ({
     ...item,
-    percent: Math.round((item.count / classifiedTotal) * 1000) / 10,
     key: item.label.toLowerCase() as "low" | "moderate" | "high",
     fill: `var(--color-${item.label.toLowerCase()})`,
   }));
@@ -384,18 +474,80 @@ export function GuidanceDashboard({
   React.useEffect(() => {
     setHighRiskPage(1);
   }, [yearFilter, setHighRiskPage]);
+  const scopedRows =
+    variableScope === "total"
+      ? weekVariables
+      : weekVariables.filter((item) => item.week === Number(variableScope));
+  const scopedRecordCount = scopedRows.reduce((sum, row) => sum + row.count, 0);
+  const totalRecordCount = weekVariables.reduce((sum, item) => sum + item.count, 0);
+  const scopeLabel =
+    variableScope === "total"
+      ? `Total valid scored · ${totalRecordCount}`
+      : `Week ${variableScope} · ${scopedRecordCount}`;
+  const combinedLevels = (
+    key: "stress" | "workload" | "study" | "sleep"
+  ) =>
+    scopedRows.reduce(
+      (totals, row) => ({
+        low: totals.low + row[key].low,
+        moderate: totals.moderate + row[key].moderate,
+        high: totals.high + row[key].high,
+      }),
+      { low: 0, moderate: 0, high: 0 }
+    );
+  const selectedVariable =
+    VARIABLE_OPTIONS.find((item) => item.value === variableKey) ??
+    VARIABLE_OPTIONS[0];
+  const selectedLevels =
+    selectedVariable.value === "all"
+      ? { low: 0, moderate: 0, high: 0 }
+      : combinedLevels(selectedVariable.value);
+  const singleChartData = [
+    {
+      level: "Low",
+      count: selectedLevels.low,
+      fill: variableClassConfig.low.color,
+    },
+    {
+      level: "Moderate",
+      count: selectedLevels.moderate,
+      fill: variableClassConfig.moderate.color,
+    },
+    {
+      level: "High",
+      count: selectedLevels.high,
+      fill: variableClassConfig.high.color,
+    },
+  ];
+  const allChartData = VARIABLE_OPTIONS.flatMap((item) => {
+    if (item.value === "all") return [];
+    const levels = combinedLevels(item.value);
+    return [
+      {
+        variable: item.label,
+        low: levels.low,
+        moderate: levels.moderate,
+        high: levels.high,
+      },
+    ];
+  });
+  const hasVariableChart =
+    variableKey === "all"
+      ? allChartData.some((item) => item.low + item.moderate + item.high > 0)
+      : singleChartData.some((item) => item.count > 0);
+
   const recentActivity = [
     {
       text: `${scoped.submittedCount} students completed weekly monitoring`,
-      meta: "This week",
+      meta: `Week ${selectedWeek}`,
     },
     {
       text: `${scoped.high} student${scoped.high === 1 ? "" : "s"} classified as High Risk`,
-      meta: "This week",
+      meta: `Week ${selectedWeek}`,
     },
     {
       text: `${scoped.monitoredCount} assessments processed with burnout prediction`,
-      meta: "This week",
+      meta: `Week ${selectedWeek}`,
     },
     {
       text: `${courseChartData.length} program${courseChartData.length === 1 ? "" : "s"} shown as each risk level over the department total`,
@@ -409,11 +561,36 @@ export function GuidanceDashboard({
         <div className="min-w-0 space-y-2">
           <PageHeading
             title={`Welcome, ${firstName}`}
-            description="Administrator overview for the current monitoring week — student burnout risk, submissions, and early-warning alerts."
+            description={`Administrator overview for Week ${selectedWeek} — student burnout risk, submissions, and early-warning alerts.`}
           />
         </div>
 
-        <div className="flex w-full min-w-0 flex-col gap-1.5 sm:w-auto sm:min-w-[220px]">
+        <div className="flex w-full min-w-0 flex-col gap-3 sm:w-auto sm:flex-row">
+          <div className="flex w-full min-w-0 flex-col gap-1.5 sm:w-[160px]">
+            <span className="text-xs font-medium text-muted-foreground">
+              Week
+            </span>
+            <Select
+              value={String(selectedWeek)}
+              onValueChange={(value) => {
+                if (value == null || value === String(selectedWeek)) return;
+                navigate(`/guidance?week=${value}`);
+              }}
+            >
+              <SelectTrigger className="w-full rounded-xl" disabled={isPending}>
+                {isPending ? <Loader2 className="size-4 animate-spin" /> : null}
+                <SelectValue placeholder={`Week ${selectedWeek}`} />
+              </SelectTrigger>
+              <SelectContent>
+                {weeks.map((week) => (
+                  <SelectItem key={week} value={String(week)}>
+                    Week {week}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex w-full min-w-0 flex-col gap-1.5 sm:min-w-[220px] sm:w-auto">
           <span className="text-xs font-medium text-muted-foreground">
             Year Level
           </span>
@@ -436,6 +613,7 @@ export function GuidanceDashboard({
               ))}
             </SelectContent>
           </Select>
+          </div>
         </div>
       </div>
 
@@ -448,7 +626,7 @@ export function GuidanceDashboard({
           <OverviewCard
             label="High Risk"
             value={scoped.high}
-            hint="Need follow-up this week"
+            hint={`Need follow-up in Week ${selectedWeek}`}
             tone="high"
             emphasize
           />
@@ -468,7 +646,7 @@ export function GuidanceDashboard({
           <OverviewCard
             label="Students Monitored"
             value={scoped.monitoredCount}
-            hint="Completed this week"
+            hint={`Completed in Week ${selectedWeek}`}
             compact
           />
           <OverviewCard
@@ -486,7 +664,7 @@ export function GuidanceDashboard({
           <OverviewCard
             label="Pending Assessments"
             value={scoped.pendingCount}
-            hint="Not submitted this week"
+            hint={`Not submitted in Week ${selectedWeek}`}
             compact
           />
           <AiEarlyWarningOverviewCards
@@ -498,71 +676,137 @@ export function GuidanceDashboard({
         </div>
       </section>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">
-              Student Burnout Risk Distribution
-            </CardTitle>
-            <CardDescription>
-              How many students need attention by predicted risk for the
-              current monitoring week
-              {yearFilter !== "all"
-                ? ` · ${YEAR_FILTER_OPTIONS.find((o) => o.value === yearFilter)?.label ?? ""}`
-                : ""}
-              .
-            </CardDescription>
+      <div className="grid items-stretch gap-4 lg:grid-cols-2">
+        <Card className="flex h-full flex-col">
+          <CardHeader className="gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="space-y-1">
+                <CardTitle className="text-lg">
+                  Student Burnout Risk Distribution
+                </CardTitle>
+                <CardDescription>
+                  {riskBasis === "total"
+                    ? "Share of every monitoring record that has an MFBI score"
+                    : `How many students need attention by predicted risk for Week ${selectedWeek}`}
+                  {yearFilter !== "all"
+                    ? ` · ${YEAR_FILTER_OPTIONS.find((o) => o.value === yearFilter)?.label ?? ""}`
+                    : ""}
+                  .
+                </CardDescription>
+              </div>
+              <div className="flex shrink-0 flex-wrap gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={riskBasis === "week" ? "default" : "outline"}
+                  onClick={() => setRiskBasis("week")}
+                >
+                  Week {selectedWeek}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={riskBasis === "total" ? "default" : "outline"}
+                  onClick={() => setRiskBasis("total")}
+                >
+                  Total valid scored
+                  {validScored.total > 0 ? ` · ${validScored.total}` : ""}
+                </Button>
+              </div>
+            </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex flex-1 flex-col">
             {pieData.every((item) => item.count === 0) ? (
               <p className="flex h-56 items-center justify-center text-sm text-muted-foreground">
                 No monitoring data yet.
               </p>
             ) : (
-              <div className="space-y-3">
-                <ChartContainer
-                  config={riskConfig}
-                  className="aspect-auto mx-auto h-[220px] w-full max-w-full"
-                >
-                  <PieChart>
-                    <ChartTooltip
-                      content={
-                        <ChartTooltipContent nameKey="key" hideLabel />
-                      }
-                    />
-                    <Pie
-                      data={pieData}
-                      dataKey="count"
-                      nameKey="key"
-                      innerRadius={52}
-                      outerRadius={78}
-                      strokeWidth={2}
-                    >
-                      {pieData.map((entry) => (
-                        <Cell key={entry.key} fill={entry.fill} />
-                      ))}
-                    </Pie>
-                    <ChartLegend
-                      content={<ChartLegendContent nameKey="key" />}
-                      verticalAlign="bottom"
-                    />
-                  </PieChart>
-                </ChartContainer>
-                {dominantRisk && dominantRisk.count > 0 ? (
-                  <p className="text-center text-sm text-muted-foreground">
-                    Largest group:{" "}
+              <div className="flex flex-1 flex-col gap-4 sm:flex-row sm:items-center">
+                <div className="flex w-full flex-col gap-2 sm:w-[46%] sm:shrink-0">
+                  <ChartContainer
+                    config={riskConfig}
+                    className="aspect-auto mx-auto h-[220px] w-full max-w-full"
+                  >
+                    <PieChart>
+                      <ChartTooltip
+                        content={
+                          <ChartTooltipContent nameKey="key" hideLabel />
+                        }
+                      />
+                      <Pie
+                        data={pieData}
+                        dataKey="count"
+                        nameKey="key"
+                        innerRadius={52}
+                        outerRadius={78}
+                        strokeWidth={2}
+                      >
+                        {pieData.map((entry) => (
+                          <Cell key={entry.key} fill={entry.fill} />
+                        ))}
+                      </Pie>
+                    </PieChart>
+                  </ChartContainer>
+                  {dominantRisk && dominantRisk.count > 0 ? (
+                    <p className="text-center text-sm text-muted-foreground">
+                      Largest group:{" "}
+                      <span className="font-medium text-foreground">
+                        {dominantRisk.percent.toFixed(2)}% {dominantRisk.label}{" "}
+                        Risk
+                      </span>{" "}
+                      ({dominantRisk.count}
+                      {dominantRisk.averageScore == null
+                        ? ""
+                        : `, MFBI ${dominantRisk.averageScore.toFixed(2)}`}
+                      )
+                    </p>
+                  ) : null}
+                </div>
+                <div className="flex min-w-0 flex-1 flex-col gap-2">
+                  <p className="text-sm text-muted-foreground">
+                    {riskBasis === "total"
+                      ? "Total valid scored"
+                      : `Week ${selectedWeek} scored`}
+                    :{" "}
                     <span className="font-medium text-foreground">
-                      {dominantRisk.percent}% {dominantRisk.label} Risk
-                    </span>{" "}
-                    ({dominantRisk.count})
+                      {riskChart.total}
+                    </span>
                   </p>
-                ) : null}
+                  {pieData.map((item) => (
+                    <div
+                      key={item.key}
+                      className="rounded-lg border px-3 py-2 text-sm"
+                    >
+                      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <span
+                          className="size-2.5 rounded-[2px]"
+                          style={{ background: riskConfig[item.key].color }}
+                        />
+                        {item.label} Risk
+                      </p>
+                      <p className="font-medium tabular-nums">
+                        {item.count}{" "}
+                        <span className="font-normal text-muted-foreground">
+                          · {item.percent.toFixed(2)}%
+                        </span>
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        MFBI{" "}
+                        <span className="font-medium text-foreground tabular-nums">
+                          {item.averageScore == null
+                            ? "—"
+                            : item.averageScore.toFixed(2)}
+                        </span>
+                      </p>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="flex h-full flex-col">
           <CardHeader className="gap-1.5">
             <CardTitle className="text-lg">
               Burnout by Program / Course
@@ -580,15 +824,15 @@ export function GuidanceDashboard({
               ) : null}
             </CardDescription>
           </CardHeader>
-          <CardContent className="min-w-0 space-y-2 px-2 sm:px-(--card-spacing)">
+          <CardContent className="flex min-h-0 min-w-0 flex-1 flex-col px-2 sm:px-(--card-spacing)">
             {courseChartData.length === 0 ? (
-              <p className="flex h-56 items-center justify-center text-sm text-muted-foreground">
+              <p className="flex min-h-56 flex-1 items-center justify-center text-sm text-muted-foreground">
                 No program data yet.
               </p>
             ) : (
               <ChartContainer
                 config={courseRiskConfig}
-                className="aspect-auto h-[260px] w-full max-w-full"
+                className="aspect-auto h-full min-h-[280px] w-full max-w-full flex-1"
               >
                 <BarChart
                   data={courseChartData}
@@ -678,6 +922,210 @@ export function GuidanceDashboard({
         </Card>
       </div>
 
+      <div className="grid items-stretch gap-4 lg:grid-cols-2">
+      <Card className="flex h-full flex-col">
+        <CardHeader className="gap-1.5">
+          <CardTitle className="text-lg">
+            Stress, Workload, Study Time, and Sleep
+          </CardTitle>
+          <CardDescription>
+            {selectedVariable.value === "all"
+              ? `Low, Moderate, and High counts for ${scopeLabel}.`
+              : `${selectedVariable.short} · ${selectedVariable.label}. Low, Moderate, and High counts for ${scopeLabel}.`}
+          </CardDescription>
+          <div className="flex flex-col gap-2 sm:flex-row">
+          <Select
+            items={{
+              total: `Total valid scored · ${totalRecordCount}`,
+              ...Object.fromEntries(
+                weekVariables.map((item) => [
+                  String(item.week),
+                  `Week ${item.week} · ${item.count}`,
+                ])
+              ),
+            }}
+            value={variableScope}
+            onValueChange={(value) => {
+              if (value == null) return;
+              setVariableScope(value);
+            }}
+          >
+            <SelectTrigger className="w-full rounded-xl sm:w-[240px]">
+              <SelectValue placeholder={scopeLabel}>{scopeLabel}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="total">
+                Total valid scored · {totalRecordCount}
+              </SelectItem>
+              {weekVariables.map((item) => (
+                <SelectItem key={item.week} value={String(item.week)}>
+                  Week {item.week} · {item.count}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            items={Object.fromEntries(
+              VARIABLE_OPTIONS.map((item) => [item.value, item.short])
+            )}
+            value={variableKey}
+            onValueChange={(value) => {
+              if (
+                value !== "all" &&
+                value !== "stress" &&
+                value !== "workload" &&
+                value !== "study" &&
+                value !== "sleep"
+              ) {
+                return;
+              }
+              setVariableKey(value);
+            }}
+          >
+            <SelectTrigger className="w-full rounded-xl sm:w-[120px]">
+              <SelectValue placeholder={selectedVariable.short}>
+                {selectedVariable.short}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {VARIABLE_OPTIONS.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  {item.short}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          </div>
+        </CardHeader>
+        <CardContent className="flex flex-1 flex-col space-y-4">
+          {hasVariableChart ? (
+            <ChartContainer
+              key={`${variableScope}-${variableKey}`}
+              config={variableClassConfig}
+              className="aspect-auto h-full min-h-[280px] w-full max-w-full flex-1"
+            >
+              <BarChart
+                data={variableKey === "all" ? allChartData : singleChartData}
+                margin={{ top: 8, right: 12, bottom: 8, left: 4 }}
+                barCategoryGap={28}
+              >
+                <CartesianGrid
+                  vertical={false}
+                  strokeDasharray="4 4"
+                  stroke="var(--border)"
+                />
+                <XAxis
+                  dataKey={variableKey === "all" ? "variable" : "level"}
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  interval={0}
+                  angle={variableKey === "all" ? -18 : 0}
+                  textAnchor={variableKey === "all" ? "end" : "middle"}
+                  height={variableKey === "all" ? 56 : 30}
+                />
+                <YAxis
+                  type="number"
+                  allowDecimals={false}
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  width={40}
+                />
+                <ChartTooltip
+                  content={
+                    <ChartTooltipContent
+                      nameKey={variableKey === "all" ? undefined : "level"}
+                    />
+                  }
+                />
+                {variableKey === "all" ? (
+                  <>
+                    <ChartLegend content={<ChartLegendContent />} />
+                    <Bar
+                      dataKey="low"
+                      fill="var(--color-low)"
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={22}
+                    />
+                    <Bar
+                      dataKey="moderate"
+                      fill="var(--color-moderate)"
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={22}
+                    />
+                    <Bar
+                      dataKey="high"
+                      fill="var(--color-high)"
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={22}
+                    />
+                  </>
+                ) : (
+                  <Bar dataKey="count" radius={[4, 4, 0, 0]} maxBarSize={72}>
+                    {singleChartData.map((entry) => (
+                      <Cell key={entry.level} fill={entry.fill} />
+                    ))}
+                  </Bar>
+                )}
+              </BarChart>
+            </ChartContainer>
+          ) : (
+            <p className="flex h-40 items-center justify-center text-sm text-muted-foreground">
+              No valid scored records for Week 1 or Week 2 yet.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="flex h-full flex-col">
+        <CardHeader className="gap-1.5">
+          <CardTitle className="text-lg">
+            Next-week model evaluation
+          </CardTitle>
+          <CardDescription>
+            Trained evaluation for the next-week Decision Tree and Random Forest
+            {nextWeekEvaluation.source === "unavailable"
+              ? ". Run training to populate these metrics."
+              : "."}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-1 flex-col">
+          <div className="grid flex-1 gap-4">
+            {[
+              nextWeekEvaluation.decisionTree,
+              nextWeekEvaluation.randomForest,
+            ].map((block) => (
+              <div key={block.label} className="rounded-xl ring-1 ring-foreground/10">
+                <div className="border-b px-4 py-3">
+                  <p className="font-medium">{block.label}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-3 p-4">
+                  {(
+                    [
+                      ["Accuracy", block.accuracy],
+                      ["Precision", block.precision],
+                      ["Recall", block.recall],
+                      ["F1-Score", block.f1],
+                    ] as const
+                  ).map(([label, value]) => (
+                    <div key={label}>
+                      <p className="text-xs text-muted-foreground">{label}</p>
+                      <p className="font-[family-name:var(--font-display)] text-xl font-semibold tabular-nums">
+                        {nextWeekEvaluation.source === "unavailable"
+                          ? "—"
+                          : `${(value * 100).toFixed(2)}%`}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+      </div>
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
@@ -691,7 +1139,7 @@ export function GuidanceDashboard({
         <CardContent className="space-y-4">
           {filteredHighRisk.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No high-risk students for this week
+              No high-risk students for Week {selectedWeek}
               {yearFilter !== "all" ? " in the selected year level" : ""}.
             </p>
           ) : (
