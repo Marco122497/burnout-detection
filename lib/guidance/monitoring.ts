@@ -132,7 +132,7 @@ function summarizeScoredCategories(
   return { total: items.length, categories };
 }
 
-/** Every submitted monitoring row in the active term that has an MFBI score. */
+/** Valid Week 1 and Week 2 records: submitted, scored, and classifiable on all four variables. */
 export const getValidScoredSummary = cache(async function getValidScoredSummary(
   supabase: SupabaseClient
 ): Promise<ValidScoredSummary> {
@@ -145,7 +145,7 @@ export const getValidScoredSummary = cache(async function getValidScoredSummary(
       supabase
         .from("weekly_monitoring")
         .select(
-          "student_id, status, mfbi_results(mfbi_score, burnout_risk_level)"
+          "student_id, week_number, status, stress_score, academic_workload_score, study_time_score, sleep_hours_score, mfbi_results(mfbi_score, burnout_risk_level)"
         )
         .eq("term_id", term.term_id)
         .order("monitoring_id", { ascending: true })
@@ -171,10 +171,12 @@ export const getValidScoredSummary = cache(async function getValidScoredSummary(
   }[] = [];
 
   for (const row of monitoringRows) {
-    if (row.status === "Draft") continue;
+    const week = Number(row.week_number);
+    if (week !== 1 && week !== 2) continue;
+    if (!hasValidScores(row)) continue;
     const mfbiRaw = row.mfbi_results;
     const mfbi = Array.isArray(mfbiRaw) ? mfbiRaw[0] : mfbiRaw;
-    if (mfbi?.mfbi_score == null) continue;
+    if (!mfbi) continue;
     const score = Number(mfbi.mfbi_score);
     const bucket = mfbiRiskBucket(score, mfbi.burnout_risk_level);
     if (!bucket || !Number.isFinite(score)) continue;
@@ -240,6 +242,30 @@ function factorLevel(value: unknown, max: number) {
   return level;
 }
 
+/** Week 1 and Week 2 rows that match the valid-record table: not a draft, with an MFBI score and all four classifications. */
+function hasValidScores(row: {
+  status?: string | null;
+  stress_score?: number | null;
+  academic_workload_score?: number | null;
+  study_time_score?: number | null;
+  sleep_hours_score?: number | null;
+  mfbi_results:
+    | { mfbi_score?: number | null }
+    | { mfbi_score?: number | null }[]
+    | null;
+}) {
+  if (row.status === "Draft") return false;
+  const mfbiRaw = row.mfbi_results;
+  const mfbi = Array.isArray(mfbiRaw) ? mfbiRaw[0] : mfbiRaw;
+  if (mfbi?.mfbi_score == null) return false;
+  return Boolean(
+    stressLevelFromScore(row.stress_score) &&
+      factorLevel(row.academic_workload_score, 10) &&
+      factorLevel(row.study_time_score, STUDY_TIME_SCORE_MAX) &&
+      factorLevel(row.sleep_hours_score, 100)
+  );
+}
+
 /** Low, Moderate, and High counts for every valid scored monitoring week. */
 export const getWeekVariableAverages = cache(async function getWeekVariableAverages(
   supabase: SupabaseClient
@@ -269,12 +295,9 @@ export const getWeekVariableAverages = cache(async function getWeekVariableAvera
   const groups = new Map<number, WeekVariableAverages>();
 
   for (const row of rows) {
-    if (row.status === "Draft") continue;
     const week = Number(row.week_number);
-    if (!Number.isFinite(week) || week < 1) continue;
-    const mfbiRaw = row.mfbi_results;
-    const mfbi = Array.isArray(mfbiRaw) ? mfbiRaw[0] : mfbiRaw;
-    if (mfbi?.mfbi_score == null) continue;
+    if (week !== 1 && week !== 2) continue;
+    if (!hasValidScores(row)) continue;
     const stress = stressLevelFromScore(row.stress_score);
     const workload = factorLevel(row.academic_workload_score, 10);
     const study = factorLevel(row.study_time_score, STUDY_TIME_SCORE_MAX);
@@ -312,6 +335,7 @@ export const getGuidanceStudentRows = cache(async function getGuidanceStudentRow
     academic_workload_score: number;
     study_time_score: number;
     sleep_hours_score: number;
+    status: string | null;
     submitted_at: string | null;
     term_id: number;
     created_at: string;
@@ -347,7 +371,7 @@ export const getGuidanceStudentRows = cache(async function getGuidanceStudentRow
           let query = supabase
             .from("weekly_monitoring")
             .select(
-              "monitoring_id, student_id, week_number, stress_score, academic_workload_score, study_time_score, sleep_hours_score, submitted_at, term_id, created_at, mfbi_results(mfbi_id, mfbi_score, burnout_risk_level)"
+              "monitoring_id, student_id, week_number, status, stress_score, academic_workload_score, study_time_score, sleep_hours_score, submitted_at, term_id, created_at, mfbi_results(mfbi_id, mfbi_score, burnout_risk_level)"
             )
             .eq("term_id", term.term_id)
             .order("week_number", { ascending: false });
@@ -387,7 +411,8 @@ export const getGuidanceStudentRows = cache(async function getGuidanceStudentRow
       term &&
       currentWeek &&
       row.term_id === term.term_id &&
-      weekNumber === currentWeek
+      weekNumber === currentWeek &&
+      hasValidScores(row)
     ) {
       currentWeekMonitoring.set(row.student_id, row);
       submittedThisWeek.add(row.student_id);

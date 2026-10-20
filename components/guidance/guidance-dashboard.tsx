@@ -292,15 +292,22 @@ export function GuidanceDashboard({
     data.riskOverview.find((item) => item.label === "Moderate")?.count ?? 0;
   const allHigh =
     data.riskOverview.find((item) => item.label === "High")?.count ?? 0;
+  const validRecordCount =
+    weekVariables.find((item) => item.week === selectedWeek)?.count ??
+    data.submittedCount;
 
   const scoped = React.useMemo(() => {
     if (yearFilter === "all") {
+      const completion =
+        data.totalStudents > 0
+          ? Math.round((validRecordCount / data.totalStudents) * 1000) / 10
+          : 0;
       return {
         totalStudents: data.totalStudents,
-        monitoredCount: data.submittedCount,
-        submittedCount: data.submittedCount,
-        pendingCount: Math.max(data.totalStudents - data.submittedCount, 0),
-        completionPercent: data.completionPercent,
+        monitoredCount: validRecordCount,
+        submittedCount: validRecordCount,
+        pendingCount: Math.max(data.totalStudents - validRecordCount, 0),
+        completionPercent: completion,
         low: allLow,
         moderate: allModerate,
         high: allHigh,
@@ -330,7 +337,7 @@ export function GuidanceDashboard({
       nextWeekHighCount: stats?.nextWeekHighCount ?? 0,
       week2HighCount: stats?.week2HighCount ?? 0,
     };
-  }, [yearFilter, data, allLow, allModerate, allHigh]);
+  }, [yearFilter, data, allLow, allModerate, allHigh, validRecordCount]);
 
   const yearFilterLabel =
     yearFilter === "all"
@@ -502,20 +509,25 @@ export function GuidanceDashboard({
     selectedVariable.value === "all"
       ? { low: 0, moderate: 0, high: 0 }
       : combinedLevels(selectedVariable.value);
+  const levelTotal =
+    selectedLevels.low + selectedLevels.moderate + selectedLevels.high;
   const singleChartData = [
     {
       level: "Low",
       count: selectedLevels.low,
+      percent: sharePercent(selectedLevels.low, levelTotal),
       fill: variableClassConfig.low.color,
     },
     {
       level: "Moderate",
       count: selectedLevels.moderate,
+      percent: sharePercent(selectedLevels.moderate, levelTotal),
       fill: variableClassConfig.moderate.color,
     },
     {
       level: "High",
       count: selectedLevels.high,
+      percent: sharePercent(selectedLevels.high, levelTotal),
       fill: variableClassConfig.high.color,
     },
   ];
@@ -646,7 +658,7 @@ export function GuidanceDashboard({
           <OverviewCard
             label="Students Monitored"
             value={scoped.monitoredCount}
-            hint={`Completed in Week ${selectedWeek}`}
+            hint={`Valid records in Week ${selectedWeek}`}
             compact
           />
           <OverviewCard
@@ -1032,7 +1044,29 @@ export function GuidanceDashboard({
                   tickMargin={8}
                   width={40}
                 />
-                <ChartTooltip content={<ChartTooltipContent />} />
+                <ChartTooltip
+                  content={
+                    <ChartTooltipContent
+                      formatter={(value, name) => {
+                        const count = Number(value);
+                        const key = String(name);
+                        const label =
+                          variableClassConfig[
+                            key as keyof typeof variableClassConfig
+                          ]?.label ?? key;
+                        const percent = sharePercent(count, scopedRecordCount);
+                        return (
+                          <div className="flex w-full items-center justify-between gap-4">
+                            <span className="text-muted-foreground">{label}</span>
+                            <span className="font-mono font-medium text-foreground tabular-nums">
+                              {count.toLocaleString()} ({percent.toFixed(2)}%)
+                            </span>
+                          </div>
+                        );
+                      }}
+                    />
+                  }
+                />
                 <ChartLegend content={<ChartLegendContent />} />
                 <Bar
                   dataKey="low"
@@ -1074,7 +1108,41 @@ export function GuidanceDashboard({
                   dataKey="level"
                   tickLine={false}
                   axisLine={false}
-                  tickMargin={8}
+                  interval={0}
+                  height={48}
+                  tick={(props) => {
+                    const tickProps = props as {
+                      x?: number;
+                      y?: number;
+                      payload?: { value?: string };
+                    };
+                    const entry = singleChartData.find(
+                      (item) => item.level === tickProps.payload?.value
+                    );
+                    return (
+                      <g
+                        transform={`translate(${tickProps.x ?? 0},${tickProps.y ?? 0})`}
+                      >
+                        <text
+                          textAnchor="middle"
+                          fill="currentColor"
+                          fontSize={12}
+                        >
+                          <tspan x={0} dy={14}>
+                            {tickProps.payload?.value}
+                          </tspan>
+                          <tspan
+                            x={0}
+                            dy={16}
+                            fill="var(--muted-foreground)"
+                            fontSize={11}
+                          >
+                            {entry ? `${entry.percent.toFixed(2)}%` : ""}
+                          </tspan>
+                        </text>
+                      </g>
+                    );
+                  }}
                 />
                 <YAxis
                   type="number"
@@ -1084,7 +1152,31 @@ export function GuidanceDashboard({
                   tickMargin={8}
                   width={40}
                 />
-                <ChartTooltip content={<ChartTooltipContent nameKey="level" />} />
+                <ChartTooltip
+                  content={
+                    <ChartTooltipContent
+                      hideLabel
+                      nameKey="level"
+                      formatter={(value, _name, item) => {
+                        const row = item.payload as {
+                          level?: string;
+                          percent?: number;
+                        };
+                        return (
+                          <div className="flex w-full items-center justify-between gap-4">
+                            <span className="text-muted-foreground">
+                              {row.level}
+                            </span>
+                            <span className="font-mono font-medium text-foreground tabular-nums">
+                              {Number(value).toLocaleString()} (
+                              {(row.percent ?? 0).toFixed(2)}%)
+                            </span>
+                          </div>
+                        );
+                      }}
+                    />
+                  }
+                />
                 <Bar dataKey="count" radius={[4, 4, 0, 0]} maxBarSize={72}>
                   {singleChartData.map((entry) => (
                     <Cell key={entry.level} fill={entry.fill} />
