@@ -998,14 +998,14 @@ export function GuidanceDashboard({
           </div>
         </CardHeader>
         <CardContent className="flex flex-1 flex-col space-y-4">
-          {hasVariableChart ? (
+          {hasVariableChart && variableKey === "all" ? (
             <ChartContainer
-              key={`${variableScope}-${variableKey}`}
+              key={`${variableScope}-all`}
               config={variableClassConfig}
               className="aspect-auto h-full min-h-[280px] w-full max-w-full flex-1"
             >
               <BarChart
-                data={variableKey === "all" ? allChartData : singleChartData}
+                data={allChartData}
                 margin={{ top: 8, right: 12, bottom: 8, left: 4 }}
                 barCategoryGap={28}
               >
@@ -1015,14 +1015,14 @@ export function GuidanceDashboard({
                   stroke="var(--border)"
                 />
                 <XAxis
-                  dataKey={variableKey === "all" ? "variable" : "level"}
+                  dataKey="variable"
                   tickLine={false}
                   axisLine={false}
                   tickMargin={8}
                   interval={0}
-                  angle={variableKey === "all" ? -18 : 0}
-                  textAnchor={variableKey === "all" ? "end" : "middle"}
-                  height={variableKey === "all" ? 56 : 30}
+                  angle={-18}
+                  textAnchor="end"
+                  height={56}
                 />
                 <YAxis
                   type="number"
@@ -1032,42 +1032,64 @@ export function GuidanceDashboard({
                   tickMargin={8}
                   width={40}
                 />
-                <ChartTooltip
-                  content={
-                    <ChartTooltipContent
-                      nameKey={variableKey === "all" ? undefined : "level"}
-                    />
-                  }
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <ChartLegend content={<ChartLegendContent />} />
+                <Bar
+                  dataKey="low"
+                  fill="var(--color-low)"
+                  radius={[4, 4, 0, 0]}
+                  maxBarSize={22}
                 />
-                {variableKey === "all" ? (
-                  <>
-                    <ChartLegend content={<ChartLegendContent />} />
-                    <Bar
-                      dataKey="low"
-                      fill="var(--color-low)"
-                      radius={[4, 4, 0, 0]}
-                      maxBarSize={22}
-                    />
-                    <Bar
-                      dataKey="moderate"
-                      fill="var(--color-moderate)"
-                      radius={[4, 4, 0, 0]}
-                      maxBarSize={22}
-                    />
-                    <Bar
-                      dataKey="high"
-                      fill="var(--color-high)"
-                      radius={[4, 4, 0, 0]}
-                      maxBarSize={22}
-                    />
-                  </>
-                ) : (
-                  <Bar dataKey="count" radius={[4, 4, 0, 0]} maxBarSize={72}>
-                    {singleChartData.map((entry) => (
-                      <Cell key={entry.level} fill={entry.fill} />
-                    ))}
-                  </Bar>
-                )}
+                <Bar
+                  dataKey="moderate"
+                  fill="var(--color-moderate)"
+                  radius={[4, 4, 0, 0]}
+                  maxBarSize={22}
+                />
+                <Bar
+                  dataKey="high"
+                  fill="var(--color-high)"
+                  radius={[4, 4, 0, 0]}
+                  maxBarSize={22}
+                />
+              </BarChart>
+            </ChartContainer>
+          ) : hasVariableChart ? (
+            <ChartContainer
+              key={`${variableScope}-${variableKey}`}
+              config={variableClassConfig}
+              className="aspect-auto h-full min-h-[280px] w-full max-w-full flex-1"
+            >
+              <BarChart
+                data={singleChartData}
+                margin={{ top: 8, right: 12, bottom: 8, left: 4 }}
+                barCategoryGap={28}
+              >
+                <CartesianGrid
+                  vertical={false}
+                  strokeDasharray="4 4"
+                  stroke="var(--border)"
+                />
+                <XAxis
+                  dataKey="level"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                />
+                <YAxis
+                  type="number"
+                  allowDecimals={false}
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  width={40}
+                />
+                <ChartTooltip content={<ChartTooltipContent nameKey="level" />} />
+                <Bar dataKey="count" radius={[4, 4, 0, 0]} maxBarSize={72}>
+                  {singleChartData.map((entry) => (
+                    <Cell key={entry.level} fill={entry.fill} />
+                  ))}
+                </Bar>
               </BarChart>
             </ChartContainer>
           ) : (
