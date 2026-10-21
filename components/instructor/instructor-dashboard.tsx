@@ -16,6 +16,7 @@ import {
   AiEarlyWarningOverviewCards,
   AiEarlyWarningStudentsCard,
 } from "@/components/shared/ai-early-warning-panel";
+import { DepartmentMonitoringCharts } from "@/components/shared/department-monitoring-charts";
 import { WeeklyBurnoutRiskTrendChart } from "@/components/shared/weekly-burnout-risk-trend-chart";
 import { Button } from "@/components/ui/button";
 import {
@@ -41,6 +42,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatDateTime } from "@/lib/auth/roles";
+import type { DepartmentScoreCharts } from "@/lib/guidance/monitoring";
 import type { InstructorDashboardData } from "@/lib/instructor/queries";
 import { cn } from "@/lib/utils";
 
@@ -158,9 +160,11 @@ function alertDotClass(tone: InstructorDashboardData["recentAlerts"][number]["to
 
 export function InstructorDashboard({
   data,
+  charts,
 }: {
   firstName?: string;
   data: InstructorDashboardData;
+  charts: DepartmentScoreCharts;
 }) {
   const { navigate, isPending, pendingHref } = useNavigationPending();
   const [yearFilter, setYearFilter] = React.useState("all");
@@ -270,7 +274,6 @@ export function InstructorDashboard({
     <div className="min-w-0 max-w-full space-y-8 overflow-x-hidden">
       <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="min-w-0 space-y-2">
-          <span className="student-chum-pill w-fit">Instructor dashboard</span>
           <PageHeading title="Instructor Dashboard" />
           {data.departmentName ? (
             <p className="mt-1 break-words text-base font-medium text-foreground">
@@ -369,6 +372,13 @@ export function InstructorDashboard({
           />
         </div>
       </section>
+
+      <DepartmentMonitoringCharts
+        charts={charts}
+        currentWeek={data.currentWeek ?? 1}
+        yearLevel={yearFilter === "all" ? null : Number(yearFilter)}
+        yearLabel={yearFilterLabel}
+      />
 
       <div className="grid min-w-0 gap-4 lg:grid-cols-2">
         <Card className="min-w-0 overflow-hidden">

@@ -318,6 +318,144 @@ export const getWeekVariableAverages = cache(async function getWeekVariableAvera
   return [...groups.values()].sort((left, right) => left.week - right.week);
 });
 
+export type DepartmentRiskSlice = {
+  week: number;
+  year_level: number | null;
+  low: number;
+  moderate: number;
+  high: number;
+  lowScoreSum: number;
+  moderateScoreSum: number;
+  highScoreSum: number;
+};
+
+export type DepartmentVariableSlice = {
+  week: number;
+  year_level: number | null;
+  count: number;
+  stress: LevelCounts;
+  workload: LevelCounts;
+  study: LevelCounts;
+  sleep: LevelCounts;
+};
+
+export type DepartmentScoreCharts = {
+  risks: DepartmentRiskSlice[];
+  variables: DepartmentVariableSlice[];
+};
+
+/** Week 1 and Week 2 valid records for active students in the given departments. */
+export const getDepartmentScoreCharts = cache(async function getDepartmentScoreCharts(
+  supabase: SupabaseClient,
+  departmentIds: number[]
+): Promise<DepartmentScoreCharts> {
+  const empty: DepartmentScoreCharts = { risks: [], variables: [] };
+  const ids = [...new Set(departmentIds.filter((id) => Number.isFinite(id)))];
+  if (!ids.length) return empty;
+  const term = await getActiveTerm(supabase);
+  if (!term?.term_id) return empty;
+
+  const students = await fetchAllPages(async (from, to) =>
+    supabase
+      .from("profiles")
+      .select("id, year_level")
+      .eq("role", "Student")
+      .eq("is_active", true)
+      .in("department_id", ids)
+      .order("id", { ascending: true })
+      .range(from, to)
+  );
+  if (!students.length) return empty;
+
+  const yearByStudent = new Map(
+    students.map((student) => [student.id, student.year_level as number | null])
+  );
+  const studentIds = students.map((student) => student.id);
+  const monitoringRows = (
+    await Promise.all(
+      Array.from({ length: Math.ceil(studentIds.length / 200) }, (_, index) => {
+        const chunk = studentIds.slice(index * 200, index * 200 + 200);
+        return fetchAllPages(async (from, to) =>
+          supabase
+            .from("weekly_monitoring")
+            .select(
+              "student_id, week_number, status, stress_score, academic_workload_score, study_time_score, sleep_hours_score, mfbi_results(mfbi_score, burnout_risk_level)"
+            )
+            .eq("term_id", term.term_id)
+            .in("week_number", [1, 2])
+            .in("student_id", chunk)
+            .order("monitoring_id", { ascending: true })
+            .range(from, to)
+        );
+      })
+    )
+  ).flat();
+
+  const risks = new Map<string, DepartmentRiskSlice>();
+  const variables = new Map<string, DepartmentVariableSlice>();
+
+  for (const row of monitoringRows) {
+    const week = Number(row.week_number);
+    if (week !== 1 && week !== 2) continue;
+    if (!hasValidScores(row)) continue;
+    const stress = stressLevelFromScore(row.stress_score);
+    const workload = factorLevel(row.academic_workload_score, 10);
+    const study = factorLevel(row.study_time_score, STUDY_TIME_SCORE_MAX);
+    const sleep = factorLevel(row.sleep_hours_score, 100);
+    if (!stress || !workload || !study || !sleep) continue;
+    const mfbiRaw = row.mfbi_results;
+    const mfbi = Array.isArray(mfbiRaw) ? mfbiRaw[0] : mfbiRaw;
+    if (!mfbi) continue;
+    const score = Number(mfbi.mfbi_score);
+    const bucket = mfbiRiskBucket(score, mfbi.burnout_risk_level);
+    if (!bucket || !Number.isFinite(score)) continue;
+
+    const year = yearByStudent.get(row.student_id) ?? null;
+    const key = `${week}:${year ?? "none"}`;
+    const risk = risks.get(key) ?? {
+      week,
+      year_level: year,
+      low: 0,
+      moderate: 0,
+      high: 0,
+      lowScoreSum: 0,
+      moderateScoreSum: 0,
+      highScoreSum: 0,
+    };
+    const variable = variables.get(key) ?? {
+      week,
+      year_level: year,
+      count: 0,
+      stress: emptyLevels(),
+      workload: emptyLevels(),
+      study: emptyLevels(),
+      sleep: emptyLevels(),
+    };
+    if (bucket === "Low") {
+      risk.low += 1;
+      risk.lowScoreSum += score;
+    } else if (bucket === "Moderate") {
+      risk.moderate += 1;
+      risk.moderateScoreSum += score;
+    } else {
+      risk.high += 1;
+      risk.highScoreSum += score;
+    }
+    variable.count += 1;
+    addLevel(variable.stress, stress);
+    addLevel(variable.workload, workload);
+    addLevel(variable.study, study);
+    addLevel(variable.sleep, sleep);
+    risks.set(key, risk);
+    variables.set(key, variable);
+  }
+
+  return {
+    risks: [...risks.values()],
+    variables: [...variables.values()],
+  };
+});
+
 export const getGuidanceStudentRows = cache(async function getGuidanceStudentRows(
   supabase: SupabaseClient,
   week?: number

@@ -1,5 +1,6 @@
 import { InstructorDashboard } from "@/components/instructor/instructor-dashboard";
 import { requireRole } from "@/lib/auth/session";
+import { getDepartmentScoreCharts } from "@/lib/guidance/monitoring";
 import {
   getInstructorDashboardData,
   getInstructorDepartmentIds,
@@ -16,11 +17,10 @@ export default async function InstructorDashboardPage() {
     user.id,
     profile.department_id
   );
-  const data = await getInstructorDashboardData(
-    supabase,
-    user.id,
-    departmentIds
-  );
+  const [data, charts] = await Promise.all([
+    getInstructorDashboardData(supabase, user.id, departmentIds),
+    getDepartmentScoreCharts(supabase, departmentIds),
+  ]);
 
-  return <InstructorDashboard data={data} />;
+  return <InstructorDashboard data={data} charts={charts} />;
 }

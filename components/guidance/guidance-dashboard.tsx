@@ -64,6 +64,10 @@ function sharePercent(count: number, total: number) {
   return Math.round((count / total) * 10000) / 100;
 }
 
+function exactShare(count: number, total: number) {
+  return `${count.toLocaleString()} · ${sharePercent(count, total).toFixed(2)}%`;
+}
+
 const YEAR_FILTER_OPTIONS = [
   { value: "1", label: "1st Year" },
   { value: "2", label: "2nd Year" },
@@ -1011,6 +1015,7 @@ export function GuidanceDashboard({
         </CardHeader>
         <CardContent className="flex flex-1 flex-col space-y-4">
           {hasVariableChart && variableKey === "all" ? (
+            <>
             <ChartContainer
               key={`${variableScope}-all`}
               config={variableClassConfig}
@@ -1054,12 +1059,11 @@ export function GuidanceDashboard({
                           variableClassConfig[
                             key as keyof typeof variableClassConfig
                           ]?.label ?? key;
-                        const percent = sharePercent(count, scopedRecordCount);
                         return (
                           <div className="flex w-full items-center justify-between gap-4">
                             <span className="text-muted-foreground">{label}</span>
                             <span className="font-mono font-medium text-foreground tabular-nums">
-                              {count.toLocaleString()} ({percent.toFixed(2)}%)
+                              {exactShare(count, scopedRecordCount)}
                             </span>
                           </div>
                         );
@@ -1088,7 +1092,25 @@ export function GuidanceDashboard({
                 />
               </BarChart>
             </ChartContainer>
+            </>
           ) : hasVariableChart ? (
+            <>
+            <div className="grid grid-cols-3 pl-[44px] pr-3 text-center">
+              {singleChartData.map((item) => (
+                <div key={item.level} className="px-1">
+                  <p className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+                    <span
+                      className="size-2.5 rounded-[2px]"
+                      style={{ background: item.fill }}
+                    />
+                    {item.level}
+                  </p>
+                  <p className="font-medium tabular-nums">
+                    {exactShare(item.count, levelTotal)}
+                  </p>
+                </div>
+              ))}
+            </div>
             <ChartContainer
               key={`${variableScope}-${variableKey}`}
               config={variableClassConfig}
@@ -1108,41 +1130,7 @@ export function GuidanceDashboard({
                   dataKey="level"
                   tickLine={false}
                   axisLine={false}
-                  interval={0}
-                  height={48}
-                  tick={(props) => {
-                    const tickProps = props as {
-                      x?: number;
-                      y?: number;
-                      payload?: { value?: string };
-                    };
-                    const entry = singleChartData.find(
-                      (item) => item.level === tickProps.payload?.value
-                    );
-                    return (
-                      <g
-                        transform={`translate(${tickProps.x ?? 0},${tickProps.y ?? 0})`}
-                      >
-                        <text
-                          textAnchor="middle"
-                          fill="currentColor"
-                          fontSize={12}
-                        >
-                          <tspan x={0} dy={14}>
-                            {tickProps.payload?.value}
-                          </tspan>
-                          <tspan
-                            x={0}
-                            dy={16}
-                            fill="var(--muted-foreground)"
-                            fontSize={11}
-                          >
-                            {entry ? `${entry.percent.toFixed(2)}%` : ""}
-                          </tspan>
-                        </text>
-                      </g>
-                    );
-                  }}
+                  tickMargin={8}
                 />
                 <YAxis
                   type="number"
@@ -1168,8 +1156,7 @@ export function GuidanceDashboard({
                               {row.level}
                             </span>
                             <span className="font-mono font-medium text-foreground tabular-nums">
-                              {Number(value).toLocaleString()} (
-                              {(row.percent ?? 0).toFixed(2)}%)
+                              {exactShare(Number(value), levelTotal)}
                             </span>
                           </div>
                         );
@@ -1184,6 +1171,7 @@ export function GuidanceDashboard({
                 </Bar>
               </BarChart>
             </ChartContainer>
+            </>
           ) : (
             <p className="flex h-40 items-center justify-center text-sm text-muted-foreground">
               No valid scored records for Week 1 or Week 2 yet.
