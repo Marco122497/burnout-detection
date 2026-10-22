@@ -1186,7 +1186,8 @@ export function GuidanceDashboard({
             Next-week model evaluation
           </CardTitle>
           <CardDescription>
-            Trained evaluation for the next-week Decision Tree and Random Forest
+            Held-out Week 2 classification from real Week 1 records, the same
+            evaluation as Figures 4.2 and 4.3
             {nextWeekEvaluation.source === "unavailable"
               ? ". Run training to populate these metrics."
               : "."}

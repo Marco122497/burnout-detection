@@ -1160,11 +1160,10 @@ export async function generateDepartmentMonitoring(
       })
     );
 
-    revalidatePath("/guidance/monitoring");
-    revalidatePath("/guidance/students");
-    revalidatePath("/guidance/analytics");
-    revalidatePath("/student");
-    revalidatePath("/instructor/monitoring");
+    // Do not revalidatePath here. This action runs on /guidance/monitoring,
+    // and revalidating that route makes the action response re-render the
+    // whole page. That response hangs and the browser throws "Failed to fetch".
+    // The fill button calls router.refresh() after a successful return.
 
     const parts = [
       `Filled week ${result.weekNumber} for ${result.created} student${result.created === 1 ? "" : "s"} in ${result.departmentName}.`,

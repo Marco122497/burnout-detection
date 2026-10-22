@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  startTransition,
-  useActionState,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SparklesIcon, Loader2 } from "lucide-react";
 
@@ -79,7 +73,12 @@ export type GenerateMonitoringStudent = {
   student_number: string | null;
   week_number: number | null;
   submittedWeek1?: boolean;
+  submittedWeek2?: boolean;
 };
+
+function hasBothWeeks(student: GenerateMonitoringStudent) {
+  return student.submittedWeek1 === true && student.submittedWeek2 === true;
+}
 
 export function GenerateMonitoringButton({
   departmentId,
@@ -107,25 +106,12 @@ export function GenerateMonitoringButton({
   const [dateFrom, setDateFrom] = useState(datePresets[2].range.from);
   const [dateTo, setDateTo] = useState(datePresets[2].range.to);
 
-  const [generateState, generateAction, generatePending] = useActionState(
-    generateDepartmentMonitoring,
-    initialState
-  );
+  const [generateState, setGenerateState] =
+    useState<GuidanceActionState>(initialState);
+  const [generatePending, setGeneratePending] = useState(false);
   const [clientError, setClientError] = useState<string | null>(null);
 
   useActionToast(generateState);
-
-  useEffect(() => {
-    if (generateState.success) {
-      setOpen(false);
-      setClientError(null);
-      router.refresh();
-    }
-  }, [generateState.success, router]);
-
-  useEffect(() => {
-    if (generateState.error) setClientError(null);
-  }, [generateState.error]);
 
   useEffect(() => {
     if (open) {
@@ -149,6 +135,14 @@ export function GenerateMonitoringButton({
   );
   const week1Count = useMemo(
     () => students.filter((student) => student.submittedWeek1).length,
+    [students]
+  );
+  const week2Count = useMemo(
+    () => students.filter((student) => student.submittedWeek2).length,
+    [students]
+  );
+  const bothWeeksCount = useMemo(
+    () => students.filter((student) => hasBothWeeks(student)).length,
     [students]
   );
 
@@ -202,6 +196,26 @@ export function GenerateMonitoringButton({
     );
   }
 
+  function selectWeek2Submitted() {
+    setSelectedIds(
+      new Set(
+        students
+          .filter((student) => student.submittedWeek2)
+          .map((student) => student.id)
+      )
+    );
+  }
+
+  function selectBothWeeks() {
+    setSelectedIds(
+      new Set(
+        students
+          .filter((student) => hasBothWeeks(student))
+          .map((student) => student.id)
+      )
+    );
+  }
+
   function selectPercent(percent: number) {
     if (students.length === 0) {
       setSelectedIds(new Set());
@@ -216,39 +230,30 @@ export function GenerateMonitoringButton({
     setSelectedIds(new Set(shuffled.slice(0, count).map((student) => student.id)));
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     setClientError(null);
-    startTransition(() => {
-      try {
-        const result = generateAction(formData) as unknown;
-        if (
-          result &&
-          typeof result === "object" &&
-          "then" in result &&
-          typeof (result as Promise<unknown>).then === "function"
-        ) {
-          void (result as Promise<unknown>).catch((error: unknown) => {
-            const message =
-              error instanceof Error ? error.message : "Failed to fetch";
-            setClientError(
-              message === "Failed to fetch"
-                ? "Auto-fill timed out or lost connection. Try a smaller group (40–60%) or fewer students."
-                : message
-            );
-          });
-        }
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Failed to auto-fill.";
-        setClientError(
-          message === "Failed to fetch"
-            ? "Auto-fill timed out or lost connection. Try a smaller group (40–60%) or fewer students."
-            : message
-        );
+    setGenerateState(initialState);
+    setGeneratePending(true);
+    try {
+      const result = await generateDepartmentMonitoring(initialState, formData);
+      setGenerateState(result ?? {});
+      if (result?.success) {
+        setOpen(false);
+        router.refresh();
       }
-    });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to fetch";
+      setClientError(
+        message === "Failed to fetch" || message === "fetch failed"
+          ? "Auto-fill timed out or lost connection. Try a smaller group (40–60%) or fewer students."
+          : message
+      );
+    } finally {
+      setGeneratePending(false);
+    }
   }
 
   if (!departmentId) return null;
@@ -347,6 +352,26 @@ export function GenerateMonitoringButton({
                     >
                       Week 1 submitted ({week1Count})
                     </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 px-2.5 text-xs"
+                      disabled={generatePending || week2Count === 0}
+                      onClick={selectWeek2Submitted}
+                    >
+                      Week 2 submitted ({week2Count})
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 px-2.5 text-xs"
+                      disabled={generatePending || bothWeeksCount === 0}
+                      onClick={selectBothWeeks}
+                    >
+                      Week 1 and 2 submitted ({bothWeeksCount})
+                    </Button>
                     {([10, 20, 30, 40, 50, 60] as const).map((percent) => (
                       <Button
                         key={percent}
@@ -392,6 +417,18 @@ export function GenerateMonitoringButton({
                       {students.map((student) => {
                         const submittedThisWeek =
                           student.week_number === currentWeek;
+                        const bothWeeks = hasBothWeeks(student);
+                        const status = bothWeeks
+                          ? submittedThisWeek && currentWeek > 2
+                            ? `Week 1 and 2 · Week ${currentWeek} submitted`
+                            : "Week 1 and 2 submitted"
+                          : submittedThisWeek
+                            ? `Week ${currentWeek} submitted`
+                            : student.submittedWeek1
+                              ? "Submitted Week 1"
+                              : student.submittedWeek2
+                                ? "Submitted Week 2"
+                                : "No Week 1 or 2";
                         return (
                           <TableRow key={student.id}>
                             <TableCell>
@@ -415,11 +452,7 @@ export function GenerateMonitoringButton({
                               {student.full_name}
                             </TableCell>
                             <TableCell className="text-xs text-muted-foreground">
-                              {submittedThisWeek
-                                ? `Week ${currentWeek} submitted`
-                                : student.submittedWeek1
-                                  ? "Submitted Week 1"
-                                  : "No Week 1 submission"}
+                              {status}
                             </TableCell>
                           </TableRow>
                         );

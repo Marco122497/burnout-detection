@@ -45,6 +45,7 @@ export default async function GuidanceMonitoringLayout({
     hasMonitoringRecord: recordWeeks.latest.has(row.id),
     latestRecordWeek: recordWeeks.latest.get(row.id) ?? null,
     submittedWeek1: recordWeeks.week1.has(row.id),
+    submittedWeek2: recordWeeks.week2.has(row.id),
   }));
 
   return (

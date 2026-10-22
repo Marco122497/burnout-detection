@@ -23,9 +23,31 @@ export type ModelEvaluationSnapshot = {
   source: "trained" | "unavailable";
 };
 
+export type ConfusionMatrix = {
+  labels: ["Low", "Moderate", "High"];
+  matrix: number[][];
+};
+
+export type NextWeekHoldout = {
+  decisionTree: ConfusionMatrix | null;
+  randomForest: ConfusionMatrix | null;
+};
+
+/** Real Week 1 inputs scored against that student's Week 2 label. */
+export type WeekPairHoldout = {
+  realRecords: number;
+  pairs: number;
+  decisionTree: ConfusionMatrix | null;
+  randomForest: ConfusionMatrix | null;
+  decisionTreeScores: ModelEvalBlock;
+  randomForestScores: ModelEvalBlock;
+};
+
 export type AiModelStatus = {
   modelEvaluation: ModelEvaluationSnapshot;
   nextWeekEvaluation: ModelEvaluationSnapshot;
+  nextWeekHoldout: NextWeekHoldout;
+  weekPairHoldout: WeekPairHoldout | null;
   aiHealthy: boolean;
   metricsSource: "live" | "file" | "unavailable";
 };
@@ -49,36 +71,91 @@ const PLACEHOLDER: ModelEvaluationSnapshot = {
   source: "unavailable",
 };
 
-type MetricsFile = {
-  same_week?: {
-    decision_tree?: {
-      accuracy?: number;
-      precision?: number;
-      recall?: number;
-      f1?: number;
-    };
-    random_forest?: {
-      accuracy?: number;
-      precision?: number;
-      recall?: number;
-      f1?: number;
-    };
-  };
-  next_week?: {
-    decision_tree?: {
-      accuracy?: number;
-      precision?: number;
-      recall?: number;
-      f1?: number;
-    };
-    random_forest?: {
-      accuracy?: number;
-      precision?: number;
-      recall?: number;
-      f1?: number;
-    };
+const HOLD_OUT_LABELS = ["Low", "Moderate", "High"] as const;
+
+type MetricBlock = {
+  accuracy?: number;
+  precision?: number;
+  recall?: number;
+  f1?: number;
+  confusion_matrix?: {
+    labels?: unknown;
+    matrix?: unknown;
   };
 };
+
+type MetricsFile = {
+  same_week?: {
+    decision_tree?: MetricBlock;
+    random_forest?: MetricBlock;
+  };
+  next_week?: {
+    decision_tree?: MetricBlock;
+    random_forest?: MetricBlock;
+  };
+};
+
+function readConfusion(block?: MetricBlock): ConfusionMatrix | null {
+  const labels = block?.confusion_matrix?.labels;
+  const matrix = block?.confusion_matrix?.matrix;
+  if (!Array.isArray(labels) || !Array.isArray(matrix)) return null;
+  const labelList = labels.filter((label): label is string => typeof label === "string");
+  const rows = matrix
+    .filter((row): row is unknown[] => Array.isArray(row))
+    .map((row) => row.map((value) => Number(value)));
+  if (
+    labelList.length !== HOLD_OUT_LABELS.length ||
+    rows.length !== HOLD_OUT_LABELS.length ||
+    rows.some((row) => row.length !== HOLD_OUT_LABELS.length || row.some((value) => !Number.isFinite(value)))
+  ) {
+    return null;
+  }
+  const order = HOLD_OUT_LABELS.map((label) => labelList.indexOf(label));
+  if (order.some((index) => index < 0)) return null;
+  return {
+    labels: ["Low", "Moderate", "High"],
+    matrix: order.map((rowIndex) => order.map((columnIndex) => rows[rowIndex][columnIndex])),
+  };
+}
+
+export function mapWeekPairHoldout(raw: unknown): WeekPairHoldout | null {
+  if (!raw || typeof raw !== "object") return null;
+  const block = (raw as { week1_week2_holdout?: {
+    real_records?: number;
+    pairs?: number;
+    decision_tree?: MetricBlock;
+    random_forest?: MetricBlock;
+  } }).week1_week2_holdout;
+  if (!block) return null;
+  const realRecords = Number(block.real_records);
+  const pairs = Number(block.pairs);
+  const decisionTree = readConfusion(block.decision_tree);
+  const randomForest = readConfusion(block.random_forest);
+  if (
+    !Number.isFinite(realRecords) ||
+    !Number.isFinite(pairs) ||
+    !decisionTree ||
+    !randomForest
+  ) {
+    return null;
+  }
+  return {
+    realRecords,
+    pairs,
+    decisionTree,
+    randomForest,
+    decisionTreeScores: fromBlock("Decision Tree", block.decision_tree),
+    randomForestScores: fromBlock("Random Forest", block.random_forest),
+  };
+}
+
+export function mapNextWeekHoldout(raw: unknown): NextWeekHoldout {
+  const next = raw && typeof raw === "object" ? (raw as MetricsFile).next_week : undefined;
+  return {
+    decisionTree: readConfusion(next?.decision_tree),
+    randomForest: readConfusion(next?.random_forest),
+  };
+}
 
 function fromBlock(
   label: string,
@@ -149,7 +226,14 @@ async function readMetricsRaw(): Promise<unknown | null> {
 }
 
 async function loadAiModelStatus(): Promise<
-  Pick<AiModelStatus, "modelEvaluation" | "nextWeekEvaluation" | "metricsSource">
+  Pick<
+    AiModelStatus,
+    | "modelEvaluation"
+    | "nextWeekEvaluation"
+    | "nextWeekHoldout"
+    | "weekPairHoldout"
+    | "metricsSource"
+  >
 > {
   const { fetchBurnoutAiMetrics } = await import("@/lib/student/ai-client");
 
@@ -161,11 +245,28 @@ async function loadAiModelStatus(): Promise<
   const fileMapped = mapAiMetrics(fileRaw);
   const liveNext = mapNextWeekMetrics(liveRaw);
   const fileNext = mapNextWeekMetrics(fileRaw);
+  const fileHoldout = mapNextWeekHoldout(fileRaw);
+  const liveHoldout = mapNextWeekHoldout(liveRaw);
+  const nextWeekHoldout =
+    fileHoldout.decisionTree && fileHoldout.randomForest ? fileHoldout : liveHoldout;
+  const weekPairHoldout =
+    mapWeekPairHoldout(fileRaw) ?? mapWeekPairHoldout(liveRaw);
 
   return {
-    modelEvaluation: liveMapped ?? fileMapped ?? PLACEHOLDER,
-    nextWeekEvaluation: liveNext ?? fileNext ?? PLACEHOLDER,
-    metricsSource: liveMapped ? "live" : fileMapped ? "file" : "unavailable",
+    // Local metrics.json is the retrain just written by train.py. The live
+    // service can still be serving an older evaluation.
+    modelEvaluation: fileMapped ?? liveMapped ?? PLACEHOLDER,
+    nextWeekEvaluation: weekPairHoldout
+      ? {
+          decisionTree: weekPairHoldout.decisionTreeScores,
+          randomForest: weekPairHoldout.randomForestScores,
+          modelVersion: "burnout-ai-week1-week2-holdout",
+          source: "trained",
+        }
+      : (liveNext ?? fileNext ?? PLACEHOLDER),
+    nextWeekHoldout,
+    weekPairHoldout,
+    metricsSource: fileMapped ? "file" : liveMapped ? "live" : "unavailable",
   };
 }
 
@@ -173,7 +274,7 @@ export const AI_STATUS_CACHE_TAG = "burnout-ai-model-status";
 
 const getCachedAiModelSnapshot = unstable_cache(
   loadAiModelStatus,
-  ["burnout-ai-model-metrics-same-and-next-week"],
+  ["burnout-ai-model-metrics-local-same-week-retrain"],
   { revalidate: 300, tags: [AI_STATUS_CACHE_TAG] }
 );
 

@@ -41,6 +41,8 @@ import {
 import type { getGuidanceAnalytics } from "@/lib/guidance/monitoring";
 import type {
   AiModelStatus,
+  ConfusionMatrix,
+  ModelEvalBlock,
   ModelEvaluationSnapshot,
 } from "@/lib/guidance/model-metrics";
 import { useTablePagination } from "@/hooks/use-table-pagination";
@@ -122,18 +124,91 @@ function SectionHeading({
   );
 }
 
+function HoldoutScoreRow({ block }: { block: ModelEvalBlock }) {
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {(
+        [
+          ["Accuracy", block.accuracy],
+          ["Precision", block.precision],
+          ["Recall", block.recall],
+          ["F1-Score", block.f1],
+        ] as const
+      ).map(([label, value]) => (
+        <div key={label}>
+          <p className="text-xs text-muted-foreground">{label}</p>
+          <p className="font-[family-name:var(--font-display)] text-lg font-semibold tabular-nums">
+            {(value * 100).toFixed(1)}%
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ConfusionMatrixTable({ matrix }: { matrix: ConfusionMatrix }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[420px] border-collapse text-sm">
+        <thead>
+          <tr>
+            <th className="border px-3 py-2 text-left font-medium" rowSpan={2}>
+              Actual
+            </th>
+            <th
+              className="border px-3 py-2 text-center font-medium"
+              colSpan={matrix.labels.length}
+            >
+              Predicted
+            </th>
+          </tr>
+          <tr>
+            {matrix.labels.map((label) => (
+              <th key={label} className="border px-3 py-2 text-center font-medium">
+                {label}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {matrix.matrix.map((row, rowIndex) => (
+            <tr key={matrix.labels[rowIndex]}>
+              <th className="border px-3 py-2 text-left font-medium">
+                {matrix.labels[rowIndex]}
+              </th>
+              {row.map((count, columnIndex) => (
+                <td
+                  key={`${matrix.labels[rowIndex]}-${matrix.labels[columnIndex]}`}
+                  className={cn(
+                    "border px-3 py-2 text-center tabular-nums",
+                    rowIndex === columnIndex && "bg-primary/10 font-semibold"
+                  )}
+                >
+                  {count}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export function GuidanceAnalyticsView({
   data,
   modelEvaluation,
   aiHealthy,
   metricsSource,
   showAiModelStatus = false,
+  weekPairHoldout,
 }: {
   data: Analytics;
   modelEvaluation: ModelEvaluationSnapshot;
   aiHealthy: boolean;
   metricsSource?: AiModelStatus["metricsSource"];
   showAiModelStatus?: boolean;
+  weekPairHoldout: AiModelStatus["weekPairHoldout"];
 }) {
   const {
     page: attentionPage,
@@ -708,19 +783,30 @@ export function GuidanceAnalyticsView({
                   Burnout Prediction Accuracy
                 </CardTitle>
                 <CardDescription>
-                  Hold-out evaluation for {modelEvaluation.modelVersion}{" "}
-                  Decision Tree and Random Forest predictors
-                  {modelEvaluation.source === "unavailable"
-                    ? " (run npm run train to populate)"
-                    : " from burnout-ai training"}
-                  .
+                  {weekPairHoldout
+                    ? `Next-week hold-out for the ${weekPairHoldout.realRecords.toLocaleString("en-US")} real monitoring records and ${weekPairHoldout.pairs.toLocaleString("en-US")} Week 1 and Week 2 pairs in Figures 4.2 and 4.3.`
+                    : `Hold-out evaluation for ${modelEvaluation.modelVersion} Decision Tree and Random Forest predictors${
+                        modelEvaluation.source === "unavailable"
+                          ? " (run npm run train to populate)"
+                          : " from burnout-ai training"
+                      }.`}
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="grid gap-4 sm:grid-cols-2">
                   {[
-                    { short: "DT", block: modelEvaluation.decisionTree },
-                    { short: "RF", block: modelEvaluation.randomForest },
+                    {
+                      short: "DT",
+                      block:
+                        weekPairHoldout?.decisionTreeScores ??
+                        modelEvaluation.decisionTree,
+                    },
+                    {
+                      short: "RF",
+                      block:
+                        weekPairHoldout?.randomForestScores ??
+                        modelEvaluation.randomForest,
+                    },
                   ].map(({ short, block }) => (
                     <div
                       key={short}
@@ -770,8 +856,16 @@ export function GuidanceAnalyticsView({
                     <tbody>
                       {(
                         [
-                          ["DT", modelEvaluation.decisionTree],
-                          ["RF", modelEvaluation.randomForest],
+                          [
+                            "DT",
+                            weekPairHoldout?.decisionTreeScores ??
+                              modelEvaluation.decisionTree,
+                          ],
+                          [
+                            "RF",
+                            weekPairHoldout?.randomForestScores ??
+                              modelEvaluation.randomForest,
+                          ],
                         ] as const
                       ).map(([short, block]) => (
                         <tr key={short} className="border-b last:border-0">
@@ -803,6 +897,70 @@ export function GuidanceAnalyticsView({
           />
         </section>
       ) : null}
+
+      <section className="grid gap-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">
+              Figure 4.2. Confusion Matrix of the Decision Tree Model for
+              Next-Week Classification
+            </CardTitle>
+            <CardDescription>
+              The next-week evaluation is more relevant to the early warning
+              objective than same-week classification because it assesses a
+              future monitoring category rather than only reproducing the
+              current category. Nevertheless, the results describe prediction of
+              the study&apos;s computational risk labels, not the clinical
+              diagnosis of burnout.
+              {weekPairHoldout
+                ? ` These counts use only the ${weekPairHoldout.realRecords.toLocaleString("en-US")} real monitoring records. A next-week pair exists when the same student has both Week 1 and Week 2, which is ${weekPairHoldout.pairs.toLocaleString("en-US")} pairs. The matrix is the held-out portion of those pairs.`
+                : " The real Week 1 and Week 2 holdout is not available yet."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {weekPairHoldout?.decisionTree ? (
+              <div className="space-y-4">
+                <ConfusionMatrixTable matrix={weekPairHoldout.decisionTree} />
+                <HoldoutScoreRow block={weekPairHoldout.decisionTreeScores} />
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                The trained next-week Decision Tree confusion matrix is not
+                available yet.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">
+              Figure 4.3. Confusion Matrix of the Random Forest Model for
+              Next-Week Classification
+            </CardTitle>
+            <CardDescription>
+              The confusion matrix shows the actual and predicted categories.
+              This allows the reader to determine which categories were
+              classified correctly and which were most frequently confused by
+              the model. It uses the same real Week 1 and Week 2 pairs and the
+              same Low, Moderate, and High order as Figure 4.2.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {weekPairHoldout?.randomForest ? (
+              <div className="space-y-4">
+                <ConfusionMatrixTable matrix={weekPairHoldout.randomForest} />
+                <HoldoutScoreRow block={weekPairHoldout.randomForestScores} />
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                The trained next-week Random Forest confusion matrix is not
+                available yet.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </section>
 
       {/* 11. Heatmap */}
       <section>

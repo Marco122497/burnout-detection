@@ -32,6 +32,8 @@ export type GuidanceStudentRow = StudentMonitorRow & {
   latestRecordWeek?: number | null;
   /** True when this student already submitted Week 1 this term. */
   submittedWeek1?: boolean;
+  /** True when this student already submitted Week 2 this term. */
+  submittedWeek2?: boolean;
 };
 
 export type GuidanceSearchFilters = {
@@ -70,7 +72,8 @@ export const getMonitoringRecordWeeks = cache(async function getMonitoringRecord
   const term = await getActiveTerm(supabase);
   const latest = new Map<string, number>();
   const week1 = new Set<string>();
-  if (!term?.term_id) return { latest, week1 };
+  const week2 = new Set<string>();
+  if (!term?.term_id) return { latest, week1, week2 };
 
   const rows = await fetchAllPages(async (from, to) =>
     supabase
@@ -86,13 +89,14 @@ export const getMonitoringRecordWeeks = cache(async function getMonitoringRecord
     const week = Number(row.week_number);
     if (!Number.isFinite(week)) continue;
     if (week === 1) week1.add(row.student_id);
+    if (week === 2) week2.add(row.student_id);
     const previous = latest.get(row.student_id);
     if (previous == null || week > previous) {
       latest.set(row.student_id, week);
     }
   }
 
-  return { latest, week1 };
+  return { latest, week1, week2 };
 });
 
 export type ScoredRiskCategory = {
