@@ -274,7 +274,7 @@ export const AI_STATUS_CACHE_TAG = "burnout-ai-model-status";
 
 const getCachedAiModelSnapshot = unstable_cache(
   loadAiModelStatus,
-  ["burnout-ai-model-metrics-local-same-week-retrain"],
+  ["burnout-ai-model-metrics-real-pairs-only"],
   { revalidate: 300, tags: [AI_STATUS_CACHE_TAG] }
 );
 
