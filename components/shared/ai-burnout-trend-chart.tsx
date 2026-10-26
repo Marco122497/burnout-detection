@@ -96,15 +96,14 @@ export function AiBurnoutTrendChart({
     earlyWarningStudents,
     "next_week_risk"
   );
-  const week2Score = averageProjectedScore(earlyWarningStudents, "week2_risk");
-  const hasProjection = nextScore != null || week2Score != null;
+  const hasProjection = nextScore != null;
   const latest = visibleTrends[visibleTrends.length - 1];
 
   type ChartPoint = {
     weekLabel: string;
     average: number | null;
     projection: number | null;
-    kind: "baseline" | "actual" | "next" | "week2";
+    kind: "baseline" | "actual" | "next";
   };
 
   const includesHistoryStart =
@@ -140,15 +139,6 @@ export function AiBurnoutTrendChart({
       average: null,
       projection: nextScore,
       kind: "next",
-    });
-  }
-
-  if (week2Score != null) {
-    chartData.push({
-      weekLabel: "W+2",
-      average: null,
-      projection: week2Score,
-      kind: "week2",
     });
   }
 
@@ -227,12 +217,10 @@ export function AiBurnoutTrendChart({
                           ? "Fixed baseline"
                           : kind === "next"
                             ? "Next-week AI outlook"
-                            : kind === "week2"
-                              ? "Week-2 AI outlook"
-                              : kind === "actual" &&
-                                  item?.payload?.weekLabel === "Current"
-                                ? "Current avg MFBI"
-                                : seriesLabel(name);
+                            : kind === "actual" &&
+                                item?.payload?.weekLabel === "Current"
+                              ? "Current avg MFBI"
+                              : seriesLabel(name);
                       return (
                         <div className="flex w-full items-center justify-between gap-4">
                           <span className="text-muted-foreground">{label}</span>
@@ -276,7 +264,7 @@ export function AiBurnoutTrendChart({
             Solid line = recorded average MFBI
             {latest ? ` (Current = Week ${latest.week})` : ""}.
             {hasProjection
-              ? " Dashed line = AI early-warning outlook (Next = ML next-week, W+2 = trend projection)."
+              ? " Dashed line = next-week model forecast. It is not another monitoring week."
               : null}
           </p>
         ) : null}

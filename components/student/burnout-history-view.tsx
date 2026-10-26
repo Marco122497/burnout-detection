@@ -226,8 +226,7 @@ export function BurnoutHistoryView({
   const nextScore =
     earlyWarning?.next_week_score ??
     riskLevelToChartScore(earlyWarning?.next_week_risk);
-  const week2Score = riskLevelToChartScore(earlyWarning?.week2_risk);
-  const projectedScores = [nextScore, week2Score].filter(
+  const projectedScores = [nextScore].filter(
     (value): value is number => value != null
   );
   const monthlyWithOutlook =
@@ -339,12 +338,9 @@ export function BurnoutHistoryView({
                   <span className="capitalize">
                     {earlyWarning.trend.replaceAll("_", " ")}
                   </span>
-                  {earlyWarning.next_week_risk || earlyWarning.week2_risk ? (
+                  {earlyWarning.next_week_risk ? (
                     <span className="ml-1 font-medium text-muted-foreground">
-                      · Next {earlyWarning.next_week_risk ?? "—"}
-                      {earlyWarning.week2_risk
-                        ? ` · W+2 ${earlyWarning.week2_risk}`
-                        : ""}
+                      · Next {earlyWarning.next_week_risk}
                     </span>
                   ) : null}
                 </p>

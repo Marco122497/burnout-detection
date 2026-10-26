@@ -11,7 +11,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { AlertTriangleIcon, ClipboardCheckIcon, Loader2 } from "lucide-react";
+import { AlertTriangleIcon, Loader2 } from "lucide-react";
 
 import { useNavigationPending } from "@/components/layout/navigation-pending";
 import { PageHeading } from "@/components/layout/page-heading";
@@ -551,25 +551,6 @@ export function GuidanceDashboard({
     variableKey === "all"
       ? allChartData.some((item) => item.low + item.moderate + item.high > 0)
       : singleChartData.some((item) => item.count > 0);
-
-  const recentActivity = [
-    {
-      text: `${scoped.submittedCount} students completed weekly monitoring`,
-      meta: `Week ${selectedWeek}`,
-    },
-    {
-      text: `${scoped.high} student${scoped.high === 1 ? "" : "s"} classified as High Risk`,
-      meta: `Week ${selectedWeek}`,
-    },
-    {
-      text: `${scoped.monitoredCount} assessments processed with burnout prediction`,
-      meta: `Week ${selectedWeek}`,
-    },
-    {
-      text: `${courseChartData.length} program${courseChartData.length === 1 ? "" : "s"} shown as each risk level over the department total`,
-      meta: "Active term",
-    },
-  ];
 
   return (
     <div className="space-y-8">
@@ -1186,8 +1167,7 @@ export function GuidanceDashboard({
             Next-week model evaluation
           </CardTitle>
           <CardDescription>
-            Held-out Week 2 classification from real Week 1 records, the same
-            evaluation as Figures 4.2 and 4.3
+            Held-out Week 2 classification from real Week 1 records.
             {nextWeekEvaluation.source === "unavailable"
               ? ". Run training to populate these metrics."
               : "."}
@@ -1346,104 +1326,13 @@ export function GuidanceDashboard({
         }))}
       />
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Recent Activity</CardTitle>
-            <CardDescription>
-              Snapshot of monitoring system activity.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-3">
-              {recentActivity.map((item) => (
-                <li key={item.text} className="flex gap-3 text-sm">
-                  <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-primary" />
-                  <div>
-                    <p>{item.text}</p>
-                    <p className="text-xs text-muted-foreground">{item.meta}</p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <ClipboardCheckIcon className="size-4" />
-              Weekly Assessment Status
-            </CardTitle>
-            <CardDescription>
-              Monitoring participation for the current week.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <div className="mb-1.5 flex items-center justify-between text-sm">
-                <span>Completed</span>
-                <span className="tabular-nums text-muted-foreground">
-                  {scoped.submittedCount} / {scoped.totalStudents}
-                </span>
-              </div>
-              <div className="h-2.5 overflow-hidden rounded-full bg-muted">
-                <div
-                  className="h-full rounded-full bg-primary transition-all"
-                  style={{
-                    width: `${Math.max(
-                      scoped.completionPercent,
-                      scoped.completionPercent > 0 ? 2 : 0
-                    )}%`,
-                  }}
-                />
-              </div>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {scoped.completionPercent}%
-              </p>
-            </div>
-            <div>
-              <div className="mb-1.5 flex items-center justify-between text-sm">
-                <span>Pending</span>
-                <span className="tabular-nums text-muted-foreground">
-                  {scoped.pendingCount} / {scoped.totalStudents}
-                </span>
-              </div>
-              <div className="h-2.5 overflow-hidden rounded-full bg-muted">
-                <div
-                  className="h-full rounded-full bg-amber-500/80 transition-all"
-                  style={{
-                    width: `${
-                      scoped.totalStudents > 0
-                        ? Math.max(
-                            (scoped.pendingCount / scoped.totalStudents) * 100,
-                            scoped.pendingCount > 0 ? 2 : 0
-                          )
-                        : 0
-                    }%`,
-                  }}
-                />
-              </div>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {scoped.totalStudents > 0
-                  ? Math.round(
-                      (scoped.pendingCount / scoped.totalStudents) * 1000
-                    ) / 10
-                  : 0}
-                %
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {showAiModelStatus ? (
-          <AiModelStatusCard
-            modelEvaluation={modelEvaluation}
-            aiHealthy={aiHealthy}
-            metricsSource={metricsSource}
-          />
-        ) : null}
-      </div>
+      {showAiModelStatus ? (
+        <AiModelStatusCard
+          modelEvaluation={modelEvaluation}
+          aiHealthy={aiHealthy}
+          metricsSource={metricsSource}
+        />
+      ) : null}
     </div>
   );
 }

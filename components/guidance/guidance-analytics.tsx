@@ -784,7 +784,7 @@ export function GuidanceAnalyticsView({
                 </CardTitle>
                 <CardDescription>
                   {weekPairHoldout
-                    ? `Next-week hold-out for the ${weekPairHoldout.realRecords.toLocaleString("en-US")} real monitoring records and ${weekPairHoldout.pairs.toLocaleString("en-US")} Week 1 and Week 2 pairs in Figures 4.2 and 4.3.`
+                    ? `Next-week hold-out for the ${weekPairHoldout.realRecords.toLocaleString("en-US")} real monitoring records and ${weekPairHoldout.pairs.toLocaleString("en-US")} Week 1 and Week 2 pairs.`
                     : `Hold-out evaluation for ${modelEvaluation.modelVersion} Decision Tree and Random Forest predictors${
                         modelEvaluation.source === "unavailable"
                           ? " (run npm run train to populate)"
@@ -902,19 +902,12 @@ export function GuidanceAnalyticsView({
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">
-              Figure 4.2. Confusion Matrix of the Decision Tree Model for
-              Next-Week Classification
+              Decision Tree confusion matrix
             </CardTitle>
             <CardDescription>
-              The next-week evaluation is more relevant to the early warning
-              objective than same-week classification because it assesses a
-              future monitoring category rather than only reproducing the
-              current category. Nevertheless, the results describe prediction of
-              the study&apos;s computational risk labels, not the clinical
-              diagnosis of burnout.
               {weekPairHoldout
-                ? ` These counts use only the ${weekPairHoldout.realRecords.toLocaleString("en-US")} real monitoring records. A next-week pair exists when the same student has both Week 1 and Week 2, which is ${weekPairHoldout.pairs.toLocaleString("en-US")} pairs. The matrix is the held-out portion of those pairs.`
-                : " The real Week 1 and Week 2 holdout is not available yet."}
+                ? `Held-out Week 2 categories predicted from Week 1 records. These counts use the ${weekPairHoldout.realRecords.toLocaleString("en-US")} real monitoring records and ${weekPairHoldout.pairs.toLocaleString("en-US")} students with both Week 1 and Week 2. The matrix is the held-out portion of those pairs.`
+                : "The real Week 1 and Week 2 holdout is not available yet."}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -935,15 +928,12 @@ export function GuidanceAnalyticsView({
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">
-              Figure 4.3. Confusion Matrix of the Random Forest Model for
-              Next-Week Classification
+              Random Forest confusion matrix
             </CardTitle>
             <CardDescription>
-              The confusion matrix shows the actual and predicted categories.
-              This allows the reader to determine which categories were
-              classified correctly and which were most frequently confused by
-              the model. It uses the same real Week 1 and Week 2 pairs and the
-              same Low, Moderate, and High order as Figure 4.2.
+              {weekPairHoldout
+                ? `Held-out Week 2 categories predicted from Week 1 records. These counts use the ${weekPairHoldout.realRecords.toLocaleString("en-US")} real monitoring records and ${weekPairHoldout.pairs.toLocaleString("en-US")} students with both Week 1 and Week 2. The matrix is the held-out portion of those pairs.`
+                : "The real Week 1 and Week 2 holdout is not available yet."}
             </CardDescription>
           </CardHeader>
           <CardContent>

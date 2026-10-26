@@ -2,11 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { LucideIcon } from "lucide-react";
-import {
-  ActivityIcon,
-  BrainCircuitIcon,
-  TrendingUpIcon,
-} from "lucide-react";
+import { ActivityIcon, BrainCircuitIcon } from "lucide-react";
 import {
   CartesianGrid,
   Line,
@@ -51,7 +47,6 @@ import { cn } from "@/lib/utils";
 const trendChartConfig = {
   score: { label: "MFBI", color: "#2563eb" },
   nextProjection: { label: "Next week (ML)", color: "#d97706" },
-  week2Projection: { label: "Week 2 trend", color: "#7c3aed" },
 } satisfies ChartConfig;
 
 type TrendRange = "4w" | "8w" | "all";
@@ -63,9 +58,9 @@ const TREND_RANGE_OPTIONS: { id: TrendRange; label: string }[] = [
 ];
 
 const TREND_RANGE_DESCRIPTION: Record<TrendRange, string> = {
-  "4w": "Weekly MFBI for the last 4 monitoring weeks, plus AI outlook.",
-  "8w": "Weekly MFBI for the last 8 monitoring weeks, plus AI outlook.",
-  all: "Weekly MFBI history plus next-week and week-2 early-warning projections.",
+  "4w": "Weekly MFBI for the last 4 monitoring weeks, plus the next-week forecast.",
+  "8w": "Weekly MFBI for the last 8 monitoring weeks, plus the next-week forecast.",
+  all: "Weekly MFBI history plus the next-week forecast.",
 };
 
 /**
@@ -112,18 +107,6 @@ export function resolveNextWeekDisplay(earlyWarning: EarlyWarningPayload | null)
   };
 }
 
-export function resolveWeek2Display(earlyWarning: EarlyWarningPayload | null): {
-  level: BurnoutLevel | null;
-  score: number | null;
-} {
-  const level =
-    resolveMfbiBurnoutLevel(null, earlyWarning?.week2_risk ?? null) ?? null;
-  return {
-    level,
-    score: bandMidpointScore(level),
-  };
-}
-
 export type WeeklyTrendPoint = {
   week: number;
   score: number | null;
@@ -132,9 +115,22 @@ export type WeeklyTrendPoint = {
   direction?: string | null;
 };
 
+function displayedScore(value: number): number {
+  return Number(value.toFixed(2));
+}
+
+/** Change between the two-decimal scores shown on the cards. */
+function displayedDelta(current: number, previous: number): number {
+  return Number(
+    (displayedScore(current) - displayedScore(previous)).toFixed(2)
+  );
+}
+
 function formatScore(value: number | null | undefined) {
   const score = Number(value);
-  return value != null && Number.isFinite(score) ? score.toFixed(2) : "—";
+  return value != null && Number.isFinite(score)
+    ? displayedScore(score).toFixed(2)
+    : "—";
 }
 
 function formatDirectionLabel(direction: string | null | undefined) {
@@ -274,9 +270,17 @@ export function EarlyWarningOutlookStepper({ steps }: { steps: OutlookStep[] }) 
     <div className="relative px-0.5 pt-2 sm:px-2">
       <div
         aria-hidden
-        className="absolute top-[calc(0.5rem+2rem)] right-[18%] left-[18%] h-px -translate-y-1/2 bg-border sm:top-[calc(0.5rem+2.25rem)]"
+        className={cn(
+          "absolute top-[calc(0.5rem+2rem)] h-px -translate-y-1/2 bg-border sm:top-[calc(0.5rem+2.25rem)]",
+          steps.length <= 2 ? "right-1/4 left-1/4" : "right-[18%] left-[18%]"
+        )}
       />
-      <ol className="relative grid grid-cols-3 items-start gap-2 sm:gap-3">
+      <ol
+        className={cn(
+          "relative grid items-start gap-2 sm:gap-3",
+          steps.length <= 2 ? "grid-cols-2" : "grid-cols-3"
+        )}
+      >
         {steps.map((step) => {
           const Icon = step.icon;
           const hasLevel =
@@ -351,7 +355,6 @@ export function EarlyWarningOutlookCard({
   if (!earlyWarning && mfbiScore == null && !burnoutLevel) return null;
 
   const nextWeek = resolveNextWeekDisplay(earlyWarning);
-  const week2 = resolveWeek2Display(earlyWarning);
   const hasMlNextWeek = Boolean(earlyWarning?.has_ml_next_week);
   const currentLevel = resolveMfbiBurnoutLevel(mfbiScore, burnoutLevel);
   const builtWarning = buildMfbiEarlyWarningMessage({
@@ -368,7 +371,8 @@ export function EarlyWarningOutlookCard({
       <CardHeader>
         <CardTitle className="text-lg">Outlook timeline</CardTitle>
         <CardDescription>
-          Current MFBI, AI next-week forecast, and week-2 trend projection.
+          Current MFBI and the AI next-week forecast. Trend is the change
+          between recorded weeks, not another predicted week.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -392,13 +396,6 @@ export function EarlyWarningOutlookCard({
                 ? "AI early detection"
                 : "Submit monitoring to unlock",
               iconOnly: true,
-            },
-            {
-              icon: TrendingUpIcon,
-              label: "Week 2 projection",
-              score: week2.score,
-              level: week2.level,
-              hint: "Trend-based indicator",
             },
           ]}
         />
@@ -443,63 +440,47 @@ export function BurnoutRiskTrendChart({
       ...point,
       level: mfbiLevel ?? point.level,
     };
-    if (normalizedPoint.direction && normalizedPoint.direction !== "insufficient_history") {
-      return normalizedPoint;
-    }
-    const previousScore = index > 0 ? visibleData[index - 1]?.score : null;
     if (normalizedPoint.score == null) return normalizedPoint;
-    const direction = classifyTrendDirection(
-      normalizedPoint.score,
-      previousScore ?? null
-    );
+    const previousScore = index > 0 ? visibleData[index - 1]?.score ?? null : null;
+    const score = displayedScore(normalizedPoint.score);
     const delta =
-      previousScore != null
-        ? Math.round((normalizedPoint.score - previousScore) * 100) / 100
-        : null;
+      previousScore == null ? null : displayedDelta(score, previousScore);
     return {
       ...normalizedPoint,
-      direction,
-      delta: normalizedPoint.delta ?? delta,
+      score,
+      direction: classifyTrendDirection(
+        score,
+        previousScore == null ? null : displayedScore(previousScore)
+      ),
+      delta,
     };
   });
   const recentCards = pointsWithMovement.slice(-4);
   const nextWeek = resolveNextWeekDisplay(earlyWarning);
-  const week2 = resolveWeek2Display(earlyWarning);
   const nextWeekLevel = nextWeek.level;
-  const week2Level = week2.level;
   const nextScore = nextWeek.score;
-  const week2Score = week2.score;
-  const hasProjection = nextScore != null || week2Score != null;
+  const hasProjection = nextScore != null;
 
+  const shownNext = nextScore == null ? null : displayedScore(nextScore);
+  const shownLatest = latest?.score == null ? null : displayedScore(latest.score);
   const nextDirection =
-    nextScore != null
-      ? classifyTrendDirection(nextScore, latest?.score ?? null)
+    shownNext != null
+      ? classifyTrendDirection(shownNext, shownLatest)
       : null;
   const nextDelta =
-    nextScore != null && latest?.score != null
-      ? Math.round((nextScore - latest.score) * 100) / 100
+    shownNext != null && shownLatest != null
+      ? displayedDelta(shownNext, shownLatest)
       : null;
-  const week2Previous = nextScore ?? latest?.score ?? null;
-  const week2Direction =
-    week2Score != null
-      ? classifyTrendDirection(week2Score, week2Previous)
-      : null;
-  const week2Delta =
-    week2Score != null && week2Previous != null
-      ? Math.round((week2Score - week2Previous) * 100) / 100
-      : null;
-
   type ChartPoint = {
     week: string;
     weekLabel: string;
     weekNumber: number;
     score: number | null;
     nextProjection: number | null;
-    week2Projection: number | null;
     level: string;
     direction: string | null;
     delta: number | null;
-    kind: "actual" | "baseline" | "next" | "week2";
+    kind: "actual" | "baseline" | "next";
     isCurrent: boolean;
   };
 
@@ -517,20 +498,15 @@ export function BurnoutRiskTrendChart({
           isBaseline: true as const,
         },
         ...pointsWithMovement.map((point, index) => {
-          if (index !== 0 || point.score == null) return point;
-          const direction = classifyTrendDirection(
-            point.score,
-            FIRST_WEEK_BASELINE_MFBI
-          );
-          const delta =
-            Math.round((point.score - FIRST_WEEK_BASELINE_MFBI) * 100) / 100;
+          // One submitted week has no earlier monitoring week. The 0.50 base
+          // stays on the chart as a reference and is not a movement.
+          if (index !== 0 || point.score == null || data.length < 2) return point;
+          const score = displayedScore(point.score);
           return {
             ...point,
-            direction:
-              point.direction && point.direction !== "insufficient_history"
-                ? point.direction
-                : direction,
-            delta: point.delta ?? delta,
+            score,
+            direction: classifyTrendDirection(score, FIRST_WEEK_BASELINE_MFBI),
+            delta: displayedDelta(score, FIRST_WEEK_BASELINE_MFBI),
           };
         }),
       ]
@@ -556,10 +532,6 @@ export function BurnoutRiskTrendChart({
       score: point.score ?? 0,
       nextProjection:
         isLastActual && nextScore != null ? (point.score ?? 0) : null,
-      week2Projection:
-        isLastActual && nextScore == null && week2Score != null
-          ? (point.score ?? 0)
-          : null,
       level: point.level ?? "—",
       direction: point.direction ?? null,
       delta: point.delta ?? null,
@@ -568,34 +540,17 @@ export function BurnoutRiskTrendChart({
     };
   });
 
-  if (nextScore != null && nextWeekLevel) {
+  if (shownNext != null && nextWeekLevel) {
     chartData.push({
       week: "Next",
       weekLabel: "Next week",
       weekNumber: (latest?.week ?? 0) + 1,
       score: null,
-      nextProjection: nextScore,
-      week2Projection: week2Score != null ? nextScore : null,
+      nextProjection: shownNext,
       level: nextWeekLevel,
       direction: nextDirection,
       delta: nextDelta,
       kind: "next",
-      isCurrent: false,
-    });
-  }
-
-  if (week2Score != null && week2Level) {
-    chartData.push({
-      week: "W+2",
-      weekLabel: "Week 2 trend",
-      weekNumber: (latest?.week ?? 0) + 2,
-      score: null,
-      nextProjection: null,
-      week2Projection: week2Score,
-      level: week2Level,
-      direction: week2Direction,
-      delta: week2Delta,
-      kind: "week2",
       isCurrent: false,
     });
   }
@@ -710,12 +665,9 @@ export function BurnoutRiskTrendChart({
                     const displayScore =
                       point.kind === "actual" || point.kind === "baseline"
                         ? point.score
-                        : point.kind === "next"
-                          ? point.nextProjection
-                          : point.week2Projection;
+                        : point.nextProjection;
                     const directionLabel = formatDirectionLabel(point.direction);
                     const isNextProjection = point.kind === "next";
-                    const isTrendProjection = point.kind === "week2";
                     const isBaseline = point.kind === "baseline";
 
                     return (
@@ -726,11 +678,9 @@ export function BurnoutRiskTrendChart({
                             ? "border-blue-500/40"
                             : isNextProjection
                               ? "border-amber-500/40"
-                              : isTrendProjection
-                                ? "border-violet-500/40"
-                                : isBaseline
-                                  ? "border-slate-400/40"
-                                  : "border-border/50"
+                              : isBaseline
+                                ? "border-slate-400/40"
+                                : "border-border/50"
                         )}
                       >
                         <div className="min-w-0">
@@ -749,10 +699,6 @@ export function BurnoutRiskTrendChart({
                             ) : isNextProjection ? (
                               <span className="ml-1 font-semibold text-amber-700 dark:text-amber-300">
                                 · ML
-                              </span>
-                            ) : isTrendProjection ? (
-                              <span className="ml-1 font-semibold text-violet-700 dark:text-violet-300">
-                                · Trend
                               </span>
                             ) : null}
                           </p>
@@ -815,17 +761,6 @@ export function BurnoutRiskTrendChart({
                     connectNulls
                   />
                 ) : null}
-                {week2Score != null ? (
-                  <Line
-                    type="monotone"
-                    dataKey="week2Projection"
-                    stroke="var(--color-week2Projection)"
-                    strokeWidth={2}
-                    strokeDasharray="4 4"
-                    dot={showDots}
-                    connectNulls
-                  />
-                ) : null}
               </LineChart>
             </ChartContainer>
 
@@ -848,11 +783,8 @@ export function BurnoutRiskTrendChart({
                     <span className="font-medium text-amber-600 dark:text-amber-400">
                       Amber dashed
                     </span>{" "}
-                    = next-week ML prediction.{" "}
-                    <span className="font-medium text-violet-600 dark:text-violet-400">
-                      Violet dashed
-                    </span>{" "}
-                    = week-2 trend projection.
+                    = next-week ML prediction. The latest movement above the
+                    chart is the change between recorded weeks.
                   </>
                 ) : null}
               </p>
@@ -865,22 +797,20 @@ export function BurnoutRiskTrendChart({
                   includesHistoryStart &&
                   point.week === visibleData[0]?.week;
                 const cardPoint =
-                  firstVisibleIsHistoryStart && point.score != null
+                  firstVisibleIsHistoryStart &&
+                  data.length > 1 &&
+                  point.score != null
                     ? {
                         ...point,
-                        direction:
-                          point.direction &&
-                          point.direction !== "insufficient_history"
-                            ? point.direction
-                            : classifyTrendDirection(
-                                point.score,
-                                FIRST_WEEK_BASELINE_MFBI
-                              ),
-                        delta:
-                          point.delta ??
-                          Math.round(
-                            (point.score - FIRST_WEEK_BASELINE_MFBI) * 100
-                          ) / 100,
+                        score: displayedScore(point.score),
+                        direction: classifyTrendDirection(
+                          displayedScore(point.score),
+                          FIRST_WEEK_BASELINE_MFBI
+                        ),
+                        delta: displayedDelta(
+                          displayedScore(point.score),
+                          FIRST_WEEK_BASELINE_MFBI
+                        ),
                       }
                     : point;
                 return (
@@ -897,19 +827,11 @@ export function BurnoutRiskTrendChart({
               })}
               <TrendWeekCard
                 label="Next week"
-                score={nextScore}
+                score={shownNext}
                 level={nextWeekLevel}
                 direction={nextDirection}
                 delta={nextDelta}
                 projected="next"
-              />
-              <TrendWeekCard
-                label="Week 2 trend"
-                score={week2Score}
-                level={week2Level}
-                direction={week2Direction}
-                delta={week2Delta}
-                projected="trend"
               />
             </div>
           </>
