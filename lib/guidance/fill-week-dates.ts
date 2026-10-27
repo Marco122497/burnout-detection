@@ -24,6 +24,7 @@ export function mondayOfWeek(date: Date) {
 export function fillDatePresets(now = new Date()) {
   const monday = mondayOfWeek(now);
   const nextMonday = addDays(monday, 7);
+  const weekAfterNext = addDays(monday, 14);
   return [
     {
       id: "this-mon-sun",
@@ -47,6 +48,14 @@ export function fillDatePresets(now = new Date()) {
       range: {
         from: toDateInputValue(nextMonday),
         to: toDateInputValue(addDays(nextMonday, 5)),
+      },
+    },
+    {
+      id: "after-next-mon-sat",
+      label: "In two weeks (Mon–Sat)",
+      range: {
+        from: toDateInputValue(weekAfterNext),
+        to: toDateInputValue(addDays(weekAfterNext, 5)),
       },
     },
   ] as const;

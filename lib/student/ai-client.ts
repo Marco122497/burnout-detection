@@ -221,6 +221,16 @@ export async function fetchBurnoutAiMetrics(): Promise<unknown | null> {
  * Call early-warning endpoint: current risk (same-week ML) + next-week ML
  * + trend-based week-2 projection.
  */
+let earlyWarningUnreachable = false;
+
+export function resetEarlyWarningReachability() {
+  earlyWarningUnreachable = false;
+}
+
+export function earlyWarningWasUnreachable() {
+  return earlyWarningUnreachable;
+}
+
 export async function callBurnoutAiEarlyWarning(
   features: AiFeaturePayload,
   options?: {
@@ -303,6 +313,7 @@ export async function callBurnoutAiEarlyWarning(
 
     return { prediction, earlyWarning };
   } catch (error) {
+    earlyWarningUnreachable = true;
     console.error("burnout-ai early-warning unreachable", error);
     return null;
   } finally {

@@ -44,8 +44,9 @@ export default async function GuidanceMonitoringLayout({
     email: emails[row.id] ?? null,
     hasMonitoringRecord: recordWeeks.latest.has(row.id),
     latestRecordWeek: recordWeeks.latest.get(row.id) ?? null,
-    submittedWeek1: recordWeeks.week1.has(row.id),
-    submittedWeek2: recordWeeks.week2.has(row.id),
+    submittedWeek1: recordWeeks.week1?.has(row.id) ?? false,
+    submittedWeek2: recordWeeks.week2?.has(row.id) ?? false,
+    submittedWeek3: recordWeeks.week3?.has(row.id) ?? false,
   }));
 
   return (

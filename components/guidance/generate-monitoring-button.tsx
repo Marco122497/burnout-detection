@@ -80,6 +80,14 @@ function hasBothWeeks(student: GenerateMonitoringStudent) {
   return student.submittedWeek1 === true && student.submittedWeek2 === true;
 }
 
+function formatWeekList(weeks: number[]) {
+  const names = weeks.map((week) => `Week ${week}`);
+  if (names.length === 0) return "weeks";
+  if (names.length === 1) return names[0];
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+  return `${names.slice(0, -1).join(", ")}, and ${names[names.length - 1]}`;
+}
+
 export function GenerateMonitoringButton({
   departmentId,
   departmentLabel,
@@ -102,9 +110,17 @@ export function GenerateMonitoringButton({
     moderate: 33,
     high: 33,
   });
+  const [personalFeelings, setPersonalFeelings] = useState(false);
   const datePresets = fillDatePresets();
-  const [dateFrom, setDateFrom] = useState(datePresets[2].range.from);
-  const [dateTo, setDateTo] = useState(datePresets[2].range.to);
+  const [fillWeek1, setFillWeek1] = useState(true);
+  const [fillWeek2, setFillWeek2] = useState(true);
+  const [fillWeek3, setFillWeek3] = useState(true);
+  const [week1From, setWeek1From] = useState(datePresets[0].range.from);
+  const [week1To, setWeek1To] = useState(datePresets[0].range.to);
+  const [week2From, setWeek2From] = useState(datePresets[2].range.from);
+  const [week2To, setWeek2To] = useState(datePresets[2].range.to);
+  const [week3From, setWeek3From] = useState(datePresets[3].range.from);
+  const [week3To, setWeek3To] = useState(datePresets[3].range.to);
 
   const [generateState, setGenerateState] =
     useState<GuidanceActionState>(initialState);
@@ -117,9 +133,17 @@ export function GenerateMonitoringButton({
     if (open) {
       setSelectedIds(new Set(students.map((student) => student.id)));
       setRiskMix({ low: 34, moderate: 33, high: 33 });
+      setPersonalFeelings(false);
+      setFillWeek1(true);
+      setFillWeek2(true);
+      setFillWeek3(true);
       const presets = fillDatePresets();
-      setDateFrom(presets[2].range.from);
-      setDateTo(presets[2].range.to);
+      setWeek1From(presets[0].range.from);
+      setWeek1To(presets[0].range.to);
+      setWeek2From(presets[2].range.from);
+      setWeek2To(presets[2].range.to);
+      setWeek3From(presets[3].range.from);
+      setWeek3To(presets[3].range.to);
     }
   }, [open, students]);
 
@@ -145,6 +169,23 @@ export function GenerateMonitoringButton({
     () => students.filter((student) => hasBothWeeks(student)).length,
     [students]
   );
+
+  const selectedFillWeeks = [
+    fillWeek1
+      ? { week: 1, from: week1From, to: week1To }
+      : null,
+    fillWeek2
+      ? { week: 2, from: week2From, to: week2To }
+      : null,
+    fillWeek3
+      ? { week: 3, from: week3From, to: week3To }
+      : null,
+  ].filter((week): week is { week: number; from: string; to: string } =>
+    week != null
+  );
+  const datesValid =
+    selectedFillWeeks.length > 0 &&
+    selectedFillWeeks.every((week) => week.from && week.to && week.from <= week.to);
 
   const riskMixTotal = riskMix.low + riskMix.moderate + riskMix.high;
   const riskMixValid = riskMixTotal === 100;
@@ -268,12 +309,12 @@ export function GenerateMonitoringButton({
         {generatePending ? (
           <>
             <Loader2 className="size-4 animate-spin" />
-            Filling week {currentWeek}…
+            Filling…
           </>
         ) : (
           <>
             <SparklesIcon className="size-4" />
-            Fill week {currentWeek} for all
+            Fill Week 1, 2, or 3
           </>
         )}
       </Button>
@@ -297,12 +338,12 @@ export function GenerateMonitoringButton({
                 <span className="font-medium text-foreground">
                   {departmentLabel}
                 </span>{" "}
-                — week {currentWeek}
-                {monitoringOpen ? " (open week)" : ""}. Set how many percent
-                should land in Low, Moderate, and High. Each student gets a
-                random submission time inside the dates you choose. A week runs
-                Monday to Sunday, and those dates can be this week or a later
-                week. This uses the same PSS,
+                . Choose Week 1, Week 2, Week 3, or a combination, and set the submission dates
+                for each week
+                {monitoringOpen ? ` (Week ${currentWeek} is open now)` : ""}.
+                Set how many percent should land in Low, Moderate, and High.
+                Each student gets a random submission time inside that week’s
+                dates. A week runs Monday to Sunday. This uses the same PSS,
                 Workload, Study Time, and Sleep questions students fill in, then
                 saves scores, MFBI, and predictions.
               </AlertDialogDescription>
@@ -327,8 +368,20 @@ export function GenerateMonitoringButton({
               value={riskMix.moderate}
             />
             <input type="hidden" name="risk_high_percent" value={riskMix.high} />
-            <input type="hidden" name="date_from" value={dateFrom} />
-            <input type="hidden" name="date_to" value={dateTo} />
+            <input
+              type="hidden"
+              name="answer_style"
+              value={personalFeelings ? "personal" : "random"}
+            />
+            <input type="hidden" name="fill_week_1" value={fillWeek1 ? "1" : "0"} />
+            <input type="hidden" name="fill_week_2" value={fillWeek2 ? "1" : "0"} />
+            <input type="hidden" name="fill_week_3" value={fillWeek3 ? "1" : "0"} />
+            <input type="hidden" name="date_from_1" value={week1From} />
+            <input type="hidden" name="date_to_1" value={week1To} />
+            <input type="hidden" name="date_from_2" value={week2From} />
+            <input type="hidden" name="date_to_2" value={week2To} />
+            <input type="hidden" name="date_from_3" value={week3From} />
+            <input type="hidden" name="date_to_3" value={week3To} />
 
             {students.length > 0 ? (
               <div className="mt-4 space-y-2">
@@ -467,6 +520,16 @@ export function GenerateMonitoringButton({
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-medium">Risk mix (%)</p>
                 <div className="flex flex-wrap items-center gap-1.5">
+                  <Button
+                    type="button"
+                    variant={personalFeelings ? "default" : "outline"}
+                    size="sm"
+                    className="h-7 px-2.5 text-xs"
+                    disabled={generatePending}
+                    onClick={() => setPersonalFeelings((current) => !current)}
+                  >
+                    Personal feelings
+                  </Button>
                   {RISK_MIX_PRESETS.map((preset) => {
                     const active =
                       riskMix.low === preset.low &&
@@ -534,57 +597,112 @@ export function GenerateMonitoringButton({
                   ? `Total 100% · projected ${projectedRisk.low} Low · ${projectedRisk.moderate} Moderate · ${projectedRisk.high} High`
                   : `Percentages must total 100 (currently ${riskMixTotal}).`}
               </p>
+              {personalFeelings ? (
+                <p className="text-xs text-muted-foreground">
+                  Personal feelings keeps each student on one mood. Stress,
+                  workload, study, and sleep move together, with only a small
+                  difference between questions. The mix above still decides how
+                  many students feel Low, Moderate, or High.
+                </p>
+              ) : null}
             </div>
 
-            <div className="mt-4 space-y-2 rounded-lg border p-3">
-              <p className="text-sm font-medium">Submission dates</p>
-              <div className="flex flex-wrap gap-1.5">
-                {datePresets.map((preset) => {
-                  const active =
-                    dateFrom === preset.range.from && dateTo === preset.range.to;
-                  return (
-                    <Button
-                      key={preset.id}
-                      type="button"
-                      variant={active ? "default" : "outline"}
-                      size="sm"
-                      className="h-7 px-2.5 text-xs"
+            <div className="mt-4 space-y-3">
+              <p className="text-sm font-medium">Weeks to fill</p>
+              {(
+                [
+                  {
+                    week: 1,
+                    checked: fillWeek1,
+                    setChecked: setFillWeek1,
+                    from: week1From,
+                    to: week1To,
+                    setFrom: setWeek1From,
+                    setTo: setWeek1To,
+                  },
+                  {
+                    week: 2,
+                    checked: fillWeek2,
+                    setChecked: setFillWeek2,
+                    from: week2From,
+                    to: week2To,
+                    setFrom: setWeek2From,
+                    setTo: setWeek2To,
+                  },
+                  {
+                    week: 3,
+                    checked: fillWeek3,
+                    setChecked: setFillWeek3,
+                    from: week3From,
+                    to: week3To,
+                    setFrom: setWeek3From,
+                    setTo: setWeek3To,
+                  },
+                ] as const
+              ).map((item) => (
+                <div key={item.week} className="space-y-2 rounded-lg border p-3">
+                  <label className="flex items-center gap-2 text-sm font-medium">
+                    <input
+                      type="checkbox"
+                      checked={item.checked}
                       disabled={generatePending}
-                      onClick={() => {
-                        setDateFrom(preset.range.from);
-                        setDateTo(preset.range.to);
-                      }}
-                    >
-                      {preset.label}
-                    </Button>
-                  );
-                })}
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <label className="space-y-1 text-xs">
-                  <span className="font-medium">From</span>
-                  <input
-                    type="date"
-                    value={dateFrom}
-                    disabled={generatePending}
-                    onChange={(event) => setDateFrom(event.target.value)}
-                    className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                  />
-                </label>
-                <label className="space-y-1 text-xs">
-                  <span className="font-medium">To</span>
-                  <input
-                    type="date"
-                    value={dateTo}
-                    disabled={generatePending}
-                    onChange={(event) => setDateTo(event.target.value)}
-                    className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                  />
-                </label>
-              </div>
+                      onChange={(event) => item.setChecked(event.target.checked)}
+                    />
+                    Week {item.week}
+                    {currentWeek === item.week && monitoringOpen
+                      ? " (open now)"
+                      : ""}
+                  </label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {datePresets.map((preset) => {
+                      const active =
+                        item.from === preset.range.from &&
+                        item.to === preset.range.to;
+                      return (
+                        <Button
+                          key={preset.id}
+                          type="button"
+                          variant={active ? "default" : "outline"}
+                          size="sm"
+                          className="h-7 px-2.5 text-xs"
+                          disabled={generatePending || !item.checked}
+                          onClick={() => {
+                            item.setFrom(preset.range.from);
+                            item.setTo(preset.range.to);
+                          }}
+                        >
+                          {preset.label}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="space-y-1 text-xs">
+                      <span className="font-medium">From</span>
+                      <input
+                        type="date"
+                        value={item.from}
+                        disabled={generatePending || !item.checked}
+                        onChange={(event) => item.setFrom(event.target.value)}
+                        className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                      />
+                    </label>
+                    <label className="space-y-1 text-xs">
+                      <span className="font-medium">To</span>
+                      <input
+                        type="date"
+                        value={item.to}
+                        disabled={generatePending || !item.checked}
+                        onChange={(event) => item.setTo(event.target.value)}
+                        className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                      />
+                    </label>
+                  </div>
+                </div>
+              ))}
               <p className="text-xs text-muted-foreground">
-                These dates are the submission times for the open week. Next
-                week (Mon–Sat) is the coming Monday through Saturday.
+                Each week uses its own dates as the random submission times.
+                Next week (Mon–Sat) is the coming Monday through Saturday.
               </p>
             </div>
 
@@ -595,7 +713,7 @@ export function GenerateMonitoringButton({
                 disabled={generatePending}
                 onChange={(event) => setSkipExisting(event.target.checked)}
               />
-              Skip students who already submitted this week
+              Skip students who already submitted the selected week
             </label>
 
             {clientError || generateState.error ? (
@@ -620,9 +738,7 @@ export function GenerateMonitoringButton({
                   students.length === 0 ||
                   selectedStudents.length === 0 ||
                   !riskMixValid ||
-                  !dateFrom ||
-                  !dateTo ||
-                  dateFrom > dateTo
+                  !datesValid
                 }
               >
                 {generatePending ? (
@@ -631,7 +747,7 @@ export function GenerateMonitoringButton({
                     Filling…
                   </>
                 ) : (
-                  `Fill ${selectedStudents.length} student${selectedStudents.length === 1 ? "" : "s"}`
+                  `Fill ${formatWeekList(selectedFillWeeks.map((week) => week.week))} · ${selectedStudents.length} student${selectedStudents.length === 1 ? "" : "s"}`
                 )}
               </Button>
             </AlertDialogFooter>

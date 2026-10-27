@@ -3,6 +3,8 @@ import {
   buildBalancedRiskTargets,
   buildRiskTargetsFromPercents,
   generateMonitoringAnswersForRisk,
+  generatePersonalMonitoringAnswers,
+  type AnswerStyle,
   type RiskPercentMix,
 } from "@/lib/guidance/generate-monitoring";
 import type { FillDateRange } from "@/lib/guidance/fill-week-dates";
@@ -93,6 +95,10 @@ export async function fillDepartmentMonitoring(input: {
   studentIds?: string[];
   riskPercents?: RiskPercentMix;
   submittedRange?: FillDateRange;
+  /** Week 1, 2, or 3. Omitted means the currently open monitoring week. */
+  weekNumber?: number;
+  /** Personal answers follow one feeling across every section. */
+  answerStyle?: AnswerStyle;
 }): Promise<
   | { ok: true; result: FillDepartmentResult }
   | { ok: false; error: string; result?: Partial<FillDepartmentResult> }
@@ -102,9 +108,12 @@ export async function fillDepartmentMonitoring(input: {
     return { ok: false, error: "No active academic term is configured." };
   }
 
-  const weekNumber = getCurrentWeekNumber(term);
-  if (weekNumber < 1) {
-    return { ok: false, error: "Current monitoring week is not set." };
+  const requestedWeek =
+    input.weekNumber != null ? Math.floor(input.weekNumber) : null;
+  const weekNumber =
+    requestedWeek != null ? requestedWeek : getCurrentWeekNumber(term);
+  if (weekNumber !== 1 && weekNumber !== 2 && weekNumber !== 3) {
+    return { ok: false, error: "Choose Week 1, Week 2, or Week 3 to fill." };
   }
 
   const sections = await getWeeklyMonitoringSections(input.supabase);
@@ -198,10 +207,10 @@ export async function fillDepartmentMonitoring(input: {
     let answers;
     let scores;
     try {
-      ({ answers, scores } = generateMonitoringAnswersForRisk(
-        sections,
-        riskTargets[index]
-      ));
+      ({ answers, scores } =
+        input.answerStyle === "personal"
+          ? generatePersonalMonitoringAnswers(sections, riskTargets[index])
+          : generateMonitoringAnswersForRisk(sections, riskTargets[index]));
     } catch (error) {
       failures.push(
         `${student.student_number ?? student.id}: ${

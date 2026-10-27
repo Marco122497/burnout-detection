@@ -49,6 +49,7 @@ import { formatDateTime } from "@/lib/auth/roles";
 import type {
   AiModelStatus,
   ModelEvaluationSnapshot,
+  WeekPairHoldout,
 } from "@/lib/guidance/model-metrics";
 import type {
   getGuidanceAnalytics,
@@ -257,6 +258,108 @@ function OverviewCard({
   );
 }
 
+function percentLabel(value: number) {
+  return `${(value * 100).toFixed(1)}%`;
+}
+
+function NextWeekMetricsCard({ holdout }: { holdout: WeekPairHoldout }) {
+  const models = [
+    { title: "Decision Tree", block: holdout.decisionTreeScores, matrix: holdout.decisionTree },
+    { title: "Random Forest", block: holdout.randomForestScores, matrix: holdout.randomForest },
+  ];
+  const holdoutRows =
+    holdout.decisionTree?.matrix.reduce(
+      (sum, row) => sum + row.reduce((rowSum, count) => rowSum + count, 0),
+      0
+    ) ?? 0;
+
+  return (
+    <Card className="flex h-full flex-col">
+      <CardHeader className="gap-1.5">
+        <CardTitle className="text-lg">Next-week model</CardTitle>
+        <CardDescription>
+          Week 1 scores scored against the Week 2 label.{" "}
+          {holdout.pairs.toLocaleString("en-US")} pairs from{" "}
+          {holdout.realRecords.toLocaleString("en-US")} real monitoring records.
+          The matrix is the held-out portion, {holdoutRows.toLocaleString("en-US")} records.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-1 flex-col gap-6">
+        {models.map(({ title, block, matrix }) => (
+          <div key={title} className="space-y-3">
+            <div>
+              <p className="font-medium">{title}</p>
+              <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {(
+                  [
+                    ["Accuracy", block.accuracy],
+                    ["Precision", block.precision],
+                    ["Recall", block.recall],
+                    ["F1-Score", block.f1],
+                  ] as const
+                ).map(([label, value]) => (
+                  <div key={label}>
+                    <p className="text-xs text-muted-foreground">{label}</p>
+                    <p className="font-[family-name:var(--font-display)] text-lg font-semibold tabular-nums">
+                      {percentLabel(value)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {matrix ? (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-sm">
+                  <thead>
+                    <tr>
+                      <th className="border px-2 py-1.5 text-left font-medium" rowSpan={2}>
+                        Actual
+                      </th>
+                      <th
+                        className="border px-2 py-1.5 text-center font-medium"
+                        colSpan={matrix.labels.length}
+                      >
+                        Predicted
+                      </th>
+                    </tr>
+                    <tr>
+                      {matrix.labels.map((label) => (
+                        <th key={label} className="border px-2 py-1.5 text-center font-medium">
+                          {label}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {matrix.matrix.map((row, rowIndex) => (
+                      <tr key={matrix.labels[rowIndex]}>
+                        <th className="border px-2 py-1.5 text-left font-medium">
+                          {matrix.labels[rowIndex]}
+                        </th>
+                        {row.map((count, columnIndex) => (
+                          <td
+                            key={`${matrix.labels[rowIndex]}-${matrix.labels[columnIndex]}`}
+                            className={cn(
+                              "border px-2 py-1.5 text-center tabular-nums",
+                              rowIndex === columnIndex && "font-semibold"
+                            )}
+                          >
+                            {count}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
 export function GuidanceDashboard({
   firstName,
   data,
@@ -268,7 +371,7 @@ export function GuidanceDashboard({
   selectedWeek,
   validScored,
   weekVariables,
-  nextWeekEvaluation,
+  weekPairHoldout = null,
 }: {
   firstName: string;
   data: Analytics;
@@ -280,7 +383,7 @@ export function GuidanceDashboard({
   selectedWeek: number;
   validScored: ValidScoredSummary;
   weekVariables: WeekVariableAverages[];
-  nextWeekEvaluation: ModelEvaluationSnapshot;
+  weekPairHoldout?: WeekPairHoldout | null;
 }) {
   const { navigate, isPending, pendingHref } = useNavigationPending();
   const [yearFilter, setYearFilter] = React.useState("all");
@@ -919,7 +1022,12 @@ export function GuidanceDashboard({
         </Card>
       </div>
 
-      <div className="grid items-stretch gap-4 lg:grid-cols-2">
+      <div
+        className={cn(
+          "grid items-stretch gap-4",
+          weekPairHoldout && "lg:grid-cols-2"
+        )}
+      >
       <Card className="flex h-full flex-col">
         <CardHeader className="gap-1.5">
           <CardTitle className="text-lg">
@@ -1160,53 +1268,7 @@ export function GuidanceDashboard({
           )}
         </CardContent>
       </Card>
-
-      <Card className="flex h-full flex-col">
-        <CardHeader className="gap-1.5">
-          <CardTitle className="text-lg">
-            Next-week model evaluation
-          </CardTitle>
-          <CardDescription>
-            Held-out Week 2 classification from real Week 1 records.
-            {nextWeekEvaluation.source === "unavailable"
-              ? ". Run training to populate these metrics."
-              : "."}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-1 flex-col">
-          <div className="grid flex-1 gap-4">
-            {[
-              nextWeekEvaluation.decisionTree,
-              nextWeekEvaluation.randomForest,
-            ].map((block) => (
-              <div key={block.label} className="rounded-xl ring-1 ring-foreground/10">
-                <div className="border-b px-4 py-3">
-                  <p className="font-medium">{block.label}</p>
-                </div>
-                <div className="grid grid-cols-2 gap-3 p-4">
-                  {(
-                    [
-                      ["Accuracy", block.accuracy],
-                      ["Precision", block.precision],
-                      ["Recall", block.recall],
-                      ["F1-Score", block.f1],
-                    ] as const
-                  ).map(([label, value]) => (
-                    <div key={label}>
-                      <p className="text-xs text-muted-foreground">{label}</p>
-                      <p className="font-[family-name:var(--font-display)] text-xl font-semibold tabular-nums">
-                        {nextWeekEvaluation.source === "unavailable"
-                          ? "—"
-                          : `${(value * 100).toFixed(2)}%`}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      {weekPairHoldout ? <NextWeekMetricsCard holdout={weekPairHoldout} /> : null}
       </div>
 
       <Card>

@@ -41,7 +41,7 @@ export type EarlyWarningFillResult =
 export async function ensureLatestEarlyWarning(
   studentId: string,
   history: MonitoringRow[],
-  options?: { assumeOnline?: boolean }
+  options?: { assumeOnline?: boolean; weekNumber?: number }
 ): Promise<EarlyWarningFillResult> {
   try {
     return await fillLatestEarlyWarning(studentId, history, options);
@@ -64,9 +64,12 @@ export async function ensureStudentNextWeekPrediction(
 async function fillLatestEarlyWarning(
   studentId: string,
   history: MonitoringRow[],
-  options?: { assumeOnline?: boolean }
+  options?: { assumeOnline?: boolean; weekNumber?: number }
 ): Promise<EarlyWarningFillResult> {
-  const latest = history[0];
+  const latest =
+    options?.weekNumber != null
+      ? history.find((row) => row.week_number === options.weekNumber)
+      : history[0];
   if (!latest?.prediction) return "skipped";
 
   const existing = parseEarlyWarningRemarks(latest.prediction.remarks);
@@ -80,7 +83,13 @@ async function fillLatestEarlyWarning(
     if (!online) return "offline";
   }
 
-  const older = [...history].slice(1).reverse();
+  const older =
+    options?.weekNumber != null
+      ? history
+          .filter((row) => row.week_number < latest.week_number)
+          .slice()
+          .sort((a, b) => a.week_number - b.week_number)
+      : [...history].slice(1).reverse();
   const historyLevels: string[] = [];
   const historyMfbi: number[] = [];
 

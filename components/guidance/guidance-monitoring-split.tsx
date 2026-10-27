@@ -363,9 +363,9 @@ export function GuidanceMonitoringSplit({
             {canPredictWeek ? (
               <PredictCurrentWeekButton
                 currentWeek={currentWeek}
-                submittedCount={
-                  rows.filter((row) => row.submittedThisWeek).length
-                }
+                week1Count={rows.filter((row) => row.submittedWeek1).length}
+                week2Count={rows.filter((row) => row.submittedWeek2).length}
+                week3Count={rows.filter((row) => row.submittedWeek3).length}
               />
             ) : null}
             {canFillWeek && departmentId ? (

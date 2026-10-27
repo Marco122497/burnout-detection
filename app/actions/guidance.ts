@@ -1081,6 +1081,16 @@ export async function generateDepartmentMonitoring(
     const highPercent = Number(formData.get("risk_high_percent"));
     const dateFrom = String(formData.get("date_from") || "").trim();
     const dateTo = String(formData.get("date_to") || "").trim();
+    const fillWeeks = [1, 2, 3].flatMap((week) => {
+      if (formData.get(`fill_week_${week}`) !== "1") return [];
+      return [
+        {
+          week,
+          from: String(formData.get(`date_from_${week}`) || dateFrom).trim(),
+          to: String(formData.get(`date_to_${week}`) || dateTo).trim(),
+        },
+      ];
+    });
 
     let studentIds: string[] | undefined;
     if (studentIdsRaw) {
@@ -1125,62 +1135,87 @@ export async function generateDepartmentMonitoring(
       }
     }
 
-    if (!isFillDateInput(dateFrom) || !isFillDateInput(dateTo)) {
-      return { error: "Choose a start date and an end date for this week." };
+    if (fillWeeks.length === 0) {
+      return { error: "Choose Week 1, Week 2, Week 3, or a combination." };
     }
-    if (dateFrom > dateTo) {
-      return { error: "The start date must be on or before the end date." };
-    }
-
-    const fill = await fillDepartmentMonitoring({
-      supabase,
-      departmentId,
-      skipExisting,
-      studentIds,
-      riskPercents,
-      submittedRange: { from: dateFrom, to: dateTo },
-    });
-
-    if (!fill.ok) {
-      return { error: fill.error };
+    for (const week of fillWeeks) {
+      if (!isFillDateInput(week.from) || !isFillDateInput(week.to)) {
+        return { error: `Choose a start date and an end date for Week ${week.week}.` };
+      }
+      if (week.from > week.to) {
+        return { error: `Week ${week.week} start date must be on or before the end date.` };
+      }
     }
 
-    const { result } = fill;
+    const parts: string[] = [];
+    const failures: string[] = [];
+    let departmentName = "";
+    let createdTotal = 0;
 
-    await supabase.from("audit_logs").insert(
-      toAuditLogRow({
-        user_id: user.id,
-        user_role: profile.role,
-        action: "GENERATE_DEPARTMENT_MONITORING",
-        action_type: "CREATE",
-        table_name: "weekly_monitoring",
-        record_id: null,
-        description: `Auto-filled week ${result.weekNumber} for ${result.departmentName} (${result.created} row(s))`,
-        ip_address: await getIp(),
-      })
-    );
+    for (const week of fillWeeks) {
+      const fill = await fillDepartmentMonitoring({
+        supabase,
+        departmentId,
+        skipExisting,
+        studentIds,
+        riskPercents,
+        submittedRange: { from: week.from, to: week.to },
+        weekNumber: week.week,
+        answerStyle:
+          formData.get("answer_style") === "personal" ? "personal" : "random",
+      });
+
+      const result = fill.result;
+      const counted =
+        result?.weekNumber != null &&
+        typeof result.created === "number" &&
+        typeof result.skipped === "number";
+
+      if (!fill.ok && !counted) {
+        if (parts.length === 0) return { error: fill.error };
+        failures.push(fill.error);
+        continue;
+      }
+      if (!counted || !result) continue;
+
+      departmentName = result.departmentName ?? departmentName;
+      createdTotal += result.created ?? 0;
+      if ((result.created ?? 0) > 0) {
+        await supabase.from("audit_logs").insert(
+          toAuditLogRow({
+            user_id: user.id,
+            user_role: profile.role,
+            action: "GENERATE_DEPARTMENT_MONITORING",
+            action_type: "CREATE",
+            table_name: "weekly_monitoring",
+            record_id: null,
+            description: `Auto-filled week ${result.weekNumber} for ${result.departmentName} (${result.created} row(s))`,
+            ip_address: await getIp(),
+          })
+        );
+      }
+
+      const piece = [`Week ${result.weekNumber}: ${result.created} filled`];
+      if ((result.skipped ?? 0) > 0) piece.push(`${result.skipped} skipped`);
+      if ((result.failures?.length ?? 0) > 0) {
+        piece.push(`${result.failures?.length} failed`);
+      }
+      parts.push(piece.join(", "));
+      failures.push(...(result.failures ?? []));
+    }
+
+    if (createdTotal === 0) {
+      return { error: parts.join(". ") || "No monitoring rows were filled." };
+    }
 
     // Do not revalidatePath here. This action runs on /guidance/monitoring,
     // and revalidating that route makes the action response re-render the
     // whole page. That response hangs and the browser throws "Failed to fetch".
     // The fill button calls router.refresh() after a successful return.
 
-    const parts = [
-      `Filled week ${result.weekNumber} for ${result.created} student${result.created === 1 ? "" : "s"} in ${result.departmentName}.`,
-    ];
-    if (result.skipped > 0) {
-      parts.push(`${result.skipped} skipped (already submitted).`);
-    }
-    if (result.failures.length > 0) {
-      parts.push(`${result.failures.length} failed.`);
-    }
-
     return {
-      success: parts.join(" "),
-      error:
-        result.failures.length > 0
-          ? result.failures.slice(0, 3).join(" ")
-          : undefined,
+      success: `Filled ${departmentName}. ${parts.join(". ")}.`,
+      error: failures.length > 0 ? failures.slice(0, 3).join(" ") : undefined,
     };
   } catch (error) {
     return {

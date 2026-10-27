@@ -201,14 +201,14 @@ export function GuidanceAnalyticsView({
   aiHealthy,
   metricsSource,
   showAiModelStatus = false,
-  weekPairHoldout,
+  sameWeekHoldout,
 }: {
   data: Analytics;
   modelEvaluation: ModelEvaluationSnapshot;
   aiHealthy: boolean;
   metricsSource?: AiModelStatus["metricsSource"];
   showAiModelStatus?: boolean;
-  weekPairHoldout: AiModelStatus["weekPairHoldout"];
+  sameWeekHoldout: AiModelStatus["sameWeekHoldout"];
 }) {
   const {
     page: attentionPage,
@@ -783,8 +783,8 @@ export function GuidanceAnalyticsView({
                   Burnout Prediction Accuracy
                 </CardTitle>
                 <CardDescription>
-                  {weekPairHoldout
-                    ? `Next-week hold-out for the ${weekPairHoldout.realRecords.toLocaleString("en-US")} real monitoring records and ${weekPairHoldout.pairs.toLocaleString("en-US")} Week 1 and Week 2 pairs.`
+                  {sameWeekHoldout
+                    ? `Same-week hold-out for the ${sameWeekHoldout.records.toLocaleString("en-US")} real monitoring records. The scores use the held-out portion, ${sameWeekHoldout.holdoutRows.toLocaleString("en-US")} records, the same evaluation as the confusion matrices.`
                     : `Hold-out evaluation for ${modelEvaluation.modelVersion} Decision Tree and Random Forest predictors${
                         modelEvaluation.source === "unavailable"
                           ? " (run npm run train to populate)"
@@ -798,13 +798,13 @@ export function GuidanceAnalyticsView({
                     {
                       short: "DT",
                       block:
-                        weekPairHoldout?.decisionTreeScores ??
+                        sameWeekHoldout?.decisionTreeScores ??
                         modelEvaluation.decisionTree,
                     },
                     {
                       short: "RF",
                       block:
-                        weekPairHoldout?.randomForestScores ??
+                        sameWeekHoldout?.randomForestScores ??
                         modelEvaluation.randomForest,
                     },
                   ].map(({ short, block }) => (
@@ -858,12 +858,12 @@ export function GuidanceAnalyticsView({
                         [
                           [
                             "DT",
-                            weekPairHoldout?.decisionTreeScores ??
+                            sameWeekHoldout?.decisionTreeScores ??
                               modelEvaluation.decisionTree,
                           ],
                           [
                             "RF",
-                            weekPairHoldout?.randomForestScores ??
+                            sameWeekHoldout?.randomForestScores ??
                               modelEvaluation.randomForest,
                           ],
                         ] as const
@@ -905,20 +905,20 @@ export function GuidanceAnalyticsView({
               Decision Tree confusion matrix
             </CardTitle>
             <CardDescription>
-              {weekPairHoldout
-                ? `Held-out Week 2 categories predicted from Week 1 records. These counts use the ${weekPairHoldout.realRecords.toLocaleString("en-US")} real monitoring records and ${weekPairHoldout.pairs.toLocaleString("en-US")} students with both Week 1 and Week 2. The matrix is the held-out portion of those pairs.`
-                : "The real Week 1 and Week 2 holdout is not available yet."}
+              {sameWeekHoldout
+                ? `Held-out current-week categories recovered from that week's four scores. These counts use the ${sameWeekHoldout.records.toLocaleString("en-US")} real monitoring records. The matrix is the held-out portion, ${sameWeekHoldout.holdoutRows.toLocaleString("en-US")} records.`
+                : "The same-week holdout is not available yet."}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {weekPairHoldout?.decisionTree ? (
+            {sameWeekHoldout?.decisionTree ? (
               <div className="space-y-4">
-                <ConfusionMatrixTable matrix={weekPairHoldout.decisionTree} />
-                <HoldoutScoreRow block={weekPairHoldout.decisionTreeScores} />
+                <ConfusionMatrixTable matrix={sameWeekHoldout.decisionTree} />
+                <HoldoutScoreRow block={sameWeekHoldout.decisionTreeScores} />
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">
-                The trained next-week Decision Tree confusion matrix is not
+                The trained same-week Decision Tree confusion matrix is not
                 available yet.
               </p>
             )}
@@ -931,20 +931,20 @@ export function GuidanceAnalyticsView({
               Random Forest confusion matrix
             </CardTitle>
             <CardDescription>
-              {weekPairHoldout
-                ? `Held-out Week 2 categories predicted from Week 1 records. These counts use the ${weekPairHoldout.realRecords.toLocaleString("en-US")} real monitoring records and ${weekPairHoldout.pairs.toLocaleString("en-US")} students with both Week 1 and Week 2. The matrix is the held-out portion of those pairs.`
-                : "The real Week 1 and Week 2 holdout is not available yet."}
+              {sameWeekHoldout
+                ? `Held-out current-week categories recovered from that week's four scores. These counts use the ${sameWeekHoldout.records.toLocaleString("en-US")} real monitoring records. The matrix is the held-out portion, ${sameWeekHoldout.holdoutRows.toLocaleString("en-US")} records.`
+                : "The same-week holdout is not available yet."}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {weekPairHoldout?.randomForest ? (
+            {sameWeekHoldout?.randomForest ? (
               <div className="space-y-4">
-                <ConfusionMatrixTable matrix={weekPairHoldout.randomForest} />
-                <HoldoutScoreRow block={weekPairHoldout.randomForestScores} />
+                <ConfusionMatrixTable matrix={sameWeekHoldout.randomForest} />
+                <HoldoutScoreRow block={sameWeekHoldout.randomForestScores} />
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">
-                The trained next-week Random Forest confusion matrix is not
+                The trained same-week Random Forest confusion matrix is not
                 available yet.
               </p>
             )}

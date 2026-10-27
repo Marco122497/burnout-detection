@@ -239,6 +239,7 @@ function scoreCandidate(
   return {
     answers,
     scores,
+    mfbiScore: mfbi.mfbi_score,
     mfbiDistance,
     predictionPenalty,
     matches: predictionPenalty === 0,
@@ -311,6 +312,123 @@ export function generateMonitoringAnswersForRisk(
 
   const answers = generateUniformAnswers(sections);
   return { answers, scores: computeSectionScores(sections, answers) };
+}
+
+export type AnswerStyle = "random" | "personal";
+
+function clamp01(value: number) {
+  return Math.min(1, Math.max(0, value));
+}
+
+/**
+ * One feeling for the whole form. Strain is how heavy the week feels.
+ * Study follows that feeling: a heavier week means more time spent trying to keep up.
+ */
+function feelingForTarget(target: TargetRiskLevel) {
+  const wobble = (Math.random() - 0.5) * 0.08;
+  if (target === "Low") {
+    return { strain: clamp01(0.16 + wobble), study: clamp01(0.38 + wobble) };
+  }
+  if (target === "High") {
+    return { strain: clamp01(0.88 + wobble), study: clamp01(0.78 + wobble) };
+  }
+  return { strain: clamp01(0.52 + wobble), study: clamp01(0.55 + wobble) };
+}
+
+function pickFromFeeling(options: ScaleOption[], position: number) {
+  const sorted = [...options].sort((a, b) => a.value - b.value);
+  const count = sorted.length;
+  if (count === 0) {
+    throw new Error("Question has no scale options.");
+  }
+  if (count === 1) return sorted[0].value;
+
+  const exact = clamp01(position) * (count - 1);
+  const wobble = Math.random() < 0.62 ? 0 : Math.random() < 0.5 ? -1 : 1;
+  const index = Math.round(exact) + wobble;
+  return sorted[Math.min(Math.max(index, 0), count - 1)].value;
+}
+
+function answersFromFeeling(
+  sections: QuestionnaireSection[],
+  feeling: { strain: number; study: number }
+): AnswerMap {
+  const answers: AnswerMap = {};
+
+  for (const section of sections) {
+    for (const question of section.questions) {
+      if (!question.is_required) continue;
+
+      const options = resolveScaleOptions(
+        section.key,
+        question,
+        section.questionnaire_name
+      );
+      if (!options.length) continue;
+
+      const base = section.key === "study" ? feeling.study : feeling.strain;
+      const invert =
+        invertRiskForQuestion(section.key, question) ||
+        ((section.key === "workload" || section.key === "study") &&
+          question.reverse_scored);
+      answers[question.question_id] = pickFromFeeling(
+        options,
+        invert ? 1 - base : base
+      );
+    }
+  }
+
+  return answers;
+}
+
+/**
+ * Answer the way one student would: the same week’s feeling drives PSS,
+ * workload, study time, and sleep, with only a small difference between items.
+ */
+export function generatePersonalMonitoringAnswers(
+  sections: QuestionnaireSection[],
+  targetRisk: TargetRiskLevel
+): { answers: AnswerMap; scores: SectionScores } {
+  const feeling = feelingForTarget(targetRisk);
+  let best:
+    | {
+        answers: AnswerMap;
+        scores: SectionScores;
+        rank: number;
+      }
+    | null = null;
+
+  for (let attempt = 0; attempt < 28; attempt += 1) {
+    const candidate = scoreCandidate(
+      sections,
+      answersFromFeeling(sections, feeling),
+      targetRisk
+    );
+
+    if (candidate.matches) {
+      return { answers: candidate.answers, scores: candidate.scores };
+    }
+
+    const rank = candidate.predictionPenalty * 10 + candidate.mfbiDistance;
+    if (!best || rank < best.rank) {
+      best = {
+        answers: candidate.answers,
+        scores: candidate.scores,
+        rank,
+      };
+    }
+
+    const gap = MFBI_CENTER[targetRisk] - candidate.mfbiScore;
+    const step = Math.sign(gap || (targetRisk === "Low" ? -1 : 1)) * 0.06;
+    feeling.strain = clamp01(feeling.strain + step);
+    feeling.study = clamp01(feeling.study + step * 0.5);
+  }
+
+  if (best) {
+    return { answers: best.answers, scores: best.scores };
+  }
+
+  return generateMonitoringAnswersForRisk(sections, targetRisk);
 }
 
 /** Random valid answers for every required question, scored like a student submit. */

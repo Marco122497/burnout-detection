@@ -82,6 +82,20 @@ def _real_rows(df: pd.DataFrame) -> pd.DataFrame:
     return df[source.eq("real") | source.str.startswith("real")].copy()
 
 
+def _can_holdout(y: pd.Series) -> bool:
+    """A stratified 20% split needs a test row and a train row in every class."""
+    if len(y) < 5:
+        return False
+    counts = y.value_counts()
+    if len(counts) < 2 or int(counts.min()) < 2:
+        return False
+    try:
+        train_test_split(y, y, test_size=0.2, random_state=42, stratify=y)
+    except ValueError:
+        return False
+    return True
+
+
 def _train_pair(
     X: pd.DataFrame,
     y: pd.Series,
@@ -143,6 +157,45 @@ def _train_pair(
     }
 
 
+def _train_all_pairs(
+    X: pd.DataFrame,
+    y: pd.Series,
+    name: str,
+    feature_names: list[str],
+    class_weight: str | None = None,
+):
+    """Fit on every pair when a stratified hold-out is not possible."""
+    decision_tree = DecisionTreeClassifier(
+        max_depth=8, random_state=42, class_weight=class_weight
+    )
+    random_forest = RandomForestClassifier(
+        n_estimators=200,
+        random_state=42,
+        n_jobs=-1,
+        class_weight=class_weight,
+    )
+    decision_tree.fit(X, y)
+    random_forest.fit(X, y)
+
+    joblib.dump(decision_tree, MODELS_DIR / f"{name}_decision_tree.pkl")
+    joblib.dump(random_forest, MODELS_DIR / f"{name}_random_forest.pkl")
+    joblib.dump(feature_names, MODELS_DIR / f"{name}_features.pkl")
+
+    print(f"\n=== {name} ===")
+    print(f"Trained on all {len(X)} pairs.")
+    print("No hold-out: too few pairs for a stratified 20% split.")
+
+    return {
+        "samples": int(len(X)),
+        "holdout_rows": 0,
+        "features": feature_names,
+        "note": (
+            "Trained on every real Week 1 to Week 2 pair. "
+            "Too few pairs for a stratified 20% hold-out, so there is no test matrix."
+        ),
+    }
+
+
 def main():
     same_week_path = DATASET_DIR / "training_dataset.csv"
     next_week_path = DATASET_DIR / "next_week_dataset.csv"
@@ -177,22 +230,52 @@ def main():
         "same_week",
         SAME_WEEK_FEATURES,
     )
-    # Real Week 2 labels are mostly Moderate. Balanced class weights over-call
-    # Low and High, so the saved next-week model follows the real label mix.
-    next_week = _train_pair(
-        next_df[NEXT_WEEK_FEATURES],
-        next_df[LABEL],
-        "next_week",
-        NEXT_WEEK_FEATURES,
-        class_weight=None,
-    )
+    # Week 1 alone has no next-week label. Train that model only when
+    # Week 1 to Week 2 pairs exist.
+    next_week = None
+    if _can_holdout(next_df[LABEL]):
+        next_week = _train_pair(
+            next_df[NEXT_WEEK_FEATURES],
+            next_df[LABEL],
+            "next_week",
+            NEXT_WEEK_FEATURES,
+            class_weight=None,
+        )
+    elif len(next_df) >= 2 and next_df[LABEL].nunique() >= 2:
+        next_week = _train_all_pairs(
+            next_df[NEXT_WEEK_FEATURES],
+            next_df[LABEL],
+            "next_week",
+            NEXT_WEEK_FEATURES,
+            class_weight=None,
+        )
+    else:
+        # Do not delete a next-week model trained on an earlier Week 2 set.
+        # A new pair file replaces it on the next successful train.
+        kept = all(
+            (MODELS_DIR / name).exists()
+            for name in (
+                "next_week_decision_tree.pkl",
+                "next_week_random_forest.pkl",
+                "next_week_features.pkl",
+            )
+        )
+        print("\n=== next_week ===")
+        print("Skipped: Week 1 to Week 2 pairs are not available yet.")
+        print(
+            "Kept the existing next-week model files."
+            if kept
+            else "No next-week model files are on disk."
+        )
     evaluation = {
         "generated_by": "burnout-ai/training/train.py",
         "label": LABEL,
         "classes": RISK_ORDER,
         "same_week": same_week,
         "next_week": next_week,
-        "week1_week2_holdout": {
+        "week1_week2_holdout": None
+        if next_week is None or "decision_tree" not in next_week
+        else {
             "pairs": next_week["samples"],
             "holdout_rows": next_week["holdout_rows"],
             "real_records": int(len(same_df)),

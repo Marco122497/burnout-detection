@@ -33,6 +33,16 @@ export type NextWeekHoldout = {
   randomForest: ConfusionMatrix | null;
 };
 
+/** Current-week scores scored against that week's own index band. */
+export type SameWeekHoldout = {
+  records: number;
+  holdoutRows: number;
+  decisionTree: ConfusionMatrix | null;
+  randomForest: ConfusionMatrix | null;
+  decisionTreeScores: ModelEvalBlock;
+  randomForestScores: ModelEvalBlock;
+};
+
 /** Real Week 1 inputs scored against that student's Week 2 label. */
 export type WeekPairHoldout = {
   realRecords: number;
@@ -48,6 +58,7 @@ export type AiModelStatus = {
   nextWeekEvaluation: ModelEvaluationSnapshot;
   nextWeekHoldout: NextWeekHoldout;
   weekPairHoldout: WeekPairHoldout | null;
+  sameWeekHoldout: SameWeekHoldout | null;
   aiHealthy: boolean;
   metricsSource: "live" | "file" | "unavailable";
 };
@@ -86,6 +97,8 @@ type MetricBlock = {
 
 type MetricsFile = {
   same_week?: {
+    samples?: number;
+    holdout_rows?: number;
     decision_tree?: MetricBlock;
     random_forest?: MetricBlock;
   };
@@ -115,6 +128,25 @@ function readConfusion(block?: MetricBlock): ConfusionMatrix | null {
   return {
     labels: ["Low", "Moderate", "High"],
     matrix: order.map((rowIndex) => order.map((columnIndex) => rows[rowIndex][columnIndex])),
+  };
+}
+
+export function mapSameWeekHoldout(raw: unknown): SameWeekHoldout | null {
+  if (!raw || typeof raw !== "object") return null;
+  const block = (raw as MetricsFile).same_week;
+  if (!block) return null;
+  const records = Number(block.samples);
+  const holdoutRows = Number(block.holdout_rows);
+  const decisionTree = readConfusion(block.decision_tree);
+  const randomForest = readConfusion(block.random_forest);
+  if (!Number.isFinite(records) || !decisionTree || !randomForest) return null;
+  return {
+    records,
+    holdoutRows: Number.isFinite(holdoutRows) ? holdoutRows : 0,
+    decisionTree,
+    randomForest,
+    decisionTreeScores: fromBlock("Decision Tree", block.decision_tree),
+    randomForestScores: fromBlock("Random Forest", block.random_forest),
   };
 }
 
@@ -208,20 +240,29 @@ export function mapNextWeekMetrics(raw: unknown): ModelEvaluationSnapshot | null
 /** Client-safe constant for existing imports; prefer getModelEvaluation(). */
 export const MODEL_EVALUATION = PLACEHOLDER;
 
+async function metricsFilePath(): Promise<string> {
+  const path = await import("node:path");
+  return path.join(process.cwd(), "burnout-ai", "models", "metrics.json");
+}
+
 async function readMetricsRaw(): Promise<unknown | null> {
   try {
     const fs = await import("node:fs/promises");
-    const path = await import("node:path");
-    const file = path.join(
-      process.cwd(),
-      "burnout-ai",
-      "models",
-      "metrics.json"
-    );
-    const text = await fs.readFile(file, "utf8");
+    const text = await fs.readFile(await metricsFilePath(), "utf8");
     return JSON.parse(text);
   } catch {
     return null;
+  }
+}
+
+/** Changes whenever train.py rewrites metrics.json, so a retrain busts the cache. */
+async function metricsFileVersion(): Promise<number> {
+  try {
+    const fs = await import("node:fs/promises");
+    const stat = await fs.stat(await metricsFilePath());
+    return stat.mtimeMs;
+  } catch {
+    return 0;
   }
 }
 
@@ -232,6 +273,7 @@ async function loadAiModelStatus(): Promise<
     | "nextWeekEvaluation"
     | "nextWeekHoldout"
     | "weekPairHoldout"
+    | "sameWeekHoldout"
     | "metricsSource"
   >
 > {
@@ -251,6 +293,8 @@ async function loadAiModelStatus(): Promise<
     fileHoldout.decisionTree && fileHoldout.randomForest ? fileHoldout : liveHoldout;
   const weekPairHoldout =
     mapWeekPairHoldout(fileRaw) ?? mapWeekPairHoldout(liveRaw);
+  const sameWeekHoldout =
+    mapSameWeekHoldout(fileRaw) ?? mapSameWeekHoldout(liveRaw);
 
   return {
     // Local metrics.json is the retrain just written by train.py. The live
@@ -266,6 +310,7 @@ async function loadAiModelStatus(): Promise<
       : (liveNext ?? fileNext ?? PLACEHOLDER),
     nextWeekHoldout,
     weekPairHoldout,
+    sameWeekHoldout,
     metricsSource: fileMapped ? "file" : liveMapped ? "live" : "unavailable",
   };
 }
@@ -273,8 +318,9 @@ async function loadAiModelStatus(): Promise<
 export const AI_STATUS_CACHE_TAG = "burnout-ai-model-status";
 
 const getCachedAiModelSnapshot = unstable_cache(
-  loadAiModelStatus,
-  ["burnout-ai-model-metrics-real-pairs-only"],
+  // The metrics file version is part of the cache key (unstable_cache keys on args).
+  async (_metricsVersion: number) => loadAiModelStatus(),
+  ["burnout-ai-model-metrics-same-week-matrix"],
   { revalidate: 300, tags: [AI_STATUS_CACHE_TAG] }
 );
 
@@ -282,7 +328,7 @@ const getCachedAiModelSnapshot = unstable_cache(
 export async function getAiModelStatus(): Promise<AiModelStatus> {
   const { getBurnoutAiOnline } = await import("@/lib/student/ai-client");
   const [snapshot, aiHealthy] = await Promise.all([
-    getCachedAiModelSnapshot(),
+    metricsFileVersion().then((version) => getCachedAiModelSnapshot(version)),
     getBurnoutAiOnline(8000),
   ]);
   return { ...snapshot, aiHealthy };

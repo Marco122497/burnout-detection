@@ -62,7 +62,7 @@ export default async function GuidanceDashboardPage({
       selectedWeek={selectedWeek}
       validScored={validScored}
       weekVariables={weekVariables}
-      nextWeekEvaluation={aiStatus.nextWeekEvaluation}
+      weekPairHoldout={aiStatus.weekPairHoldout}
     />
   );
 }
