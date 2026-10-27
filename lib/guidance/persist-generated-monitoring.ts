@@ -61,6 +61,8 @@ export async function persistGeneratedMonitoringRow(input: {
   departmentCode?: string | null;
   /** Prefer for bulk auto-fill — avoids per-student AI round-trips that time out. */
   useRuleBasedPrediction?: boolean;
+  /** Extra detail appended to the generated-row remark. */
+  remarksNote?: string | null;
 }) {
   const { admin, termId, studentId, weekNumber, scores, answers, skipExisting } =
     input;
@@ -102,7 +104,7 @@ export async function persistGeneratedMonitoringRow(input: {
       sleep_hours_score: scores.sleep_hours_score,
       status: "Submitted",
       submitted_at: submittedAt,
-      remarks: `Generated week ${weekNumber} monitoring (Guidance${input.departmentCode ? ` · ${input.departmentCode}` : ""})`,
+      remarks: `Generated week ${weekNumber} monitoring (Guidance${input.departmentCode ? ` · ${input.departmentCode}` : ""}${input.remarksNote ? ` · ${input.remarksNote}` : ""})`,
     })
     .select("monitoring_id")
     .single();

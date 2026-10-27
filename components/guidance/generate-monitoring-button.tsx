@@ -111,6 +111,10 @@ export function GenerateMonitoringButton({
     high: 33,
   });
   const [personalFeelings, setPersonalFeelings] = useState(false);
+  const [followPrevious, setFollowPrevious] = useState(false);
+  const [followChange, setFollowChange] = useState<"small" | "medium" | "large">(
+    "medium"
+  );
   const datePresets = fillDatePresets();
   const [fillWeek1, setFillWeek1] = useState(true);
   const [fillWeek2, setFillWeek2] = useState(true);
@@ -371,8 +375,11 @@ export function GenerateMonitoringButton({
             <input
               type="hidden"
               name="answer_style"
-              value={personalFeelings ? "personal" : "random"}
+              value={
+                followPrevious ? "follow" : personalFeelings ? "personal" : "random"
+              }
             />
+            <input type="hidden" name="follow_change" value={followChange} />
             <input type="hidden" name="fill_week_1" value={fillWeek1 ? "1" : "0"} />
             <input type="hidden" name="fill_week_2" value={fillWeek2 ? "1" : "0"} />
             <input type="hidden" name="fill_week_3" value={fillWeek3 ? "1" : "0"} />
@@ -522,16 +529,33 @@ export function GenerateMonitoringButton({
                 <div className="flex flex-wrap items-center gap-1.5">
                   <Button
                     type="button"
-                    variant={personalFeelings ? "default" : "outline"}
+                    variant={personalFeelings && !followPrevious ? "default" : "outline"}
                     size="sm"
                     className="h-7 px-2.5 text-xs"
                     disabled={generatePending}
-                    onClick={() => setPersonalFeelings((current) => !current)}
+                    onClick={() => {
+                      setFollowPrevious(false);
+                      setPersonalFeelings((current) => !current);
+                    }}
                   >
                     Personal feelings
                   </Button>
+                  <Button
+                    type="button"
+                    variant={followPrevious ? "default" : "outline"}
+                    size="sm"
+                    className="h-7 px-2.5 text-xs"
+                    disabled={generatePending}
+                    onClick={() => {
+                      setPersonalFeelings(false);
+                      setFollowPrevious((current) => !current);
+                    }}
+                  >
+                    Follow previous week
+                  </Button>
                   {RISK_MIX_PRESETS.map((preset) => {
                     const active =
+                      !followPrevious &&
                       riskMix.low === preset.low &&
                       riskMix.moderate === preset.moderate &&
                       riskMix.high === preset.high;
@@ -543,13 +567,14 @@ export function GenerateMonitoringButton({
                         size="sm"
                         className="h-7 px-2.5 text-xs"
                         disabled={generatePending}
-                        onClick={() =>
+                        onClick={() => {
+                          setFollowPrevious(false);
                           setRiskMix({
                             low: preset.low,
                             moderate: preset.moderate,
                             high: preset.high,
-                          })
-                        }
+                          });
+                        }}
                       >
                         {preset.label}
                       </Button>
@@ -593,11 +618,51 @@ export function GenerateMonitoringButton({
                     : "text-xs text-destructive"
                 }
               >
-                {riskMixValid
-                  ? `Total 100% · projected ${projectedRisk.low} Low · ${projectedRisk.moderate} Moderate · ${projectedRisk.high} High`
-                  : `Percentages must total 100 (currently ${riskMixTotal}).`}
+                {!riskMixValid
+                  ? `Percentages must total 100 (currently ${riskMixTotal}).`
+                  : followPrevious
+                    ? "Total 100% · used only for students with no previous week. Students with a previous week follow it instead."
+                    : `Total 100% · projected ${projectedRisk.low} Low · ${projectedRisk.moderate} Moderate · ${projectedRisk.high} High`}
               </p>
-              {personalFeelings ? (
+              {followPrevious ? (
+                <div className="space-y-2 rounded-md bg-muted/60 p-2.5">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-xs font-medium">Change from last week</span>
+                    {(
+                      [
+                        ["small", "Small"],
+                        ["medium", "Medium"],
+                        ["large", "Large"],
+                      ] as const
+                    ).map(([value, label]) => (
+                      <Button
+                        key={value}
+                        type="button"
+                        variant={followChange === value ? "default" : "outline"}
+                        size="sm"
+                        className="h-6 px-2 text-xs"
+                        disabled={generatePending}
+                        onClick={() => setFollowChange(value)}
+                      >
+                        {label}
+                      </Button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Each student continues from their own previous week. Stress,
+                    workload, study time, and sleep each start from last
+                    week&apos;s score and shift by a random amount (
+                    {followChange === "small"
+                      ? "about ±0.05"
+                      : followChange === "large"
+                        ? "about ±0.15"
+                        : "about ±0.10"}{" "}
+                    on each factor). Students with no previous week use the risk
+                    mix above. These are generated records: a next-week score
+                    trained on them reflects this setting, not real students.
+                  </p>
+                </div>
+              ) : personalFeelings ? (
                 <p className="text-xs text-muted-foreground">
                   Personal feelings keeps each student on one mood. Stress,
                   workload, study, and sleep move together, with only a small

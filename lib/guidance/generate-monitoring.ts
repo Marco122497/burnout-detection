@@ -6,6 +6,7 @@ import type { AnswerMap, SectionScores } from "@/lib/student/scoring";
 import { computeSectionScores } from "@/lib/student/scoring";
 import {
   resolveScaleOptions,
+  STUDY_TIME_SCORE_MAX,
   type ScaleOption,
 } from "@/lib/student/scale-options";
 
@@ -314,7 +315,24 @@ export function generateMonitoringAnswersForRisk(
   return { answers, scores: computeSectionScores(sections, answers) };
 }
 
-export type AnswerStyle = "random" | "personal";
+export type AnswerStyle = "random" | "personal" | "follow";
+
+export type FollowChange = "small" | "medium" | "large";
+
+/** Standard deviation of the week-to-week MFBI shift for each change size. */
+export const FOLLOW_CHANGE_SD: Record<FollowChange, number> = {
+  small: 0.05,
+  medium: 0.1,
+  large: 0.15,
+};
+
+export type PreviousWeekScores = {
+  stress_score: number;
+  academic_workload_score: number;
+  study_time_score: number;
+  sleep_hours_score: number;
+  mfbi_score: number;
+};
 
 function clamp01(value: number) {
   return Math.min(1, Math.max(0, value));
@@ -353,6 +371,16 @@ function answersFromFeeling(
   sections: QuestionnaireSection[],
   feeling: { strain: number; study: number }
 ): AnswerMap {
+  return answersFromPositions(sections, (key) =>
+    key === "study" ? feeling.study : feeling.strain
+  );
+}
+
+/** One answer position (0 = lowest risk, 1 = highest) per questionnaire section. */
+function answersFromPositions(
+  sections: QuestionnaireSection[],
+  positionFor: (key: QuestionnaireSection["key"]) => number
+): AnswerMap {
   const answers: AnswerMap = {};
 
   for (const section of sections) {
@@ -366,7 +394,7 @@ function answersFromFeeling(
       );
       if (!options.length) continue;
 
-      const base = section.key === "study" ? feeling.study : feeling.strain;
+      const base = positionFor(section.key);
       const invert =
         invertRiskForQuestion(section.key, question) ||
         ((section.key === "workload" || section.key === "study") &&
@@ -429,6 +457,77 @@ export function generatePersonalMonitoringAnswers(
   }
 
   return generateMonitoringAnswersForRisk(sections, targetRisk);
+}
+
+function gaussian() {
+  const u = 1 - Math.random();
+  const v = Math.random();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+
+type FactorKey = "pss" | "workload" | "study" | "sleep";
+
+const FACTOR_KEYS: FactorKey[] = ["pss", "workload", "study", "sleep"];
+
+/** Each factor on its 0–1 MFBI scale. */
+function factorLevels(scores: {
+  stress_score: number;
+  academic_workload_score: number;
+  study_time_score: number;
+  sleep_hours_score: number;
+}): Record<FactorKey, number> {
+  return {
+    pss: clamp01(scores.stress_score / 40),
+    workload: clamp01(scores.academic_workload_score / 10),
+    study: clamp01(scores.study_time_score / STUDY_TIME_SCORE_MAX),
+    sleep: clamp01(scores.sleep_hours_score / 100),
+  };
+}
+
+/**
+ * Answers that continue the student's previous week factor by factor. Stress,
+ * workload, study time, and sleep each start from last week's level and move
+ * by one shared shift plus a smaller shift of their own (`changeSd` sets both).
+ */
+export function generateFollowOnMonitoringAnswers(
+  sections: QuestionnaireSection[],
+  previous: PreviousWeekScores,
+  changeSd: number
+): { answers: AnswerMap; scores: SectionScores; targetMfbi: number } {
+  const lastWeek = factorLevels(previous);
+  const sharedShift = gaussian() * changeSd;
+  const targets = Object.fromEntries(
+    FACTOR_KEYS.map((key) => [
+      key,
+      clamp01(lastWeek[key] + sharedShift + gaussian() * changeSd * 0.5),
+    ])
+  ) as Record<FactorKey, number>;
+  const targetMfbi =
+    FACTOR_KEYS.reduce((sum, key) => sum + targets[key], 0) / FACTOR_KEYS.length;
+
+  const positions = { ...targets };
+  let best: { answers: AnswerMap; scores: SectionScores; error: number } | null =
+    null;
+
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    const answers = answersFromPositions(
+      sections,
+      (key) => positions[key as FactorKey] ?? 0.5
+    );
+    const scores = computeSectionScores(sections, answers);
+    const levels = factorLevels(scores);
+    const gaps = FACTOR_KEYS.map((key) => targets[key] - levels[key]);
+    const error = gaps.reduce((sum, gap) => sum + Math.abs(gap), 0);
+    if (!best || error < best.error) {
+      best = { answers, scores, error };
+    }
+    if (gaps.every((gap) => Math.abs(gap) <= 0.03)) break;
+    FACTOR_KEYS.forEach((key, index) => {
+      positions[key] = clamp01(positions[key] + gaps[index] * 0.8);
+    });
+  }
+
+  return { answers: best!.answers, scores: best!.scores, targetMfbi };
 }
 
 /** Random valid answers for every required question, scored like a student submit. */

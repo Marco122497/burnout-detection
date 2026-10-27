@@ -1162,7 +1162,17 @@ export async function generateDepartmentMonitoring(
         submittedRange: { from: week.from, to: week.to },
         weekNumber: week.week,
         answerStyle:
-          formData.get("answer_style") === "personal" ? "personal" : "random",
+          formData.get("answer_style") === "follow"
+            ? "follow"
+            : formData.get("answer_style") === "personal"
+              ? "personal"
+              : "random",
+        followChange:
+          formData.get("follow_change") === "small"
+            ? "small"
+            : formData.get("follow_change") === "large"
+              ? "large"
+              : "medium",
       });
 
       const result = fill.result;

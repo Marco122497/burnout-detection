@@ -2,9 +2,13 @@ import type { createClient } from "@/lib/supabase/server";
 import {
   buildBalancedRiskTargets,
   buildRiskTargetsFromPercents,
+  FOLLOW_CHANGE_SD,
+  generateFollowOnMonitoringAnswers,
   generateMonitoringAnswersForRisk,
   generatePersonalMonitoringAnswers,
   type AnswerStyle,
+  type FollowChange,
+  type PreviousWeekScores,
   type RiskPercentMix,
 } from "@/lib/guidance/generate-monitoring";
 import type { FillDateRange } from "@/lib/guidance/fill-week-dates";
@@ -37,6 +41,8 @@ async function loadDepartmentWeekContexts(
     string,
     {
       priorWeek: PriorWeekScores | null;
+      /** The directly previous week with its MFBI, for follow-on answers. */
+      previousWeek: PreviousWeekScores | null;
       historyMfbi: number[];
       historyLevels: string[];
     }
@@ -45,6 +51,7 @@ async function loadDepartmentWeekContexts(
   for (const studentId of studentIds) {
     contexts.set(studentId, {
       priorWeek: null,
+      previousWeek: null,
       historyMfbi: [],
       historyLevels: [],
     });
@@ -82,6 +89,10 @@ async function loadDepartmentWeekContexts(
         study_time_score: Number(row.study_time_score),
         sleep_hours_score: Number(row.sleep_hours_score),
       };
+      context.previousWeek =
+        Number(row.week_number) === beforeWeek - 1 && mfbi?.mfbi_score != null
+          ? { ...context.priorWeek, mfbi_score: Number(mfbi.mfbi_score) }
+          : null;
     }
   }
 
@@ -99,6 +110,8 @@ export async function fillDepartmentMonitoring(input: {
   weekNumber?: number;
   /** Personal answers follow one feeling across every section. */
   answerStyle?: AnswerStyle;
+  /** With answerStyle "follow": how far a week can move from the previous one. */
+  followChange?: FollowChange;
 }): Promise<
   | { ok: true; result: FillDepartmentResult }
   | { ok: false; error: string; result?: Partial<FillDepartmentResult> }
@@ -200,17 +213,29 @@ export async function fillDepartmentMonitoring(input: {
     const student = students[index];
     const context = contexts.get(student.id) ?? {
       priorWeek: null,
+      previousWeek: null,
       historyMfbi: [],
       historyLevels: [],
     };
 
     let answers;
     let scores;
+    let followsPrevious = false;
     try {
-      ({ answers, scores } =
-        input.answerStyle === "personal"
-          ? generatePersonalMonitoringAnswers(sections, riskTargets[index])
-          : generateMonitoringAnswersForRisk(sections, riskTargets[index]));
+      if (input.answerStyle === "follow" && context.previousWeek) {
+        ({ answers, scores } = generateFollowOnMonitoringAnswers(
+          sections,
+          context.previousWeek,
+          FOLLOW_CHANGE_SD[input.followChange ?? "medium"]
+        ));
+        followsPrevious = true;
+      } else {
+        // No previous week to follow: the risk mix decides this student.
+        ({ answers, scores } =
+          input.answerStyle === "personal" || input.answerStyle === "follow"
+            ? generatePersonalMonitoringAnswers(sections, riskTargets[index])
+            : generateMonitoringAnswersForRisk(sections, riskTargets[index]));
+      }
     } catch (error) {
       failures.push(
         `${student.student_number ?? student.id}: ${
@@ -234,6 +259,9 @@ export async function fillDepartmentMonitoring(input: {
       submittedRange: input.submittedRange,
       departmentCode: department.department_code,
       useRuleBasedPrediction: true,
+      remarksNote: followsPrevious
+        ? `follows week ${weekNumber - 1}, ${input.followChange ?? "medium"} change`
+        : null,
     });
 
     if (result.status === "created") {
