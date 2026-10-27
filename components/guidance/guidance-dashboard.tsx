@@ -48,6 +48,7 @@ import { useTablePagination } from "@/hooks/use-table-pagination";
 import { formatDateTime } from "@/lib/auth/roles";
 import type {
   AiModelStatus,
+  ConfusionMatrix,
   ModelEvaluationSnapshot,
   WeekPairHoldout,
 } from "@/lib/guidance/model-metrics";
@@ -80,6 +81,11 @@ const riskConfig = {
   low: { label: "Low Risk", color: "oklch(0.72 0.15 160)" },
   moderate: { label: "Moderate Risk", color: "oklch(0.8 0.15 85)" },
   high: { label: "High Risk", color: "oklch(0.68 0.19 40)" },
+} satisfies ChartConfig;
+
+const modelScoreConfig = {
+  decisionTree: { label: "Decision Tree", color: "oklch(0.55 0.22 264)" },
+  randomForest: { label: "Random Forest", color: "oklch(0.7 0.18 55)" },
 } satisfies ChartConfig;
 
 const variableClassConfig = {
@@ -259,10 +265,89 @@ function OverviewCard({
 }
 
 function percentLabel(value: number) {
-  return `${(value * 100).toFixed(1)}%`;
+  return `${(value * 100).toFixed(2)}%`;
+}
+
+function metricPercent(value: number) {
+  return Number((value * 100).toFixed(2));
+}
+
+function matrixCellStyle(
+  tone: "decisionTree" | "randomForest",
+  count: number,
+  max: number
+) {
+  const strength = max > 0 ? count / max : 0;
+  const lightness =
+    tone === "decisionTree" ? 0.96 - strength * 0.48 : 0.97 - strength * 0.34;
+  const chroma = 0.012 + strength * (tone === "decisionTree" ? 0.2 : 0.18);
+  const hue = tone === "decisionTree" ? 264 : 55;
+  return {
+    background: `oklch(${lightness} ${chroma} ${hue})`,
+    color: lightness < 0.62 ? "#ffffff" : "var(--foreground)",
+  };
+}
+
+function ConfusionMatrixFigure({
+  title,
+  tone,
+  matrix,
+}: {
+  title: string;
+  tone: "decisionTree" | "randomForest";
+  matrix: ConfusionMatrix;
+}) {
+  const max = Math.max(...matrix.matrix.flat(), 1);
+
+  return (
+    <figure className="space-y-2">
+      <figcaption className="font-medium">{title}</figcaption>
+      <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2">
+        <p className="text-xs font-medium text-muted-foreground [writing-mode:vertical-rl] rotate-180">
+          Actual
+        </p>
+        <div className="min-w-0">
+          <p className="mb-1.5 text-center text-xs font-medium text-muted-foreground">
+            Predicted
+          </p>
+          <div className="grid grid-cols-[auto_repeat(3,minmax(0,1fr))] gap-1.5">
+            <span />
+            {matrix.labels.map((label) => (
+              <p key={label} className="text-center text-xs font-medium">
+                {label}
+              </p>
+            ))}
+            {matrix.matrix.map((row, rowIndex) => (
+              <React.Fragment key={matrix.labels[rowIndex]}>
+                <p className="flex items-center pr-1 text-xs font-medium">
+                  {matrix.labels[rowIndex]}
+                </p>
+                {row.map((count, columnIndex) => (
+                  <div
+                    key={`${matrix.labels[rowIndex]}-${matrix.labels[columnIndex]}`}
+                    className="flex min-h-14 items-center justify-center rounded-md text-sm font-semibold tabular-nums"
+                    style={matrixCellStyle(tone, count, max)}
+                    title={`Actual ${matrix.labels[rowIndex]}, predicted ${matrix.labels[columnIndex]}: ${count}`}
+                  >
+                    {count}
+                  </div>
+                ))}
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Darker cells hold more records. The diagonal is a correct prediction.
+      </p>
+    </figure>
+  );
 }
 
 function NextWeekMetricsCard({ holdout }: { holdout: WeekPairHoldout }) {
+  const [view, setView] = React.useState<"scores" | "compare" | "matrices">(
+    "scores"
+  );
   const models = [
     { title: "Decision Tree", block: holdout.decisionTreeScores, matrix: holdout.decisionTree },
     { title: "Random Forest", block: holdout.randomForestScores, matrix: holdout.randomForest },
@@ -272,23 +357,160 @@ function NextWeekMetricsCard({ holdout }: { holdout: WeekPairHoldout }) {
       (sum, row) => sum + row.reduce((rowSum, count) => rowSum + count, 0),
       0
     ) ?? 0;
+  const comparison = [
+    {
+      metric: "Accuracy",
+      decisionTree: metricPercent(holdout.decisionTreeScores.accuracy),
+      randomForest: metricPercent(holdout.randomForestScores.accuracy),
+    },
+    {
+      metric: "Precision",
+      decisionTree: metricPercent(holdout.decisionTreeScores.precision),
+      randomForest: metricPercent(holdout.randomForestScores.precision),
+    },
+    {
+      metric: "Recall",
+      decisionTree: metricPercent(holdout.decisionTreeScores.recall),
+      randomForest: metricPercent(holdout.randomForestScores.recall),
+    },
+    {
+      metric: "F1-Score",
+      decisionTree: metricPercent(holdout.decisionTreeScores.f1),
+      randomForest: metricPercent(holdout.randomForestScores.f1),
+    },
+  ];
 
   return (
     <Card className="flex h-full flex-col">
-      <CardHeader className="gap-1.5">
-        <CardTitle className="text-lg">Next-week model</CardTitle>
-        <CardDescription>
-          Week 1 scores scored against the Week 2 label.{" "}
-          {holdout.pairs.toLocaleString("en-US")} pairs from{" "}
-          {holdout.realRecords.toLocaleString("en-US")} real monitoring records.
-          The matrix is the held-out portion, {holdoutRows.toLocaleString("en-US")} records.
-        </CardDescription>
+      <CardHeader className="gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-1">
+            <CardTitle className="text-lg">Next-week model</CardTitle>
+            <CardDescription>
+              {view === "compare"
+                ? "Accuracy, Precision, Recall, and F1-score of the Decision Tree and Random Forest models."
+                : view === "matrices"
+                  ? "Decision Tree and Random Forest confusion matrices. Rows are the actual label and columns are the predicted label."
+                  : "Week 1 scores scored against the Week 2 label."}{" "}
+              {holdout.pairs.toLocaleString("en-US")} pairs from{" "}
+              {holdout.realRecords.toLocaleString("en-US")} real monitoring records.
+              The matrix is the held-out portion, {holdoutRows.toLocaleString("en-US")} records.
+            </CardDescription>
+          </div>
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={view === "scores" ? "default" : "outline"}
+              onClick={() => setView("scores")}
+            >
+              Scores
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={view === "compare" ? "default" : "outline"}
+              onClick={() => setView("compare")}
+            >
+              Compare
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={view === "matrices" ? "default" : "outline"}
+              onClick={() => setView("matrices")}
+            >
+              Matrices
+            </Button>
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col gap-6">
-        {models.map(({ title, block, matrix }) => (
+        {view === "compare" ? (
+          <ChartContainer
+            config={modelScoreConfig}
+            className="aspect-auto h-[260px] w-full max-w-full"
+          >
+            <BarChart
+              data={comparison}
+              margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
+              barGap={4}
+              barCategoryGap="22%"
+            >
+              <CartesianGrid
+                vertical={false}
+                strokeDasharray="4 4"
+                stroke="var(--border)"
+              />
+              <XAxis
+                dataKey="metric"
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+              />
+              <YAxis
+                type="number"
+                domain={[0, 100]}
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+                width={40}
+                tickFormatter={(value) => `${value}%`}
+              />
+              <ChartTooltip
+                content={
+                  <ChartTooltipContent
+                    formatter={(value, name) => {
+                      const key = String(name);
+                      const label =
+                        modelScoreConfig[key as keyof typeof modelScoreConfig]
+                          ?.label ?? key;
+                      return (
+                        <div className="flex w-full items-center justify-between gap-4">
+                          <span className="text-muted-foreground">{label}</span>
+                          <span className="font-mono font-medium text-foreground tabular-nums">
+                            {Number(value).toFixed(2)}%
+                          </span>
+                        </div>
+                      );
+                    }}
+                  />
+                }
+              />
+              <ChartLegend content={<ChartLegendContent />} />
+              <Bar
+                dataKey="decisionTree"
+                fill="var(--color-decisionTree)"
+                radius={[4, 4, 0, 0]}
+                maxBarSize={28}
+              />
+              <Bar
+                dataKey="randomForest"
+                fill="var(--color-randomForest)"
+                radius={[4, 4, 0, 0]}
+                maxBarSize={28}
+              />
+            </BarChart>
+          </ChartContainer>
+        ) : null}
+        {view === "matrices" ? (
+          models.map(({ title, matrix }) =>
+            matrix ? (
+              <ConfusionMatrixFigure
+                key={title}
+                title={title}
+                tone={title === "Decision Tree" ? "decisionTree" : "randomForest"}
+                matrix={matrix}
+              />
+            ) : null
+          )
+        ) : null}
+        {view !== "matrices"
+          ? models.map(({ title, block, matrix }) => (
           <div key={title} className="space-y-3">
             <div>
               <p className="font-medium">{title}</p>
+              {view === "scores" ? (
               <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {(
                   [
@@ -306,6 +528,7 @@ function NextWeekMetricsCard({ holdout }: { holdout: WeekPairHoldout }) {
                   </div>
                 ))}
               </div>
+              ) : null}
             </div>
             {matrix ? (
               <div className="overflow-x-auto">
@@ -354,7 +577,8 @@ function NextWeekMetricsCard({ holdout }: { holdout: WeekPairHoldout }) {
               </div>
             ) : null}
           </div>
-        ))}
+        ))
+          : null}
       </CardContent>
     </Card>
   );
@@ -387,7 +611,9 @@ export function GuidanceDashboard({
 }) {
   const { navigate, isPending, pendingHref } = useNavigationPending();
   const [yearFilter, setYearFilter] = React.useState("all");
-  const [riskBasis, setRiskBasis] = React.useState<"week" | "total">("week");
+  const [riskBasis, setRiskBasis] = React.useState<
+    "week" | "total" | "compare"
+  >("week");
   const [variableScope, setVariableScope] = React.useState("total");
   const [variableKey, setVariableKey] = React.useState<
     (typeof VARIABLE_OPTIONS)[number]["value"]
@@ -511,6 +737,33 @@ export function GuidanceDashboard({
       })),
     };
   }, [riskBasis, yearFilter, validScored, data]);
+
+  const weekComparison = React.useMemo(() => {
+    const byWeek = new Map(validScored.byWeek.map((item) => [item.week, item]));
+    const weekNumbers = new Set<number>([1, 2, 3]);
+    for (const week of byWeek.keys()) {
+      if (week >= 1) weekNumbers.add(week);
+    }
+    return [...weekNumbers].sort((left, right) => left - right).map((week) => {
+      const source = byWeek.get(week);
+      const total = source?.total ?? 0;
+      const countOf = (label: "Low" | "Moderate" | "High") =>
+        source?.categories.find((item) => item.label === label)?.count ?? 0;
+      const low = countOf("Low");
+      const moderate = countOf("Moderate");
+      const high = countOf("High");
+      return {
+        week: `Week ${week}`,
+        low: sharePercent(low, total),
+        moderate: sharePercent(moderate, total),
+        high: sharePercent(high, total),
+        lowCount: low,
+        moderateCount: moderate,
+        highCount: high,
+        total,
+      };
+    });
+  }, [validScored.byWeek]);
 
   const pieData = riskChart.categories.map((item) => ({
     ...item,
@@ -785,10 +1038,12 @@ export function GuidanceDashboard({
                   Student Burnout Risk Distribution
                 </CardTitle>
                 <CardDescription>
-                  {riskBasis === "total"
-                    ? "Share of every monitoring record that has an MFBI score"
-                    : `How many students need attention by predicted risk for Week ${selectedWeek}`}
-                  {yearFilter !== "all"
+                  {riskBasis === "compare"
+                    ? "Low, Moderate, and High percentages for Weeks 1, 2, and 3."
+                    : riskBasis === "total"
+                      ? "Share of every monitoring record that has an MFBI score"
+                      : `How many students need attention by predicted risk for Week ${selectedWeek}`}
+                  {riskBasis !== "compare" && yearFilter !== "all"
                     ? ` · ${YEAR_FILTER_OPTIONS.find((o) => o.value === yearFilter)?.label ?? ""}`
                     : ""}
                   .
@@ -806,6 +1061,14 @@ export function GuidanceDashboard({
                 <Button
                   type="button"
                   size="sm"
+                  variant={riskBasis === "compare" ? "default" : "outline"}
+                  onClick={() => setRiskBasis("compare")}
+                >
+                  Weeks 1–3
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
                   variant={riskBasis === "total" ? "default" : "outline"}
                   onClick={() => setRiskBasis("total")}
                 >
@@ -816,7 +1079,115 @@ export function GuidanceDashboard({
             </div>
           </CardHeader>
           <CardContent className="flex flex-1 flex-col">
-            {pieData.every((item) => item.count === 0) ? (
+            {riskBasis === "compare" ? (
+              weekComparison.every((item) => item.total === 0) ? (
+                <p className="flex h-56 items-center justify-center text-sm text-muted-foreground">
+                  No monitoring data yet.
+                </p>
+              ) : (
+                <div className="flex flex-1 flex-col gap-3">
+                  <ChartContainer
+                    config={riskConfig}
+                    className="aspect-auto h-[260px] w-full max-w-full"
+                  >
+                    <BarChart
+                      data={weekComparison}
+                      margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
+                      barGap={4}
+                      barCategoryGap="22%"
+                    >
+                      <CartesianGrid
+                        vertical={false}
+                        strokeDasharray="4 4"
+                        stroke="var(--border)"
+                      />
+                      <XAxis
+                        dataKey="week"
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                      />
+                      <YAxis
+                        type="number"
+                        domain={[0, 100]}
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                        width={40}
+                        tickFormatter={(value) => `${value}%`}
+                      />
+                      <ChartTooltip
+                        content={
+                          <ChartTooltipContent
+                            formatter={(value, name, item) => {
+                              const row = item.payload as {
+                                lowCount?: number;
+                                moderateCount?: number;
+                                highCount?: number;
+                              };
+                              const key = String(name);
+                              const count =
+                                key === "low"
+                                  ? row.lowCount
+                                  : key === "moderate"
+                                    ? row.moderateCount
+                                    : row.highCount;
+                              const label =
+                                riskConfig[key as keyof typeof riskConfig]
+                                  ?.label ?? key;
+                              return (
+                                <div className="flex w-full items-center justify-between gap-4">
+                                  <span className="text-muted-foreground">
+                                    {label}
+                                  </span>
+                                  <span className="font-mono font-medium text-foreground tabular-nums">
+                                    {Number(count ?? 0).toLocaleString()} ·{" "}
+                                    {Number(value).toFixed(2)}%
+                                  </span>
+                                </div>
+                              );
+                            }}
+                          />
+                        }
+                      />
+                      <ChartLegend content={<ChartLegendContent />} />
+                      <Bar
+                        dataKey="low"
+                        fill="var(--color-low)"
+                        radius={[4, 4, 0, 0]}
+                        maxBarSize={28}
+                      />
+                      <Bar
+                        dataKey="moderate"
+                        fill="var(--color-moderate)"
+                        radius={[4, 4, 0, 0]}
+                        maxBarSize={28}
+                      />
+                      <Bar
+                        dataKey="high"
+                        fill="var(--color-high)"
+                        radius={[4, 4, 0, 0]}
+                        maxBarSize={28}
+                      />
+                    </BarChart>
+                  </ChartContainer>
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    {weekComparison.map((item) => (
+                      <p
+                        key={item.week}
+                        className="text-xs text-muted-foreground"
+                      >
+                        <span className="font-medium text-foreground">
+                          {item.week}
+                        </span>
+                        {" · "}
+                        {item.total.toLocaleString()} records
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )
+            ) : pieData.every((item) => item.count === 0) ? (
               <p className="flex h-56 items-center justify-center text-sm text-muted-foreground">
                 No monitoring data yet.
               </p>
@@ -1263,7 +1634,7 @@ export function GuidanceDashboard({
             </>
           ) : (
             <p className="flex h-40 items-center justify-center text-sm text-muted-foreground">
-              No valid scored records for Week 1 or Week 2 yet.
+              No valid scored records for this week yet.
             </p>
           )}
         </CardContent>

@@ -109,6 +109,12 @@ export type ScoredRiskCategory = {
   averageScore: number | null;
 };
 
+export type WeekRiskDistribution = {
+  week: number;
+  total: number;
+  categories: ScoredRiskCategory[];
+};
+
 export type ValidScoredSummary = {
   total: number;
   categories: ScoredRiskCategory[];
@@ -117,6 +123,7 @@ export type ValidScoredSummary = {
     total: number;
     categories: ScoredRiskCategory[];
   }[];
+  byWeek: WeekRiskDistribution[];
 };
 
 function summarizeScoredCategories(
@@ -140,13 +147,13 @@ function summarizeScoredCategories(
   return { total: items.length, categories };
 }
 
-/** Valid Week 1 and Week 2 records: submitted, scored, and classifiable on all four variables. */
+/** Valid scored records for every monitoring week: submitted, scored, and classifiable on all four variables. */
 export const getValidScoredSummary = cache(async function getValidScoredSummary(
   supabase: SupabaseClient
 ): Promise<ValidScoredSummary> {
   const term = await getActiveTerm(supabase);
   const empty = summarizeScoredCategories([]);
-  if (!term?.term_id) return { ...empty, byYear: [] };
+  if (!term?.term_id) return { ...empty, byYear: [], byWeek: [] };
 
   const [monitoringRows, students] = await Promise.all([
     fetchAllPages(async (from, to) =>
@@ -173,6 +180,7 @@ export const getValidScoredSummary = cache(async function getValidScoredSummary(
     students.map((student) => [student.id, student.year_level as number | null])
   );
   const items: {
+    week: number;
     year: number | null;
     bucket: "Low" | "Moderate" | "High";
     score: number;
@@ -180,7 +188,7 @@ export const getValidScoredSummary = cache(async function getValidScoredSummary(
 
   for (const row of monitoringRows) {
     const week = Number(row.week_number);
-    if (week !== 1 && week !== 2) continue;
+    if (!Number.isInteger(week) || week < 1) continue;
     if (!hasValidScores(row)) continue;
     const mfbiRaw = row.mfbi_results;
     const mfbi = Array.isArray(mfbiRaw) ? mfbiRaw[0] : mfbiRaw;
@@ -189,6 +197,7 @@ export const getValidScoredSummary = cache(async function getValidScoredSummary(
     const bucket = mfbiRiskBucket(score, mfbi.burnout_risk_level);
     if (!bucket || !Number.isFinite(score)) continue;
     items.push({
+      week,
       year: yearByStudent.get(row.student_id) ?? null,
       bucket,
       score,
@@ -199,9 +208,16 @@ export const getValidScoredSummary = cache(async function getValidScoredSummary(
   const years = [...new Set(items.map((item) => item.year).filter((year): year is number => year != null))].sort(
     (a, b) => a - b
   );
+  const weeks = [...new Set(items.map((item) => item.week))].sort((a, b) => a - b);
   return {
     total: overall.total,
     categories: overall.categories,
+    byWeek: weeks.map((week) => {
+      const summary = summarizeScoredCategories(
+        items.filter((item) => item.week === week)
+      );
+      return { week, total: summary.total, categories: summary.categories };
+    }),
     byYear: years.map((year_level) => {
       const summary = summarizeScoredCategories(
         items.filter((item) => item.year === year_level)
@@ -287,7 +303,7 @@ export const getWeekVariableAverages = cache(async function getWeekVariableAvera
     study: emptyLevels(),
     sleep: emptyLevels(),
   });
-  if (!term?.term_id) return [empty(1), empty(2)];
+  if (!term?.term_id) return [];
 
   const rows = await fetchAllPages(async (from, to) =>
     supabase
@@ -304,7 +320,7 @@ export const getWeekVariableAverages = cache(async function getWeekVariableAvera
 
   for (const row of rows) {
     const week = Number(row.week_number);
-    if (week !== 1 && week !== 2) continue;
+    if (!Number.isInteger(week) || week < 1) continue;
     if (!hasValidScores(row)) continue;
     const stress = stressLevelFromScore(row.stress_score);
     const workload = factorLevel(row.academic_workload_score, 10);
@@ -319,9 +335,6 @@ export const getWeekVariableAverages = cache(async function getWeekVariableAvera
     addLevel(bucket.sleep, sleep);
     groups.set(week, bucket);
   }
-
-  if (!groups.has(1)) groups.set(1, empty(1));
-  if (!groups.has(2)) groups.set(2, empty(2));
 
   return [...groups.values()].sort((left, right) => left.week - right.week);
 });
@@ -352,7 +365,7 @@ export type DepartmentScoreCharts = {
   variables: DepartmentVariableSlice[];
 };
 
-/** Week 1 and Week 2 valid records for active students in the given departments. */
+/** Valid scored records for every monitoring week, for active students in the given departments. */
 export const getDepartmentScoreCharts = cache(async function getDepartmentScoreCharts(
   supabase: SupabaseClient,
   departmentIds: number[]
@@ -390,7 +403,6 @@ export const getDepartmentScoreCharts = cache(async function getDepartmentScoreC
               "student_id, week_number, status, stress_score, academic_workload_score, study_time_score, sleep_hours_score, mfbi_results(mfbi_score, burnout_risk_level)"
             )
             .eq("term_id", term.term_id)
-            .in("week_number", [1, 2])
             .in("student_id", chunk)
             .order("monitoring_id", { ascending: true })
             .range(from, to)
@@ -404,7 +416,7 @@ export const getDepartmentScoreCharts = cache(async function getDepartmentScoreC
 
   for (const row of monitoringRows) {
     const week = Number(row.week_number);
-    if (week !== 1 && week !== 2) continue;
+    if (!Number.isInteger(week) || week < 1) continue;
     if (!hasValidScores(row)) continue;
     const stress = stressLevelFromScore(row.stress_score);
     const workload = factorLevel(row.academic_workload_score, 10);

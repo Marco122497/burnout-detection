@@ -81,12 +81,17 @@ type QuestionExport = QuestionRow & {
 };
 
 export type ResearchFileName =
-  | "weekly_monitoring_week1_week2.csv"
+  | "weekly_monitoring_records.csv"
   | "mfbi_weekly_results.csv"
   | "ml_predictions.csv"
   | "ml_evaluation_results.csv"
   | "chapter4_system_screenshots.txt"
   | "README.txt";
+
+function researchWeek(value: number | string) {
+  const week = Number(value);
+  return Number.isInteger(week) && week >= 1 ? week : null;
+}
 
 function csvCell(value: string | number | null | undefined) {
   const text = value == null ? "" : String(value);
@@ -342,7 +347,7 @@ export async function buildResearchFiles(): Promise<
   const studentIds = [
     ...new Set(
       monitoring
-        .filter((row) => row.week_number === 1 || row.week_number === 2)
+        .filter((row) => researchWeek(row.week_number) != null)
         .map((row) => row.student_id)
     ),
   ].sort();
@@ -402,19 +407,21 @@ export async function buildResearchFiles(): Promise<
   }
 
   const chapterRows = monitoring
-    .filter((row) => row.week_number === 1 || row.week_number === 2)
+    .filter((row) => researchWeek(row.week_number) != null)
     .sort((a, b) => {
       const respondent = (respondentByStudent.get(a.student_id) ?? "").localeCompare(
         respondentByStudent.get(b.student_id) ?? ""
       );
       if (respondent !== 0) return respondent;
-      return a.week_number - b.week_number;
+      return Number(a.week_number) - Number(b.week_number);
     });
 
   const weekByStudent = new Map<string, Map<number, MonitoringRow>>();
   for (const row of chapterRows) {
+    const week = researchWeek(row.week_number);
+    if (week == null) continue;
     const weeks = weekByStudent.get(row.student_id) ?? new Map();
-    weeks.set(row.week_number, row);
+    weeks.set(week, row);
     weekByStudent.set(row.student_id, weeks);
   }
 
@@ -432,7 +439,7 @@ export async function buildResearchFiles(): Promise<
     const answerMap = answersByMonitoring.get(row.monitoring_id);
     monitoringExport.push([
       respondentByStudent.get(row.student_id) ?? "",
-      row.week_number,
+      researchWeek(row.week_number),
       row.submitted_at ?? "",
       row.status ?? "",
       ...exportedQuestions.map((question) => {
@@ -463,7 +470,7 @@ export async function buildResearchFiles(): Promise<
     if (!mfbi || !submittedIds.has(row.monitoring_id)) continue;
     mfbiExport.push([
       respondentByStudent.get(row.student_id) ?? "",
-      row.week_number,
+      researchWeek(row.week_number),
       num(row.stress_score),
       num(row.academic_workload_score),
       num(row.study_time_score),
@@ -504,8 +511,8 @@ export async function buildResearchFiles(): Promise<
     for (const [model, predicted] of sameWeek) {
       predictionExport.push([
         respondent,
-        row.week_number,
-        row.week_number,
+        researchWeek(row.week_number),
+        researchWeek(row.week_number),
         model,
         mfbi.burnout_risk_level,
         predicted,
@@ -521,35 +528,47 @@ export async function buildResearchFiles(): Promise<
   }
 
   for (const [studentId, weeks] of weekByStudent) {
-    const week1 = weeks.get(1);
-    const week2 = weeks.get(2);
-    if (!week1 || !week2) continue;
-    if (!submittedIds.has(week1.monitoring_id) || !submittedIds.has(week2.monitoring_id)) {
-      continue;
-    }
-    const current = mfbiByMonitoring.get(week1.monitoring_id);
-    const next = mfbiByMonitoring.get(week2.monitoring_id);
-    const prediction = current ? predictionByMfbi.get(current.mfbi_id) : undefined;
-    if (!current || !next || !prediction) continue;
-    const forecast = parseEarlyWarningRemarks(prediction.remarks);
-    const predicted = forecast?.next_week_risk ?? "";
-    const model = prediction.selected_model || "Random Forest";
-    predictionExport.push([
-      respondentByStudent.get(studentId) ?? "",
-      1,
-      2,
-      model,
-      next.burnout_risk_level,
-      predicted,
-      "next_week_week1_input_week2_label",
-    ]);
-    if (predicted) {
-      livePairs.push({
-        horizon: "next_week",
+    const weekNumbers = [...weeks.keys()]
+      .map((week) => Number(week))
+      .filter((week) => Number.isInteger(week))
+      .sort((a, b) => a - b);
+    for (let index = 0; index < weekNumbers.length - 1; index += 1) {
+      const inputWeek = weekNumbers[index];
+      const targetWeek = weekNumbers[index + 1];
+      if (targetWeek !== inputWeek + 1) continue;
+      const currentRow = weeks.get(inputWeek);
+      const nextRow = weeks.get(targetWeek);
+      if (!currentRow || !nextRow) continue;
+      if (
+        !submittedIds.has(currentRow.monitoring_id) ||
+        !submittedIds.has(nextRow.monitoring_id)
+      ) {
+        continue;
+      }
+      const current = mfbiByMonitoring.get(currentRow.monitoring_id);
+      const next = mfbiByMonitoring.get(nextRow.monitoring_id);
+      const prediction = current ? predictionByMfbi.get(current.mfbi_id) : undefined;
+      if (!current || !next || !prediction) continue;
+      const forecast = parseEarlyWarningRemarks(prediction.remarks);
+      const predicted = forecast?.next_week_risk ?? "";
+      const model = prediction.selected_model || "Random Forest";
+      predictionExport.push([
+        respondentByStudent.get(studentId) ?? "",
+        inputWeek,
+        targetWeek,
         model,
-        actual: next.burnout_risk_level,
+        next.burnout_risk_level,
         predicted,
-      });
+        "next_week_forecast",
+      ]);
+      if (predicted) {
+        livePairs.push({
+          horizon: "next_week",
+          model,
+          actual: next.burnout_risk_level,
+          predicted,
+        });
+      }
     }
   }
 
@@ -639,7 +658,7 @@ export async function buildResearchFiles(): Promise<
   );
   addLiveEvaluation(
     "next_week",
-    "Week 1 saved next-week forecast compared with the Week 2 MFBI category. Rows appear only after that forecast has been saved."
+    "Saved next-week forecast compared with the following week's MFBI category. Each row is Week N predicting Week N+1, and it appears only after that forecast has been saved."
   );
 
   appendTrainedHorizon(evaluationRows, "same_week", trained?.same_week, trained?.notes?.same_week);
@@ -676,16 +695,16 @@ export async function buildResearchFiles(): Promise<
 
   const readme = `${BOM}Chapter 4 research export
 Respondent IDs such as S001 replace names, email addresses, phone numbers, and student numbers.
-Files include monitoring weeks 1 and 2 only.
+Files include every monitoring week, including Week 3 and later weeks.
 
-weekly_monitoring_week1_week2.csv — one row per student per week, with the numeric answer for each questionnaire item.
+weekly_monitoring_records.csv — one row per student per week, with the numeric answer for each questionnaire item.
 mfbi_weekly_results.csv — stored variable scores, normalized scores, MFBI score, and Low / Moderate / High category.
 ml_predictions.csv — actual label and predicted label.
   same_week_classification compares the model with that week's MFBI category.
-  next_week_week1_input_week2_label uses Week 1 as the input and Week 2 MFBI as the actual label.
+  next_week_forecast uses Week N as the input and Week N+1 MFBI as the actual label.
 ml_evaluation_results.csv — metrics, confusion counts, and feature importance.
   trained_holdout is the Decision Tree and Random Forest test from burnout-ai/models/metrics.json.
-  stored_monitoring is the live Week 1 and Week 2 comparison, not a replacement for that hold-out.
+  stored_monitoring is the live comparison across the saved weeks, not a replacement for that hold-out.
 Feature importance shows influence inside the trained model. It is not a cause of burnout.
 
 Questionnaire items
@@ -697,7 +716,7 @@ Save these from the running system as PNG or JPG. This download does not include
 
 1. Student weekly monitoring questionnaire, showing the items for one open week.
 2. Student dashboard with the current MFBI result.
-3. Week 1 and Week 2 results, or the trend view that shows both weeks.
+3. Results for each monitoring week, or the trend view that shows those weeks.
 4. Guidance AI Model Status card with Decision Tree and Random Forest metrics.
 5. A student record that shows the next-week early-warning outlook.
 6. The recommendation or alert shown after a monitoring result.
@@ -706,7 +725,7 @@ Use the same anonymous IDs as the CSV files if a student must be identified in a
 `;
 
   return [
-    { name: "weekly_monitoring_week1_week2.csv", text: toCsv(monitoringExport) },
+    { name: "weekly_monitoring_records.csv", text: toCsv(monitoringExport) },
     { name: "mfbi_weekly_results.csv", text: toCsv(mfbiExport) },
     { name: "ml_predictions.csv", text: toCsv(predictionExport) },
     { name: "ml_evaluation_results.csv", text: toCsv(evaluationRows) },

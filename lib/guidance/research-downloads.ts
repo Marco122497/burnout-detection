@@ -3,11 +3,11 @@ export const RESEARCH_DOWNLOADS = [
     file: "all",
     filename: "chapter4-research-data.zip",
     label: "All Chapter 4 files",
-    detail: "Week 1–2 answers, MFBI, predictions, and model metrics.",
+    detail: "Every monitoring week: answers, MFBI, predictions, and model metrics.",
   },
   {
     file: "weekly-monitoring",
-    filename: "weekly_monitoring_week1_week2.csv",
+    filename: "weekly_monitoring_records.csv",
     label: "Weekly monitoring records",
     detail: "Anonymous ID, week, all questionnaire answers, and status.",
   },

@@ -21,7 +21,7 @@ export default async function ResearchDataPage() {
     <div className="mx-auto w-full max-w-3xl space-y-6">
       <PageHeading
         title="Research data"
-        description="Week 1 and Week 2 files for Chapter 4. Names, emails, and student numbers are left out. Screenshots are listed, not captured."
+        description="Chapter 4 files for every monitoring week, including Week 3 and later weeks. Names, emails, and student numbers are left out. Screenshots are listed, not captured."
       />
       <ResearchDataDownloads />
     </div>

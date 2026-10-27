@@ -160,11 +160,23 @@ export function DepartmentMonitoringCharts({
     (left, right) => right.count - left.count
   )[0];
 
-  const weeks = [1, 2].map((week) => {
-    const rows = variableRows.filter((row) => row.week === week);
-    const count = rows.reduce((sum, row) => sum + row.count, 0);
-    return { week, count, rows };
-  });
+  const weeks = React.useMemo(() => {
+    const numbers = new Set<number>();
+    if (Number.isInteger(currentWeek) && currentWeek >= 1) {
+      numbers.add(currentWeek);
+    }
+    for (const row of variableRows) {
+      if (Number.isInteger(row.week) && row.week >= 1) numbers.add(row.week);
+    }
+    for (const row of riskRows) {
+      if (Number.isInteger(row.week) && row.week >= 1) numbers.add(row.week);
+    }
+    return [...numbers].sort((left, right) => left - right).map((week) => {
+      const rows = variableRows.filter((row) => row.week === week);
+      const count = rows.reduce((sum, row) => sum + row.count, 0);
+      return { week, count, rows };
+    });
+  }, [currentWeek, riskRows, variableRows]);
   const scopedWeeks =
     variableScope === "total"
       ? weeks
@@ -585,7 +597,7 @@ export function DepartmentMonitoringCharts({
             </>
           ) : (
             <p className="flex h-40 items-center justify-center text-sm text-muted-foreground">
-              No valid scored records for Week 1 or Week 2 yet.
+              No valid scored records for this week yet.
             </p>
           )}
         </CardContent>
