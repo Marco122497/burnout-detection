@@ -22,6 +22,7 @@ export function BurnoutByGenderCard({
   byGenderVariable?: GenderVariableStats[];
 }) {
   const hasVariableData = byGenderVariable.length > 0;
+  const genderRows = byGender.filter((item) => item.label !== "Unspecified");
 
   return (
     <Card>
@@ -41,7 +42,7 @@ export function BurnoutByGenderCard({
         ) : null}
       </CardHeader>
       <CardContent className="space-y-6">
-        {byGender.length === 0 && !hasVariableData ? (
+        {genderRows.length === 0 && !hasVariableData ? (
           <p className="flex h-40 items-center justify-center text-sm text-muted-foreground">
             No gender data yet. Ask students to complete gender on login.
           </p>
@@ -99,7 +100,7 @@ export function BurnoutByGenderCard({
           </div>
         ) : null}
 
-        {byGender.length > 0 ? (
+        {genderRows.length > 0 ? (
           <div className="overflow-x-auto">
             <p className="mb-2 text-xs font-medium text-muted-foreground">
               Burnout (MFBI) detail
@@ -117,7 +118,7 @@ export function BurnoutByGenderCard({
                 </tr>
               </thead>
               <tbody>
-                {byGender.map((item) => {
+                {genderRows.map((item) => {
                   const emphasized =
                     mostProneGender != null && item.label === mostProneGender;
                   return (

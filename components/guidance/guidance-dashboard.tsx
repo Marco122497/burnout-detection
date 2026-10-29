@@ -912,8 +912,8 @@ export function GuidanceDashboard({
     <div className="space-y-8">
       <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="min-w-0 space-y-2">
-          <PageHeading
-            title={`Welcome, ${firstName}`}
+      <PageHeading
+        title={`Welcome, ${firstName}`}
             description={`Administrator overview for Week ${selectedWeek} — student burnout risk, submissions, and early-warning alerts.`}
           />
         </div>
@@ -1034,10 +1034,10 @@ export function GuidanceDashboard({
           <CardHeader className="gap-3">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="space-y-1">
-                <CardTitle className="text-lg">
-                  Student Burnout Risk Distribution
-                </CardTitle>
-                <CardDescription>
+            <CardTitle className="text-lg">
+              Student Burnout Risk Distribution
+            </CardTitle>
+            <CardDescription>
                   {riskBasis === "compare"
                     ? "Low, Moderate, and High percentages for Weeks 1, 2, and 3."
                     : riskBasis === "total"
@@ -1047,7 +1047,7 @@ export function GuidanceDashboard({
                     ? ` · ${YEAR_FILTER_OPTIONS.find((o) => o.value === yearFilter)?.label ?? ""}`
                     : ""}
                   .
-                </CardDescription>
+            </CardDescription>
               </div>
               <div className="flex shrink-0 flex-wrap gap-2">
                 <Button
@@ -1081,10 +1081,10 @@ export function GuidanceDashboard({
           <CardContent className="flex flex-1 flex-col">
             {riskBasis === "compare" ? (
               weekComparison.every((item) => item.total === 0) ? (
-                <p className="flex h-56 items-center justify-center text-sm text-muted-foreground">
-                  No monitoring data yet.
-                </p>
-              ) : (
+              <p className="flex h-56 items-center justify-center text-sm text-muted-foreground">
+                No monitoring data yet.
+              </p>
+            ) : (
                 <div className="flex flex-1 flex-col gap-3">
                   <ChartContainer
                     config={riskConfig}
@@ -1194,44 +1194,44 @@ export function GuidanceDashboard({
             ) : (
               <div className="flex flex-1 flex-col gap-4 sm:flex-row sm:items-center">
                 <div className="flex w-full flex-col gap-2 sm:w-[46%] sm:shrink-0">
-                  <ChartContainer
-                    config={riskConfig}
-                    className="aspect-auto mx-auto h-[220px] w-full max-w-full"
-                  >
-                    <PieChart>
-                      <ChartTooltip
-                        content={
-                          <ChartTooltipContent nameKey="key" hideLabel />
-                        }
-                      />
-                      <Pie
-                        data={pieData}
-                        dataKey="count"
-                        nameKey="key"
-                        innerRadius={52}
-                        outerRadius={78}
-                        strokeWidth={2}
-                      >
-                        {pieData.map((entry) => (
-                          <Cell key={entry.key} fill={entry.fill} />
-                        ))}
-                      </Pie>
-                    </PieChart>
-                  </ChartContainer>
+                <ChartContainer
+                  config={riskConfig}
+                  className="aspect-auto mx-auto h-[220px] w-full max-w-full"
+                >
+                  <PieChart>
+                    <ChartTooltip
+                      content={
+                        <ChartTooltipContent nameKey="key" hideLabel />
+                      }
+                    />
+                    <Pie
+                      data={pieData}
+                      dataKey="count"
+                      nameKey="key"
+                      innerRadius={52}
+                      outerRadius={78}
+                      strokeWidth={2}
+                    >
+                      {pieData.map((entry) => (
+                        <Cell key={entry.key} fill={entry.fill} />
+                      ))}
+                    </Pie>
+                  </PieChart>
+                </ChartContainer>
                   {dominantRisk && dominantRisk.count > 0 ? (
-                    <p className="text-center text-sm text-muted-foreground">
-                      Largest group:{" "}
-                      <span className="font-medium text-foreground">
+                  <p className="text-center text-sm text-muted-foreground">
+                    Largest group:{" "}
+                    <span className="font-medium text-foreground">
                         {dominantRisk.percent.toFixed(2)}% {dominantRisk.label}{" "}
                         Risk
-                      </span>{" "}
+                    </span>{" "}
                       ({dominantRisk.count}
                       {dominantRisk.averageScore == null
                         ? ""
                         : `, MFBI ${dominantRisk.averageScore.toFixed(2)}`}
                       )
-                    </p>
-                  ) : null}
+                  </p>
+                ) : null}
                 </div>
                 <div className="flex min-w-0 flex-1 flex-col gap-2">
                   <p className="text-sm text-muted-foreground">
@@ -1660,75 +1660,75 @@ export function GuidanceDashboard({
             </p>
           ) : (
             <>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[640px] text-left text-sm">
-                  <thead className="border-b text-muted-foreground">
-                    <tr>
-                      <th className="px-2 py-1.5 font-medium">Student</th>
-                      <th className="px-2 py-1.5 font-medium">Program</th>
-                      <th className="px-2 py-1.5 font-medium">Risk</th>
-                      <th className="px-2 py-1.5 font-medium">MFBI</th>
-                      <th className="px-2 py-1.5 font-medium">Last Assessment</th>
-                      <th className="px-2 py-1.5 font-medium">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[640px] text-left text-sm">
+                <thead className="border-b text-muted-foreground">
+                  <tr>
+                    <th className="px-2 py-1.5 font-medium">Student</th>
+                    <th className="px-2 py-1.5 font-medium">Program</th>
+                    <th className="px-2 py-1.5 font-medium">Risk</th>
+                    <th className="px-2 py-1.5 font-medium">MFBI</th>
+                    <th className="px-2 py-1.5 font-medium">Last Assessment</th>
+                    <th className="px-2 py-1.5 font-medium">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
                     {highRiskPageItems.map((student) => {
-                      const href = `/guidance/monitoring/${student.id}`;
-                      const loading = isPending && pendingHref === href;
-                      return (
-                        <tr key={student.id} className="border-b last:border-0">
-                          <td className="px-2 py-1.5">
-                            <p className="font-medium">{student.full_name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {student.student_number || "—"}
-                            </p>
-                          </td>
-                          <td className="px-2 py-1.5">
-                            {student.course || "—"}
-                            {student.year_level != null
-                              ? ` · ${formatYearLevel(student.year_level)}`
-                              : ""}
-                          </td>
-                          <td className="px-2 py-1.5">
-                            <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-900 dark:bg-orange-950 dark:text-orange-200">
-                              {student.risk}
-                            </span>
-                          </td>
-                          <td className="px-2 py-1.5 tabular-nums">
-                            {student.mfbi_score != null
-                              ? student.mfbi_score.toFixed(2)
-                              : "—"}
-                          </td>
-                          <td className="px-2 py-1.5 text-muted-foreground">
-                            {student.monitoring_date
-                              ? formatDateTime(student.monitoring_date)
-                              : "—"}
-                          </td>
-                          <td className="px-2 py-1.5">
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              disabled={loading}
-                              onClick={() => navigate(href)}
-                            >
-                              {loading ? (
-                                <>
-                                  <Loader2 className="animate-spin" />
-                                  Loading…
-                                </>
-                              ) : (
-                                "View"
-                              )}
-                            </Button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                    const href = `/guidance/monitoring/${student.id}`;
+                    const loading = isPending && pendingHref === href;
+                    return (
+                      <tr key={student.id} className="border-b last:border-0">
+                        <td className="px-2 py-1.5">
+                          <p className="font-medium">{student.full_name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {student.student_number || "—"}
+                          </p>
+                        </td>
+                        <td className="px-2 py-1.5">
+                          {student.course || "—"}
+                          {student.year_level != null
+                            ? ` · ${formatYearLevel(student.year_level)}`
+                            : ""}
+                        </td>
+                        <td className="px-2 py-1.5">
+                          <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-900 dark:bg-orange-950 dark:text-orange-200">
+                            {student.risk}
+                          </span>
+                        </td>
+                        <td className="px-2 py-1.5 tabular-nums">
+                          {student.mfbi_score != null
+                            ? student.mfbi_score.toFixed(2)
+                            : "—"}
+                        </td>
+                        <td className="px-2 py-1.5 text-muted-foreground">
+                          {student.monitoring_date
+                            ? formatDateTime(student.monitoring_date)
+                            : "—"}
+                        </td>
+                        <td className="px-2 py-1.5">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={loading}
+                            onClick={() => navigate(href)}
+                          >
+                            {loading ? (
+                              <>
+                                <Loader2 className="animate-spin" />
+                                Loading…
+                              </>
+                            ) : (
+                              "View"
+                            )}
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
               <TablePagination
                 page={highRiskPage}
                 pageSize={highRiskPageSize}
