@@ -8,7 +8,10 @@ import {
   generateDepartmentMonitoring,
   type GuidanceActionState,
 } from "@/app/actions/guidance";
-import { fillDatePresets } from "@/lib/guidance/fill-week-dates";
+import {
+  defaultFillRangeForWeek,
+  fillDatePresets,
+} from "@/lib/guidance/fill-week-dates";
 import { useActionToast } from "@/hooks/use-action-toast";
 import {
   AlertDialog,
@@ -74,10 +77,30 @@ export type GenerateMonitoringStudent = {
   week_number: number | null;
   submittedWeek1?: boolean;
   submittedWeek2?: boolean;
+  submittedWeeks?: number[];
 };
 
-function hasBothWeeks(student: GenerateMonitoringStudent) {
-  return student.submittedWeek1 === true && student.submittedWeek2 === true;
+type WeekFillState = {
+  week: number;
+  checked: boolean;
+  from: string;
+  to: string;
+};
+
+function initialWeekFills(currentWeek: number): WeekFillState[] {
+  const weekCount = Math.max(1, currentWeek);
+  return Array.from({ length: weekCount }, (_, index) => {
+    const week = index + 1;
+    const range = defaultFillRangeForWeek(week, weekCount);
+    return { week, checked: true, from: range.from, to: range.to };
+  });
+}
+
+function studentSubmittedWeeks(student: GenerateMonitoringStudent) {
+  const weeks = new Set(student.submittedWeeks ?? []);
+  if (student.submittedWeek1) weeks.add(1);
+  if (student.submittedWeek2) weeks.add(2);
+  return [...weeks].sort((a, b) => a - b);
 }
 
 function formatWeekList(weeks: number[]) {
@@ -116,15 +139,9 @@ export function GenerateMonitoringButton({
     "medium"
   );
   const datePresets = fillDatePresets();
-  const [fillWeek1, setFillWeek1] = useState(true);
-  const [fillWeek2, setFillWeek2] = useState(true);
-  const [fillWeek3, setFillWeek3] = useState(true);
-  const [week1From, setWeek1From] = useState(datePresets[0].range.from);
-  const [week1To, setWeek1To] = useState(datePresets[0].range.to);
-  const [week2From, setWeek2From] = useState(datePresets[2].range.from);
-  const [week2To, setWeek2To] = useState(datePresets[2].range.to);
-  const [week3From, setWeek3From] = useState(datePresets[3].range.from);
-  const [week3To, setWeek3To] = useState(datePresets[3].range.to);
+  const [weekFills, setWeekFills] = useState<WeekFillState[]>(() =>
+    initialWeekFills(currentWeek)
+  );
 
   const [generateState, setGenerateState] =
     useState<GuidanceActionState>(initialState);
@@ -138,55 +155,48 @@ export function GenerateMonitoringButton({
       setSelectedIds(new Set(students.map((student) => student.id)));
       setRiskMix({ low: 34, moderate: 33, high: 33 });
       setPersonalFeelings(false);
-      setFillWeek1(true);
-      setFillWeek2(true);
-      setFillWeek3(true);
-      const presets = fillDatePresets();
-      setWeek1From(presets[0].range.from);
-      setWeek1To(presets[0].range.to);
-      setWeek2From(presets[2].range.from);
-      setWeek2To(presets[2].range.to);
-      setWeek3From(presets[3].range.from);
-      setWeek3To(presets[3].range.to);
+      setWeekFills(initialWeekFills(currentWeek));
     }
-  }, [open, students]);
+  }, [open, students, currentWeek]);
 
   const selectedStudents = useMemo(
     () => students.filter((student) => selectedIds.has(student.id)),
     [students, selectedIds]
   );
 
+  const openWeek = Math.max(1, currentWeek);
   const submittedCount = useMemo(
     () =>
-      students.filter((student) => student.week_number === currentWeek).length,
-    [students, currentWeek]
+      students.filter((student) =>
+        studentSubmittedWeeks(student).includes(openWeek)
+      ).length,
+    [students, openWeek]
   );
-  const week1Count = useMemo(
-    () => students.filter((student) => student.submittedWeek1).length,
-    [students]
-  );
-  const week2Count = useMemo(
-    () => students.filter((student) => student.submittedWeek2).length,
-    [students]
-  );
-  const bothWeeksCount = useMemo(
-    () => students.filter((student) => hasBothWeeks(student)).length,
-    [students]
+  const weekCounts = useMemo(() => {
+    const counts = new Map<number, number>();
+    for (let week = 1; week <= openWeek; week += 1) {
+      counts.set(
+        week,
+        students.filter((student) =>
+          studentSubmittedWeeks(student).includes(week)
+        ).length
+      );
+    }
+    return counts;
+  }, [students, openWeek]);
+  const allWeeksCount = useMemo(
+    () =>
+      students.filter((student) => {
+        const weeks = new Set(studentSubmittedWeeks(student));
+        for (let week = 1; week <= openWeek; week += 1) {
+          if (!weeks.has(week)) return false;
+        }
+        return true;
+      }).length,
+    [students, openWeek]
   );
 
-  const selectedFillWeeks = [
-    fillWeek1
-      ? { week: 1, from: week1From, to: week1To }
-      : null,
-    fillWeek2
-      ? { week: 2, from: week2From, to: week2To }
-      : null,
-    fillWeek3
-      ? { week: 3, from: week3From, to: week3To }
-      : null,
-  ].filter((week): week is { week: number; from: string; to: string } =>
-    week != null
-  );
+  const selectedFillWeeks = weekFills.filter((week) => week.checked);
   const datesValid =
     selectedFillWeeks.length > 0 &&
     selectedFillWeeks.every((week) => week.from && week.to && week.from <= week.to);
@@ -231,33 +241,38 @@ export function GenerateMonitoringButton({
     setSelectedIds(new Set());
   }
 
-  function selectWeek1Submitted() {
+  function selectSubmittedWeek(week: number) {
     setSelectedIds(
       new Set(
         students
-          .filter((student) => student.submittedWeek1)
+          .filter((student) => studentSubmittedWeeks(student).includes(week))
           .map((student) => student.id)
       )
     );
   }
 
-  function selectWeek2Submitted() {
+  function selectAllWeeksSubmitted() {
     setSelectedIds(
       new Set(
         students
-          .filter((student) => student.submittedWeek2)
+          .filter((student) => {
+            const weeks = new Set(studentSubmittedWeeks(student));
+            for (let week = 1; week <= openWeek; week += 1) {
+              if (!weeks.has(week)) return false;
+            }
+            return true;
+          })
           .map((student) => student.id)
       )
     );
   }
 
-  function selectBothWeeks() {
-    setSelectedIds(
-      new Set(
-        students
-          .filter((student) => hasBothWeeks(student))
-          .map((student) => student.id)
-      )
+  function updateWeekFill(
+    week: number,
+    patch: Partial<Pick<WeekFillState, "checked" | "from" | "to">>
+  ) {
+    setWeekFills((current) =>
+      current.map((item) => (item.week === week ? { ...item, ...patch } : item))
     );
   }
 
@@ -318,7 +333,7 @@ export function GenerateMonitoringButton({
         ) : (
           <>
             <SparklesIcon className="size-4" />
-            Fill Week 1, 2, or 3
+            Fill {openWeek === 1 ? "Week 1" : `Weeks 1–${openWeek}`}
           </>
         )}
       </Button>
@@ -342,9 +357,9 @@ export function GenerateMonitoringButton({
                 <span className="font-medium text-foreground">
                   {departmentLabel}
                 </span>{" "}
-                . Choose Week 1, Week 2, Week 3, or a combination, and set the submission dates
-                for each week
-                {monitoringOpen ? ` (Week ${currentWeek} is open now)` : ""}.
+                . Choose any week from Week 1 through Week {openWeek}, and set the
+                submission dates for each week
+                {monitoringOpen ? ` (Week ${openWeek} is open now)` : ""}.
                 Set how many percent should land in Low, Moderate, and High.
                 Each student gets a random submission time inside that week’s
                 dates. A week runs Monday to Sunday. This uses the same PSS,
@@ -380,15 +395,17 @@ export function GenerateMonitoringButton({
               }
             />
             <input type="hidden" name="follow_change" value={followChange} />
-            <input type="hidden" name="fill_week_1" value={fillWeek1 ? "1" : "0"} />
-            <input type="hidden" name="fill_week_2" value={fillWeek2 ? "1" : "0"} />
-            <input type="hidden" name="fill_week_3" value={fillWeek3 ? "1" : "0"} />
-            <input type="hidden" name="date_from_1" value={week1From} />
-            <input type="hidden" name="date_to_1" value={week1To} />
-            <input type="hidden" name="date_from_2" value={week2From} />
-            <input type="hidden" name="date_to_2" value={week2To} />
-            <input type="hidden" name="date_from_3" value={week3From} />
-            <input type="hidden" name="date_to_3" value={week3To} />
+            {weekFills.map((item) => (
+              <span key={item.week}>
+                <input
+                  type="hidden"
+                  name={`fill_week_${item.week}`}
+                  value={item.checked ? "1" : "0"}
+                />
+                <input type="hidden" name={`date_from_${item.week}`} value={item.from} />
+                <input type="hidden" name={`date_to_${item.week}`} value={item.to} />
+              </span>
+            ))}
 
             {students.length > 0 ? (
               <div className="mt-4 space-y-2">
@@ -402,36 +419,33 @@ export function GenerateMonitoringButton({
                     </span>
                   </p>
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-7 px-2.5 text-xs"
-                      disabled={generatePending || week1Count === 0}
-                      onClick={selectWeek1Submitted}
-                    >
-                      Week 1 submitted ({week1Count})
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-7 px-2.5 text-xs"
-                      disabled={generatePending || week2Count === 0}
-                      onClick={selectWeek2Submitted}
-                    >
-                      Week 2 submitted ({week2Count})
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-7 px-2.5 text-xs"
-                      disabled={generatePending || bothWeeksCount === 0}
-                      onClick={selectBothWeeks}
-                    >
-                      Week 1 and 2 submitted ({bothWeeksCount})
-                    </Button>
+                    {Array.from({ length: openWeek }, (_, index) => index + 1).map(
+                      (week) => (
+                        <Button
+                          key={week}
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 px-2.5 text-xs"
+                          disabled={generatePending || (weekCounts.get(week) ?? 0) === 0}
+                          onClick={() => selectSubmittedWeek(week)}
+                        >
+                          Week {week} submitted ({weekCounts.get(week) ?? 0})
+                        </Button>
+                      )
+                    )}
+                    {openWeek > 1 ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 px-2.5 text-xs"
+                        disabled={generatePending || allWeeksCount === 0}
+                        onClick={selectAllWeeksSubmitted}
+                      >
+                        Weeks 1–{openWeek} submitted ({allWeeksCount})
+                      </Button>
+                    ) : null}
                     {([10, 20, 30, 40, 50, 60] as const).map((percent) => (
                       <Button
                         key={percent}
@@ -475,20 +489,11 @@ export function GenerateMonitoringButton({
                     </TableHeader>
                     <TableBody>
                       {students.map((student) => {
-                        const submittedThisWeek =
-                          student.week_number === currentWeek;
-                        const bothWeeks = hasBothWeeks(student);
-                        const status = bothWeeks
-                          ? submittedThisWeek && currentWeek > 2
-                            ? `Week 1 and 2 · Week ${currentWeek} submitted`
-                            : "Week 1 and 2 submitted"
-                          : submittedThisWeek
-                            ? `Week ${currentWeek} submitted`
-                            : student.submittedWeek1
-                              ? "Submitted Week 1"
-                              : student.submittedWeek2
-                                ? "Submitted Week 2"
-                                : "No Week 1 or 2";
+                        const submitted = studentSubmittedWeeks(student);
+                        const status =
+                          submitted.length > 0
+                            ? `${formatWeekList(submitted)} submitted`
+                            : "No monitoring yet";
                         return (
                           <TableRow key={student.id}>
                             <TableCell>
@@ -674,49 +679,19 @@ export function GenerateMonitoringButton({
 
             <div className="mt-4 space-y-3">
               <p className="text-sm font-medium">Weeks to fill</p>
-              {(
-                [
-                  {
-                    week: 1,
-                    checked: fillWeek1,
-                    setChecked: setFillWeek1,
-                    from: week1From,
-                    to: week1To,
-                    setFrom: setWeek1From,
-                    setTo: setWeek1To,
-                  },
-                  {
-                    week: 2,
-                    checked: fillWeek2,
-                    setChecked: setFillWeek2,
-                    from: week2From,
-                    to: week2To,
-                    setFrom: setWeek2From,
-                    setTo: setWeek2To,
-                  },
-                  {
-                    week: 3,
-                    checked: fillWeek3,
-                    setChecked: setFillWeek3,
-                    from: week3From,
-                    to: week3To,
-                    setFrom: setWeek3From,
-                    setTo: setWeek3To,
-                  },
-                ] as const
-              ).map((item) => (
+              {weekFills.map((item) => (
                 <div key={item.week} className="space-y-2 rounded-lg border p-3">
                   <label className="flex items-center gap-2 text-sm font-medium">
                     <input
                       type="checkbox"
                       checked={item.checked}
                       disabled={generatePending}
-                      onChange={(event) => item.setChecked(event.target.checked)}
+                      onChange={(event) =>
+                        updateWeekFill(item.week, { checked: event.target.checked })
+                      }
                     />
                     Week {item.week}
-                    {currentWeek === item.week && monitoringOpen
-                      ? " (open now)"
-                      : ""}
+                    {openWeek === item.week && monitoringOpen ? " (open now)" : ""}
                   </label>
                   <div className="flex flex-wrap gap-1.5">
                     {datePresets.map((preset) => {
@@ -732,8 +707,10 @@ export function GenerateMonitoringButton({
                           className="h-7 px-2.5 text-xs"
                           disabled={generatePending || !item.checked}
                           onClick={() => {
-                            item.setFrom(preset.range.from);
-                            item.setTo(preset.range.to);
+                            updateWeekFill(item.week, {
+                              from: preset.range.from,
+                              to: preset.range.to,
+                            });
                           }}
                         >
                           {preset.label}
@@ -748,7 +725,9 @@ export function GenerateMonitoringButton({
                         type="date"
                         value={item.from}
                         disabled={generatePending || !item.checked}
-                        onChange={(event) => item.setFrom(event.target.value)}
+                        onChange={(event) =>
+                          updateWeekFill(item.week, { from: event.target.value })
+                        }
                         className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                       />
                     </label>
@@ -758,7 +737,9 @@ export function GenerateMonitoringButton({
                         type="date"
                         value={item.to}
                         disabled={generatePending || !item.checked}
-                        onChange={(event) => item.setTo(event.target.value)}
+                        onChange={(event) =>
+                          updateWeekFill(item.week, { to: event.target.value })
+                        }
                         className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                       />
                     </label>
@@ -766,8 +747,9 @@ export function GenerateMonitoringButton({
                 </div>
               ))}
               <p className="text-xs text-muted-foreground">
-                Each week uses its own dates as the random submission times.
-                Next week (Mon–Sat) is the coming Monday through Saturday.
+                Each week starts on its own Monday–Sunday. Week {openWeek} is this
+                calendar week. Earlier weeks step back one week at a time. You
+                can still pick another range.
               </p>
             </div>
 

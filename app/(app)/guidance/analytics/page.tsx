@@ -36,6 +36,7 @@ export default async function GuidanceAnalyticsPage() {
         metricsSource={aiStatus.metricsSource}
         showAiModelStatus={canViewAiModelStatus(user.email)}
         sameWeekHoldout={aiStatus.sameWeekHoldout}
+        weekPairHoldout={aiStatus.weekPairHoldout}
       />
     </div>
   );

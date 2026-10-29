@@ -47,6 +47,10 @@ export default async function GuidanceMonitoringLayout({
     submittedWeek1: recordWeeks.week1?.has(row.id) ?? false,
     submittedWeek2: recordWeeks.week2?.has(row.id) ?? false,
     submittedWeek3: recordWeeks.week3?.has(row.id) ?? false,
+    submittedWeeks: [...recordWeeks.byWeek.entries()]
+      .filter(([, ids]) => ids.has(row.id))
+      .map(([week]) => week)
+      .sort((a, b) => a - b),
   }));
 
   return (

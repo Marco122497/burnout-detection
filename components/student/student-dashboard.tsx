@@ -108,6 +108,7 @@ export function StudentDashboard({
         mfbiScore={data.mfbiScore}
         burnoutLevel={data.burnoutLevel}
         factors={data.factors}
+        monitoringWeeks={data.weeklyTrend.length}
       />
 
       <BurnoutFactorSection

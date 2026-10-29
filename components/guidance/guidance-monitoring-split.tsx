@@ -170,6 +170,7 @@ export function GuidanceMonitoringSplit({
         week_number: row.week_number,
         submittedWeek1: row.submittedWeek1 === true,
         submittedWeek2: row.submittedWeek2 === true,
+        submittedWeeks: row.submittedWeeks ?? [],
       }));
   }, [rows, departmentId]);
 

@@ -21,6 +21,20 @@ export function mondayOfWeek(date: Date) {
   return copy;
 }
 
+/** Calendar week for monitoring week `week`, lined up with the open week. */
+export function defaultFillRangeForWeek(
+  week: number,
+  currentWeek: number,
+  now = new Date()
+): FillDateRange {
+  const monday = mondayOfWeek(now);
+  const start = addDays(monday, (week - Math.max(1, currentWeek)) * 7);
+  return {
+    from: toDateInputValue(start),
+    to: toDateInputValue(addDays(start, 6)),
+  };
+}
+
 export function fillDatePresets(now = new Date()) {
   const monday = mondayOfWeek(now);
   const nextMonday = addDays(monday, 7);

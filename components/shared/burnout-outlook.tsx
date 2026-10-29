@@ -327,7 +327,7 @@ export function EarlyWarningOutlookStepper({ steps }: { steps: OutlookStep[] }) 
                 >
                   {detail}
                 </span>
-                {hasLevel || step.hint ? (
+                {step.hint && step.hint !== statusLabel ? (
                   <span className="mt-1 block text-[11px] text-muted-foreground">
                     {step.hint}
                   </span>
@@ -346,22 +346,31 @@ export function EarlyWarningOutlookCard({
   mfbiScore,
   burnoutLevel,
   factors,
+  monitoringWeeks,
 }: {
   earlyWarning: EarlyWarningPayload | null;
   mfbiScore: number | null;
   burnoutLevel: string | null;
   factors?: StudentFactors | null;
+  /** Submitted monitoring weeks. Next-week outlook waits until there are two. */
+  monitoringWeeks?: number;
 }) {
   if (!earlyWarning && mfbiScore == null && !burnoutLevel) return null;
 
-  const nextWeek = resolveNextWeekDisplay(earlyWarning);
-  const hasMlNextWeek = Boolean(earlyWarning?.has_ml_next_week);
+  const needsAnotherWeek = monitoringWeeks != null && monitoringWeeks < 2;
+  const nextWeek = needsAnotherWeek
+    ? { level: null, score: null, fromScore: false }
+    : resolveNextWeekDisplay(earlyWarning);
+  const hasMlNextWeek =
+    !needsAnotherWeek && Boolean(earlyWarning?.has_ml_next_week);
   const currentLevel = resolveMfbiBurnoutLevel(mfbiScore, burnoutLevel);
-  const builtWarning = buildMfbiEarlyWarningMessage({
-    factors,
-    trend: earlyWarning?.trend ?? null,
-    burnoutLevel: currentLevel,
-  });
+  const builtWarning = needsAnotherWeek
+    ? null
+    : buildMfbiEarlyWarningMessage({
+        factors,
+        trend: earlyWarning?.trend ?? null,
+        burnoutLevel: currentLevel,
+      });
   const storedWarning = earlyWarning?.warning_message;
   const warningMessage =
     builtWarning ?? (typeof storedWarning === "string" ? storedWarning : null);
@@ -371,8 +380,9 @@ export function EarlyWarningOutlookCard({
       <CardHeader>
         <CardTitle className="text-lg">Outlook timeline</CardTitle>
         <CardDescription>
-          Current MFBI and the AI next-week forecast. Trend is the change
-          between recorded weeks, not another predicted week.
+          {needsAnotherWeek
+            ? "Current MFBI is shown. The next-week outlook needs at least 2 weeks of monitoring."
+            : "Current MFBI and the AI next-week forecast. Trend is the change between recorded weeks, not another predicted week."}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -389,13 +399,15 @@ export function EarlyWarningOutlookCard({
               icon: BrainCircuitIcon,
               label: "Next week (AI)",
               score: nextWeek.score,
-              level:
-                nextWeek.level ??
-                (hasMlNextWeek ? null : "Unavailable"),
-              hint: hasMlNextWeek
-                ? "AI early detection"
-                : "Submit monitoring to unlock",
-              iconOnly: true,
+              level: needsAnotherWeek
+                ? null
+                : (nextWeek.level ?? (hasMlNextWeek ? null : "Unavailable")),
+              hint: needsAnotherWeek
+                ? "Needs at least 2 weeks of monitoring"
+                : hasMlNextWeek
+                  ? "AI early detection"
+                  : "Submit monitoring to unlock",
+              iconOnly: hasMlNextWeek,
             },
           ]}
         />
@@ -433,6 +445,7 @@ export function BurnoutRiskTrendChart({
     return data.slice(-window);
   }, [data, range]);
 
+  const canForecastNextWeek = data.length >= 2;
   const latest = visibleData[visibleData.length - 1];
   const pointsWithMovement = visibleData.map((point, index) => {
     const mfbiLevel = resolveMfbiBurnoutLevel(point.score, point.level);
@@ -456,7 +469,9 @@ export function BurnoutRiskTrendChart({
     };
   });
   const recentCards = pointsWithMovement.slice(-4);
-  const nextWeek = resolveNextWeekDisplay(earlyWarning);
+  const nextWeek = canForecastNextWeek
+    ? resolveNextWeekDisplay(earlyWarning)
+    : { level: null, score: null, fromScore: false };
   const nextWeekLevel = nextWeek.level;
   const nextScore = nextWeek.score;
   const hasProjection = nextScore != null;
@@ -825,14 +840,20 @@ export function BurnoutRiskTrendChart({
                   />
                 );
               })}
-              <TrendWeekCard
-                label="Next week"
-                score={shownNext}
-                level={nextWeekLevel}
-                direction={nextDirection}
-                delta={nextDelta}
-                projected="next"
-              />
+              {canForecastNextWeek ? (
+                <TrendWeekCard
+                  label="Next week"
+                  score={shownNext}
+                  level={nextWeekLevel}
+                  direction={nextDirection}
+                  delta={nextDelta}
+                  projected="next"
+                />
+              ) : data.length === 1 ? (
+                <p className="col-span-2 flex items-center rounded-lg border border-dashed px-3 py-2 text-xs text-muted-foreground sm:col-span-1">
+                  Next-week outlook needs at least 2 weeks of monitoring.
+                </p>
+              ) : null}
             </div>
           </>
         )}

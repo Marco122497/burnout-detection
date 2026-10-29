@@ -267,6 +267,7 @@ export function StudentAssessmentHistoryView({
         earlyWarning={earlyWarning}
         mfbiScore={student.mfbi_score}
         burnoutLevel={currentBurnoutLevel}
+        monitoringWeeks={history.length}
       />
 
       <BurnoutRiskTrendCard

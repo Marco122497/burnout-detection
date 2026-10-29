@@ -26,6 +26,7 @@ import { getSessionUser, requireRole } from "@/lib/auth/session";
 import type { BulkStudentDraft } from "@/lib/guidance/bulk-students";
 import { fillDepartmentMonitoring } from "@/lib/guidance/fill-department-monitoring";
 import { isFillDateInput } from "@/lib/guidance/fill-week-dates";
+import { getActiveTerm, getCurrentWeekNumber } from "@/lib/student/terms";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type GuidanceActionState = {
@@ -1081,16 +1082,20 @@ export async function generateDepartmentMonitoring(
     const highPercent = Number(formData.get("risk_high_percent"));
     const dateFrom = String(formData.get("date_from") || "").trim();
     const dateTo = String(formData.get("date_to") || "").trim();
-    const fillWeeks = [1, 2, 3].flatMap((week) => {
-      if (formData.get(`fill_week_${week}`) !== "1") return [];
-      return [
-        {
-          week,
-          from: String(formData.get(`date_from_${week}`) || dateFrom).trim(),
-          to: String(formData.get(`date_to_${week}`) || dateTo).trim(),
-        },
-      ];
-    });
+    const term = await getActiveTerm(supabase);
+    const openWeek = term ? getCurrentWeekNumber(term) : 1;
+    const fillWeeks = Array.from({ length: openWeek }, (_, index) => index + 1).flatMap(
+      (week) => {
+        if (formData.get(`fill_week_${week}`) !== "1") return [];
+        return [
+          {
+            week,
+            from: String(formData.get(`date_from_${week}`) || dateFrom).trim(),
+            to: String(formData.get(`date_to_${week}`) || dateTo).trim(),
+          },
+        ];
+      }
+    );
 
     let studentIds: string[] | undefined;
     if (studentIdsRaw) {
@@ -1136,7 +1141,9 @@ export async function generateDepartmentMonitoring(
     }
 
     if (fillWeeks.length === 0) {
-      return { error: "Choose Week 1, Week 2, Week 3, or a combination." };
+      return {
+        error: `Choose a week from Week 1 through Week ${openWeek}.`,
+      };
     }
     for (const week of fillWeeks) {
       if (!isFillDateInput(week.from) || !isFillDateInput(week.to)) {

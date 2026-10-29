@@ -226,9 +226,10 @@ export function BurnoutHistoryView({
   const nextScore =
     earlyWarning?.next_week_score ??
     riskLevelToChartScore(earlyWarning?.next_week_risk);
-  const projectedScores = [nextScore].filter(
-    (value): value is number => value != null
-  );
+  const projectedScores =
+    history.length >= 2
+      ? [nextScore].filter((value): value is number => value != null)
+      : [];
   const monthlyWithOutlook =
     projectedScores.length > 0
       ? [
@@ -321,11 +322,16 @@ export function BurnoutHistoryView({
             <CardTitle>Monthly burnout trend</CardTitle>
             <CardDescription>
               Average MFBI by month
-              {earlyWarning ? ", plus AI early-warning outlook" : ""}.
+              {history.length >= 2 && earlyWarning
+                ? ", plus AI early-warning outlook."
+                : history.length === 1
+                  ? ". Next-week outlook needs at least 2 weeks of monitoring."
+                  : "."}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {earlyWarning?.trend &&
+            {history.length >= 2 &&
+            earlyWarning?.trend &&
             earlyWarning.trend !== "insufficient_history" ? (
               <div className="flex justify-end">
                 <p

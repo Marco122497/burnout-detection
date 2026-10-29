@@ -125,8 +125,12 @@ export async function fillDepartmentMonitoring(input: {
     input.weekNumber != null ? Math.floor(input.weekNumber) : null;
   const weekNumber =
     requestedWeek != null ? requestedWeek : getCurrentWeekNumber(term);
-  if (weekNumber !== 1 && weekNumber !== 2 && weekNumber !== 3) {
-    return { ok: false, error: "Choose Week 1, Week 2, or Week 3 to fill." };
+  const openWeek = getCurrentWeekNumber(term);
+  if (!Number.isInteger(weekNumber) || weekNumber < 1 || weekNumber > openWeek) {
+    return {
+      ok: false,
+      error: `Choose a week from Week 1 through Week ${openWeek}.`,
+    };
   }
 
   const sections = await getWeeklyMonitoringSections(input.supabase);
