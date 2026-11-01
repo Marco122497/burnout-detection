@@ -87,6 +87,104 @@ export function resolveReportWeek(
   return Math.min(parsed, max);
 }
 
+export const REPORT_PERIODS = [
+  { id: "week", label: "Weekly" },
+  { id: "month", label: "Monthly" },
+  { id: "range", label: "Date range" },
+  { id: "all", label: "General (all records)" },
+] as const;
+
+export type ReportPeriodMode = (typeof REPORT_PERIODS)[number]["id"];
+
+export type ReportPeriod = {
+  mode: ReportPeriodMode;
+  week: number;
+  /** YYYY-MM */
+  month: string;
+  from: string;
+  to: string;
+  /** Null for Weekly, which reads one monitoring week instead of dates. */
+  range: MonitoringDateRange | null;
+  label: string;
+};
+
+export type ReportPeriodParams = {
+  period?: string;
+  week?: string;
+  month?: string;
+  from?: string;
+  to?: string;
+};
+
+function isMonthInput(value: string | undefined): value is string {
+  return Boolean(value && /^\d{4}-(0[1-9]|1[0-2])$/.test(value));
+}
+
+function monthBounds(month: string) {
+  const [year, monthIndex] = month.split("-").map(Number);
+  const lastDay = new Date(year, monthIndex, 0).getDate();
+  return {
+    from: `${month}-01`,
+    to: `${month}-${String(lastDay).padStart(2, "0")}`,
+  };
+}
+
+export function resolveReportPeriod(
+  params: ReportPeriodParams,
+  maxWeek: number,
+  now = new Date()
+): ReportPeriod {
+  const mode: ReportPeriodMode =
+    REPORT_PERIODS.find((item) => item.id === params.period)?.id ?? "week";
+  const week = resolveReportWeek(params.week, maxWeek);
+  const month = isMonthInput(params.month)
+    ? params.month
+    : toDateInputValue(now).slice(0, 7);
+  const dates = resolveReportDateRange(params);
+
+  if (mode === "month") {
+    const bounds = monthBounds(month);
+    const label = new Intl.DateTimeFormat("en-PH", {
+      month: "long",
+      year: "numeric",
+    }).format(new Date(`${bounds.from}T00:00:00`));
+    return { mode, week, month, ...bounds, range: bounds, label };
+  }
+
+  if (mode === "range") {
+    return {
+      mode,
+      week,
+      month,
+      ...dates,
+      range: dates,
+      label: formatReportPeriodLabel(dates.from, dates.to),
+    };
+  }
+
+  if (mode === "all") {
+    return {
+      mode,
+      week,
+      month,
+      ...dates,
+      range: { from: null, to: null },
+      label: "All records",
+    };
+  }
+
+  return { mode, week, month, ...dates, range: null, label: `Week ${week}` };
+}
+
+export const REPORT_YEAR_LEVELS = [1, 2, 3, 4] as const;
+
+export function resolveReportYearLevel(value: string | undefined) {
+  const parsed = Number(value);
+  return (REPORT_YEAR_LEVELS as readonly number[]).includes(parsed)
+    ? parsed
+    : null;
+}
+
 export function formatReportPeriodLabel(from: string, to: string) {
   const fromDate = new Date(`${from}T00:00:00`);
   const toDate = new Date(`${to}T00:00:00`);
@@ -132,6 +230,27 @@ export function filterRowsByMonitoringDate<
     const day = row.monitoring_date.slice(0, 10);
     return day >= from && day <= to;
   });
+}
+
+/** Inclusive YYYY-MM-DD bounds; null leaves that side open (General = both null). */
+export type MonitoringDateRange = { from: string | null; to: string | null };
+
+/** submitted_at bounds in Philippine time so a day matches what users see. */
+export function monitoringRangeBounds(range: MonitoringDateRange) {
+  return {
+    start: range.from ? `${range.from}T00:00:00+08:00` : null,
+    end: range.to ? `${range.to}T23:59:59.999+08:00` : null,
+  };
+}
+
+export function isLaterSubmission(
+  a: { submitted_at: string | null; created_at: string },
+  b: { submitted_at: string | null; created_at: string }
+) {
+  return (
+    Date.parse(a.submitted_at ?? a.created_at) >
+    Date.parse(b.submitted_at ?? b.created_at)
+  );
 }
 
 export function isDateInRange(

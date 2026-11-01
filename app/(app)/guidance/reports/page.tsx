@@ -9,9 +9,13 @@ import {
   GUIDANCE_REPORT_TYPES,
   type GuidanceReportType,
 } from "@/lib/report-types";
-import { resolveReportWeek } from "@/lib/reports-range";
+import {
+  resolveReportPeriod,
+  resolveReportYearLevel,
+} from "@/lib/reports-range";
 import { getActiveTerm, getCurrentWeekNumber } from "@/lib/student/terms";
 import type { Department } from "@/lib/auth/roles";
+import { formatYearLevel } from "@/lib/utils";
 
 export const metadata = {
   title: "Reports",
@@ -37,8 +41,13 @@ export default async function GuidanceReportsPage({
 }: {
   searchParams: Promise<{
     type?: string;
+    period?: string;
     week?: string;
+    month?: string;
+    from?: string;
+    to?: string;
     department?: string;
+    year?: string;
   }>;
 }) {
   const { supabase } = await requireRole(["Guidance Counselor"]);
@@ -51,12 +60,20 @@ export default async function GuidanceReportsPage({
     getReportSignatories(supabase),
   ]);
   const openWeek = term ? getCurrentWeekNumber(term) : 1;
-  const selectedWeek = resolveReportWeek(params.week, openWeek);
+  const period = resolveReportPeriod(params, openWeek);
+  const yearLevel = resolveReportYearLevel(params.year);
   const selectedDepartment = resolveDepartment(params.department, departments);
-  const rows = await getGuidanceStudentRows(supabase, selectedWeek);
-  const reportRows = selectedDepartment
-    ? rows.filter((row) => row.department_id === selectedDepartment.department_id)
-    : rows;
+  const rows = await getGuidanceStudentRows(
+    supabase,
+    period.week,
+    period.range ?? undefined
+  );
+  const reportRows = rows.filter(
+    (row) =>
+      (!selectedDepartment ||
+        row.department_id === selectedDepartment.department_id) &&
+      (yearLevel == null || row.year_level === yearLevel)
+  );
   const reportDepartments = selectedDepartment
     ? [selectedDepartment]
     : departments;
@@ -66,7 +83,7 @@ export default async function GuidanceReportsPage({
       <div className="print:hidden">
         <PageHeading
           title="Guidance reports"
-          description="Choose a monitoring week and department, then print or export the burnout breakdown."
+          description="Choose a period (weekly, monthly, date range, or general), year level, and department, then print or export the burnout breakdown."
         />
       </div>
       <GuidanceReportsPanel
@@ -80,9 +97,10 @@ export default async function GuidanceReportsPage({
           selectedDepartment ? String(selectedDepartment.department_id) : "all"
         }
         departmentName={selectedDepartment?.department_name ?? null}
-        currentWeek={selectedWeek}
+        period={period}
+        yearLevel={yearLevel != null ? String(yearLevel) : "all"}
+        yearLevelLabel={yearLevel != null ? formatYearLevel(yearLevel) : null}
         reportType={reportType}
-        week={selectedWeek}
         maxWeek={openWeek}
         schoolAdministratorName={signatories.schoolAdministrator.name}
         schoolAdministratorTitle={signatories.schoolAdministrator.title}

@@ -34,7 +34,7 @@ import {
   DeleteConfirmDialog,
 } from "@/components/shared/delete-confirm-dialog";
 import { TablePagination } from "@/components/shared/table-pagination";
-import type { Department } from "@/lib/auth/roles";
+import { SEX_OPTIONS, type Department } from "@/lib/auth/roles";
 import type { UserListItem } from "@/lib/guidance/queries";
 import {
   AlertDialog,
@@ -651,8 +651,11 @@ export function StudentsManager({
                   <option value="" disabled>
                     Select gender
                   </option>
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
+                  {SEX_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div className="space-y-1.5 sm:col-span-2">
@@ -810,8 +813,11 @@ export function StudentsManager({
                   <option value="" disabled>
                     Select gender
                   </option>
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
+                  {SEX_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div className="space-y-2 sm:col-span-2">

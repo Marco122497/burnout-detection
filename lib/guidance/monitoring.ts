@@ -1,5 +1,5 @@
 import type { createClient } from "@/lib/supabase/server";
-import { buildFullName } from "@/lib/auth/roles";
+import { buildFullName, parseSex } from "@/lib/auth/roles";
 import { getActiveTerm, getCurrentWeekNumber } from "@/lib/student/terms";
 import type {
   StudentHistoryRow,
@@ -18,6 +18,11 @@ import {
   fetchInChunks,
   getCachedUniversityWeeklySeries,
 } from "@/lib/cache/monitoring";
+import {
+  isLaterSubmission,
+  monitoringRangeBounds,
+  type MonitoringDateRange,
+} from "@/lib/reports-range";
 import { cache } from "react";
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
@@ -486,12 +491,16 @@ export const getDepartmentScoreCharts = cache(async function getDepartmentScoreC
 
 export const getGuidanceStudentRows = cache(async function getGuidanceStudentRows(
   supabase: SupabaseClient,
-  week?: number
+  week?: number,
+  range?: MonitoringDateRange
 ): Promise<GuidanceStudentRow[]> {
   const term = await getActiveTerm(supabase);
   const openWeek = term ? getCurrentWeekNumber(term) : null;
-  const currentWeek =
-    week != null && week >= 1 ? Math.floor(week) : openWeek;
+  const currentWeek = range
+    ? null
+    : week != null && week >= 1
+      ? Math.floor(week)
+      : openWeek;
 
   type MonitoringListRow = {
     monitoring_id: number;
@@ -532,19 +541,25 @@ export const getGuidanceStudentRows = cache(async function getGuidanceStudentRow
         .order("last_name", { ascending: true })
         .range(from, to)
     ),
-    term?.term_id
+    term?.term_id || range
       ? fetchAllPages(async (from, to) => {
           let query = supabase
             .from("weekly_monitoring")
             .select(
               "monitoring_id, student_id, week_number, status, stress_score, academic_workload_score, study_time_score, sleep_hours_score, submitted_at, term_id, created_at, mfbi_results(mfbi_id, mfbi_score, burnout_risk_level)"
             )
-            .eq("term_id", term.term_id)
             .order("week_number", { ascending: false });
 
-          // Dashboard/monitoring cards use the active week only — skip older weeks.
-          if (currentWeek != null) {
-            query = query.eq("week_number", currentWeek);
+          if (range) {
+            const bounds = monitoringRangeBounds(range);
+            if (bounds.start) query = query.gte("submitted_at", bounds.start);
+            if (bounds.end) query = query.lte("submitted_at", bounds.end);
+          } else if (term?.term_id) {
+            query = query.eq("term_id", term.term_id);
+            // Dashboard/monitoring cards use the active week only — skip older weeks.
+            if (currentWeek != null) {
+              query = query.eq("week_number", currentWeek);
+            }
           }
 
           return query.range(from, to);
@@ -571,6 +586,16 @@ export const getGuidanceStudentRows = cache(async function getGuidanceStudentRow
 
     if (!existing || weekNumber > existingWeek) {
       latestMonitoring.set(row.student_id, row);
+    }
+
+    if (range) {
+      if (!hasValidScores(row)) continue;
+      const chosen = currentWeekMonitoring.get(row.student_id);
+      if (!chosen || isLaterSubmission(row, chosen)) {
+        currentWeekMonitoring.set(row.student_id, row);
+      }
+      submittedThisWeek.add(row.student_id);
+      continue;
     }
 
     if (
@@ -627,7 +652,7 @@ export const getGuidanceStudentRows = cache(async function getGuidanceStudentRow
 
   return students.map((student) => {
     const monitoring =
-      currentWeek != null
+      currentWeek != null || range
         ? currentWeekMonitoring.get(student.id) ?? null
         : latestMonitoring.get(student.id) ?? null;
     const mfbiRaw = monitoring?.mfbi_results;
@@ -659,8 +684,7 @@ export const getGuidanceStudentRows = cache(async function getGuidanceStudentRow
       last_name: student.last_name ?? null,
       student_number: student.student_number,
       profile_picture: student.profile_picture ?? null,
-      sex:
-        student.sex === "Male" || student.sex === "Female" ? student.sex : null,
+      sex: parseSex(student.sex),
       course: student.course,
       year_level: student.year_level,
       section: student.section,
@@ -810,8 +834,7 @@ export const getGuidanceStudentHistory = cache(async function getGuidanceStudent
       id: profile.id,
       full_name: buildFullName(profile),
       student_number: profile.student_number,
-      sex:
-        profile.sex === "Male" || profile.sex === "Female" ? profile.sex : null,
+      sex: parseSex(profile.sex),
       course: profile.course,
       year_level: profile.year_level,
       section: profile.section,

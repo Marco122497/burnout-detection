@@ -15,7 +15,11 @@ import {
   INSTRUCTOR_REPORT_TYPES,
   type InstructorReportType,
 } from "@/lib/report-types";
-import { resolveReportDateRange, resolveReportWeek } from "@/lib/reports-range";
+import {
+  resolveReportPeriod,
+  resolveReportYearLevel,
+} from "@/lib/reports-range";
+import { formatYearLevel } from "@/lib/utils";
 import { getActiveTerm, getCurrentWeekNumber } from "@/lib/student/terms";
 
 export const metadata = {
@@ -34,10 +38,13 @@ export default async function InstructorReportsPage({
 }: {
   searchParams: Promise<{
     type?: string;
+    period?: string;
+    month?: string;
     from?: string;
     to?: string;
     week?: string;
     department?: string;
+    year?: string;
   }>;
 }) {
   const { supabase, user, profile } = await requireRole(["Instructor"]);
@@ -48,11 +55,11 @@ export default async function InstructorReportsPage({
   );
   const params = await searchParams;
   const reportType = resolveInstructorReportType(params.type);
-  const { from, to } = resolveReportDateRange(params);
 
   const term = await getActiveTerm(supabase);
   const openWeek = term ? getCurrentWeekNumber(term) : 1;
-  const selectedWeek = resolveReportWeek(params.week, openWeek);
+  const period = resolveReportPeriod(params, openWeek);
+  const yearLevel = resolveReportYearLevel(params.year);
   const departmentOptions = await getInstructorDepartmentOptions(
     supabase,
     departmentIds
@@ -65,12 +72,27 @@ export default async function InstructorReportsPage({
     ? [selectedDepartment.department_id]
     : departmentIds;
 
-  const [rows, departmentName, weeklyTrends, signatories] = await Promise.all([
-    getInstructorStudentRows(supabase, scopedDepartmentIds, selectedWeek),
+  const [allRows, departmentName, weeklyTrends, signatories] = await Promise.all([
+    getInstructorStudentRows(
+      supabase,
+      scopedDepartmentIds,
+      period.week,
+      period.range ?? undefined
+    ),
     getDepartmentName(supabase, scopedDepartmentIds),
-    getDepartmentWeeklySeries(supabase, scopedDepartmentIds, { from, to }),
+    getDepartmentWeeklySeries(
+      supabase,
+      scopedDepartmentIds,
+      period.mode === "month" || period.mode === "range"
+        ? { from: period.from, to: period.to }
+        : undefined
+    ),
     getReportSignatories(supabase),
   ]);
+  const rows =
+    yearLevel != null
+      ? allRows.filter((row) => row.year_level === yearLevel)
+      : allRows;
 
   return (
     <div className="space-y-6">
@@ -79,15 +101,17 @@ export default async function InstructorReportsPage({
           title="Reports"
           description={
             departmentOptions.length > 0
-              ? "Choose a monitoring week and department, then print or export the burnout breakdown."
-              : "Choose a monitoring week, then print or export the burnout breakdown for that week."
+              ? "Choose a period (weekly, monthly, date range, or general), year level, and department, then print or export the burnout breakdown."
+              : "Choose a period (weekly, monthly, date range, or general) and year level, then print or export the burnout breakdown."
           }
         />
       </div>
       <InstructorReportsPanel
         rows={rows}
         weeklyTrends={weeklyTrends}
-        currentWeek={selectedWeek}
+        period={period}
+        yearLevel={yearLevel != null ? String(yearLevel) : "all"}
+        yearLevelLabel={yearLevel != null ? formatYearLevel(yearLevel) : null}
         departmentName={departmentName}
         departmentOptions={departmentOptions.map((department) => ({
           id: String(department.department_id),
@@ -97,7 +121,6 @@ export default async function InstructorReportsPage({
           selectedDepartment ? String(selectedDepartment.department_id) : "all"
         }
         reportType={reportType}
-        week={selectedWeek}
         maxWeek={openWeek}
         preparedBy={buildFormalName(profile) || profile.role}
         preparedRole={profile.role}

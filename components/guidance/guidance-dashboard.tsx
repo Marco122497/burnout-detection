@@ -20,6 +20,7 @@ import {
   AiEarlyWarningStudentsCard,
   AiModelStatusCard,
 } from "@/components/shared/ai-early-warning-panel";
+import { StatCard } from "@/components/shared/stat-card";
 import { TablePagination } from "@/components/shared/table-pagination";
 import { Button } from "@/components/ui/button";
 import {
@@ -186,81 +187,6 @@ function CourseFusedBar({
         fill={`url(#${id})`}
       />
     </g>
-  );
-}
-
-function OverviewCard({
-  label,
-  value,
-  hint,
-  tone,
-  emphasize = false,
-  compact = false,
-}: {
-  label: string;
-  value: string | number;
-  hint?: string;
-  tone?: "low" | "moderate" | "high" | "neutral";
-  emphasize?: boolean;
-  compact?: boolean;
-}) {
-  const toneClass =
-    tone === "low"
-      ? "text-emerald-700 dark:text-emerald-400"
-      : tone === "moderate"
-        ? "text-amber-800 dark:text-amber-400"
-        : tone === "high"
-          ? "text-orange-800 dark:text-orange-400"
-          : "";
-
-  return (
-    <Card
-      className={cn(
-        emphasize &&
-          "border-orange-300/80 bg-orange-50/70 shadow-sm dark:border-orange-900 dark:bg-orange-950/30",
-        compact && "border-border/70 bg-muted/20 shadow-none"
-      )}
-    >
-      <CardHeader
-        className={cn(
-          "items-center gap-1 text-center",
-          compact ? "py-2" : "py-3"
-        )}
-      >
-        {emphasize ? (
-          <p className="text-[10px] font-semibold tracking-[0.14em] text-orange-800/80 uppercase dark:text-orange-300/80">
-            Priority
-          </p>
-        ) : null}
-        <CardDescription
-          className={cn(
-            "font-medium tracking-wide uppercase",
-            compact ? "text-[10px] text-muted-foreground" : "text-xs"
-          )}
-        >
-          {label}
-        </CardDescription>
-        <CardTitle
-          className={cn(
-            "font-[family-name:var(--font-display)] font-semibold tracking-tight tabular-nums",
-            compact ? "text-xl sm:text-2xl" : "text-4xl sm:text-5xl",
-            toneClass
-          )}
-        >
-          {value}
-        </CardTitle>
-        {hint ? (
-          <p
-            className={cn(
-              "text-muted-foreground",
-              compact ? "text-[11px]" : "text-xs sm:text-sm"
-            )}
-          >
-            {hint}
-          </p>
-        ) : null}
-      </CardHeader>
-    </Card>
   );
 }
 
@@ -976,55 +902,42 @@ export function GuidanceDashboard({
           <span className="font-medium text-foreground">{yearFilterLabel}</span>
         </p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <OverviewCard
+          <StatCard
             label="High Risk"
             value={scoped.high}
             hint={`Need follow-up in Week ${selectedWeek}`}
             tone="high"
-            emphasize
+            size="lg"
           />
           <AiEarlyWarningOverviewCards
             earlyWarningCount={scoped.earlyWarningCount}
-            nextWeekHighCount={scoped.nextWeekHighCount}
-            week2HighCount={scoped.week2HighCount}
             mode="hero"
           />
         </div>
-        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
-          <OverviewCard
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <StatCard
             label="Total Students"
             value={scoped.totalStudents}
-            compact
           />
-          <OverviewCard
+          <StatCard
             label="Students Monitored"
             value={scoped.monitoredCount}
             hint={`Valid records in Week ${selectedWeek}`}
-            compact
           />
-          <OverviewCard
+          <StatCard
             label="Low Risk"
             value={scoped.low}
             tone="low"
-            compact
           />
-          <OverviewCard
+          <StatCard
             label="Moderate Risk"
             value={scoped.moderate}
             tone="moderate"
-            compact
           />
-          <OverviewCard
+          <StatCard
             label="Pending Assessments"
             value={scoped.pendingCount}
             hint={`Not submitted in Week ${selectedWeek}`}
-            compact
-          />
-          <AiEarlyWarningOverviewCards
-            earlyWarningCount={scoped.earlyWarningCount}
-            nextWeekHighCount={scoped.nextWeekHighCount}
-            week2HighCount={scoped.week2HighCount}
-            mode="secondary"
           />
         </div>
       </section>

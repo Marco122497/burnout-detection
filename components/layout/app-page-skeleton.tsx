@@ -52,35 +52,14 @@ function DashboardHeaderSkeleton({
   );
 }
 
-function StatCardSkeleton({
-  compact = false,
-  emphasize = false,
-}: {
-  compact?: boolean;
-  emphasize?: boolean;
-}) {
+function StatCardSkeleton({ large = false }: { large?: boolean }) {
   return (
-    <Card
-      className={
-        compact
-          ? "border-border/70 bg-muted/20 shadow-none"
-          : emphasize
-            ? "border-orange-300/80 bg-orange-50/70 shadow-sm dark:border-orange-900 dark:bg-orange-950/30"
-            : undefined
-      }
-    >
-      <CardHeader
-        className={
-          compact
-            ? "items-center gap-1 py-2 text-center"
-            : "items-center gap-1 py-3 text-center"
-        }
-      >
-        {emphasize ? <Skeleton className="h-2.5 w-14" /> : null}
-        <Skeleton className={compact ? "h-2.5 w-16" : "h-3 w-24"} />
-        <Skeleton className={compact ? "h-7 w-12" : "h-12 w-20"} />
-        <Skeleton className={compact ? "h-2.5 w-20" : "h-3 w-32"} />
-      </CardHeader>
+    <Card className="h-full gap-0 py-0">
+      <div className="flex h-full flex-col items-center justify-center gap-1 p-4">
+        <Skeleton className="h-3.5 w-24" />
+        <Skeleton className={large ? "h-9 w-16" : "h-6 w-14"} />
+        <Skeleton className="h-3 w-32" />
+      </div>
     </Card>
   );
 }
@@ -212,19 +191,12 @@ function InstructorDashboardSkeleton() {
       <section className="min-w-0 space-y-2">
         <Skeleton className="h-3 w-40" />
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <StatCardSkeleton emphasize />
-          <Card className="border-amber-300/80 bg-amber-50/70 shadow-sm dark:border-amber-900 dark:bg-amber-950/30">
-            <CardHeader className="items-center gap-1 py-3 text-center">
-              <Skeleton className="h-2.5 w-16" />
-              <Skeleton className="h-3 w-28" />
-              <Skeleton className="h-12 w-16" />
-              <Skeleton className="h-3 w-36" />
-            </CardHeader>
-          </Card>
+          <StatCardSkeleton large />
+          <StatCardSkeleton large />
         </div>
-        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-          {Array.from({ length: 6 }).map((_, index) => (
-            <StatCardSkeleton key={index} compact />
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <StatCardSkeleton key={index} />
           ))}
         </div>
       </section>
@@ -246,19 +218,12 @@ function GuidanceDashboardSkeleton() {
       <section className="space-y-2">
         <Skeleton className="h-3 w-40" />
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <StatCardSkeleton emphasize />
-          <Card className="border-amber-300/80 bg-amber-50/70 shadow-sm dark:border-amber-900 dark:bg-amber-950/30">
-            <CardHeader className="items-center gap-1 py-3 text-center">
-              <Skeleton className="h-2.5 w-16" />
-              <Skeleton className="h-3 w-32" />
-              <Skeleton className="h-12 w-16" />
-              <Skeleton className="h-3 w-40" />
-            </CardHeader>
-          </Card>
+          <StatCardSkeleton large />
+          <StatCardSkeleton large />
         </div>
-        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
-          {Array.from({ length: 7 }).map((_, index) => (
-            <StatCardSkeleton key={index} compact />
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <StatCardSkeleton key={index} />
           ))}
         </div>
       </section>
@@ -379,13 +344,8 @@ function GuidanceAnalyticsSkeleton() {
           <Skeleton className="h-5 w-40" />
           <Skeleton className="h-4 w-80 max-w-full" />
         </div>
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
-          {Array.from({ length: 5 }).map((_, index) => (
-            <StatCardSkeleton key={index} emphasize={index === 3} />
-          ))}
-        </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, index) => (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-6">
+          {Array.from({ length: 6 }).map((_, index) => (
             <StatCardSkeleton key={index} />
           ))}
         </div>
@@ -430,13 +390,8 @@ function InstructorAnalyticsSkeleton() {
     <div className="min-w-0 max-w-full space-y-8 overflow-x-hidden">
       <DashboardHeaderSkeleton titleWidth="w-52" descriptionWidth="w-80" />
       <section className="min-w-0 space-y-3">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-          {Array.from({ length: 5 }).map((_, index) => (
-            <StatCardSkeleton key={index} emphasize={index === 4} />
-          ))}
-        </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, index) => (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+          {Array.from({ length: 6 }).map((_, index) => (
             <StatCardSkeleton key={index} />
           ))}
         </div>

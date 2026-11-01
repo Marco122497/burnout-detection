@@ -1,6 +1,8 @@
-import type {
-  GenderRiskStats,
-  GenderVariableStats,
+import {
+  GENDER_GROUPS,
+  type GenderGroup,
+  type GenderRiskStats,
+  type GenderVariableStats,
 } from "@/lib/reports/gender-risk";
 import {
   Card,
@@ -17,20 +19,21 @@ export function BurnoutByGenderCard({
   byGenderVariable = [],
 }: {
   byGender: GenderRiskStats[];
-  mostProneGender?: "Male" | "Female" | null;
+  mostProneGender?: GenderGroup | null;
   mostProneGenderNote?: string | null;
   byGenderVariable?: GenderVariableStats[];
 }) {
   const hasVariableData = byGenderVariable.length > 0;
   const genderRows = byGender.filter((item) => item.label !== "Unspecified");
+  const hasGenderData = genderRows.some((item) => item.total > 0);
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-lg">Burnout & Factors by Gender</CardTitle>
         <CardDescription>
-          Compare Male and Female High counts for burnout, stress, workload,
-          study time, and sleep.
+          Compare High counts for Male, Female, and Other Gender Identities
+          across burnout, stress, workload, study time, and sleep.
         </CardDescription>
         {mostProneGenderNote ? (
           <p className="mt-1.5 text-xs font-medium text-foreground">
@@ -42,7 +45,7 @@ export function BurnoutByGenderCard({
         ) : null}
       </CardHeader>
       <CardContent className="space-y-6">
-        {genderRows.length === 0 && !hasVariableData ? (
+        {!hasGenderData && !hasVariableData ? (
           <p className="flex h-40 items-center justify-center text-sm text-muted-foreground">
             No gender data yet. Ask students to complete gender on login.
           </p>
@@ -50,57 +53,53 @@ export function BurnoutByGenderCard({
 
         {hasVariableData ? (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[32rem] text-sm">
+            <table className="w-full min-w-[40rem] text-sm">
               <thead>
                 <tr className="border-b text-left text-muted-foreground">
                   <th className="pb-2 pr-3 font-medium">Variable</th>
                   <th className="pb-2 pr-3 font-medium">Most High count</th>
-                  <th className="pb-2 pr-3 text-right font-medium">Male High</th>
-                  <th className="pb-2 pr-3 text-right font-medium">
-                    Female High
-                  </th>
+                  {GENDER_GROUPS.map((group) => (
+                    <th
+                      key={group}
+                      className="pb-2 pr-3 text-right font-medium"
+                    >
+                      {group} High
+                    </th>
+                  ))}
                   <th className="pb-2 text-right font-medium">
                     Leading High
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {byGenderVariable.map((variable) => {
-                  const maleHigh =
-                    variable.byGender.find((item) => item.label === "Male")
-                      ?.high ?? 0;
-                  const femaleHigh =
-                    variable.byGender.find((item) => item.label === "Female")
-                      ?.high ?? 0;
-                  return (
-                    <tr
-                      key={variable.key}
-                      className="border-b last:border-0"
-                    >
-                      <td className="py-2.5 pr-3 font-medium">
-                        {variable.label}
+                {byGenderVariable.map((variable) => (
+                  <tr key={variable.key} className="border-b last:border-0">
+                    <td className="py-2.5 pr-3 font-medium">
+                      {variable.label}
+                    </td>
+                    <td className="py-2.5 pr-3">
+                      {variable.mostHighCountGender ?? "Tied / —"}
+                    </td>
+                    {GENDER_GROUPS.map((group) => (
+                      <td
+                        key={group}
+                        className="py-2.5 pr-3 text-right tabular-nums"
+                      >
+                        {variable.byGender.find((item) => item.label === group)
+                          ?.high ?? 0}
                       </td>
-                      <td className="py-2.5 pr-3">
-                        {variable.mostHighCountGender ?? "Tied / —"}
-                      </td>
-                      <td className="py-2.5 pr-3 text-right tabular-nums">
-                        {maleHigh}
-                      </td>
-                      <td className="py-2.5 pr-3 text-right tabular-nums">
-                        {femaleHigh}
-                      </td>
-                      <td className="py-2.5 text-right tabular-nums">
-                        {variable.mostHighCount}
-                      </td>
-                    </tr>
-                  );
-                })}
+                    ))}
+                    <td className="py-2.5 text-right tabular-nums">
+                      {variable.mostHighCount}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
         ) : null}
 
-        {genderRows.length > 0 ? (
+        {hasGenderData ? (
           <div className="overflow-x-auto">
             <p className="mb-2 text-xs font-medium text-muted-foreground">
               Burnout (MFBI) detail

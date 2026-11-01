@@ -20,6 +20,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
+import { SEX_OPTIONS } from "@/lib/auth/roles";
 
 const selectClassName =
   "flex h-10 w-full rounded-xl border border-input bg-transparent px-3 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50";
@@ -87,8 +88,11 @@ export function StudentGenderDialog() {
             <option value="" disabled>
               Select gender
             </option>
-            <option value="Male">Male</option>
-            <option value="Female">Female</option>
+            {SEX_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
           </select>
         </form>
 

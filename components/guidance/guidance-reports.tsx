@@ -21,6 +21,7 @@ import {
   formatMfbiScore,
   mfbiRiskBucket,
 } from "@/lib/student/mfbi";
+import type { ReportPeriod } from "@/lib/reports-range";
 import { formatYearLevel } from "@/lib/utils";
 import {
   GENDER_HIGHLIGHT_COLUMNS,
@@ -139,14 +140,15 @@ function getDepartmentNames(
 
 function buildDepartmentYearLevelGroups(
   rows: GuidanceStudentRow[],
-  departments: Department[]
+  departments: Department[],
+  years: readonly number[] = YEAR_LEVELS
 ) {
   return getDepartmentNames(rows, departments).map((department) => {
     const deptRows = rows.filter(
       (row) => (row.department_name || "Unassigned") === department
     );
 
-    const yearRows = YEAR_LEVELS.map((year) => {
+    const yearRows = years.map((year) => {
       const entry = emptyRiskStats();
       for (const row of deptRows) {
         if (row.year_level !== year) continue;
@@ -188,7 +190,8 @@ function buildInstitutionalTotalsGroup(
 
 function buildInterventionSectionGroups(
   students: GuidanceStudentRow[],
-  departments: Department[]
+  departments: Department[],
+  years: readonly number[] = YEAR_LEVELS
 ) {
   return getDepartmentNames(students, departments)
     .map((department) => {
@@ -198,7 +201,7 @@ function buildInterventionSectionGroups(
       if (deptStudents.length === 0) return null;
 
       const yearMap = new Map<number | "unassigned", GuidanceStudentRow[]>();
-      for (const year of YEAR_LEVELS) {
+      for (const year of years) {
         yearMap.set(year, []);
       }
 
@@ -209,7 +212,7 @@ function buildInterventionSectionGroups(
         yearMap.set(key, list);
       }
 
-      const sections = YEAR_LEVELS.map((year) => {
+      const sections = years.map((year) => {
         const group = yearMap.get(year) ?? [];
         return {
           title: formatYearLevel(year),
@@ -266,9 +269,10 @@ export function GuidanceReportsPanel({
   departmentOptions = [],
   department = "all",
   departmentName = null,
-  currentWeek,
+  period,
+  yearLevel = "all",
+  yearLevelLabel = null,
   reportType,
-  week,
   maxWeek,
   schoolAdministratorName = "SR. LEONILA M. SAJELAN, MCM",
   schoolAdministratorTitle = "School Vice-President",
@@ -280,9 +284,10 @@ export function GuidanceReportsPanel({
   departmentOptions?: readonly ReportDepartmentOption[];
   department?: string;
   departmentName?: string | null;
-  currentWeek: number | null;
+  period: ReportPeriod;
+  yearLevel?: string;
+  yearLevelLabel?: string | null;
   reportType: GuidanceReportType;
-  week: number;
   maxWeek: number;
   schoolAdministratorName?: string;
   schoolAdministratorTitle?: string;
@@ -290,9 +295,9 @@ export function GuidanceReportsPanel({
   guidanceCounselorTitle?: string;
 }) {
   const generatedAt = useMemo(() => new Date(), []);
-  const periodLabel = departmentName
-    ? `Week ${week} · ${departmentName}`
-    : `Week ${week}`;
+  const periodLabel = [period.label, yearLevelLabel, departmentName]
+    .filter(Boolean)
+    .join(" · ");
   const filteredRows = rows;
   const analytics = useMemo(
     () => getGuidanceAnalytics(filteredRows),
@@ -310,14 +315,19 @@ export function GuidanceReportsPanel({
     [filteredRows]
   );
 
+  const years = useMemo(
+    () => (yearLevel === "all" ? YEAR_LEVELS : [Number(yearLevel)]),
+    [yearLevel]
+  );
+
   const departmentYearLevelGroups = useMemo(
-    () => buildDepartmentYearLevelGroups(filteredRows, departments),
-    [filteredRows, departments]
+    () => buildDepartmentYearLevelGroups(filteredRows, departments, years),
+    [filteredRows, departments, years]
   );
 
   const interventionSectionGroups = useMemo(
-    () => buildInterventionSectionGroups(attentionStudents, departments),
-    [attentionStudents, departments]
+    () => buildInterventionSectionGroups(attentionStudents, departments, years),
+    [attentionStudents, departments, years]
   );
 
   const report = useMemo(() => {
@@ -384,7 +394,7 @@ export function GuidanceReportsPanel({
               "Gender most prone to High burnout",
               analytics.mostProneGender ?? "—",
               analytics.mostProneGenderNote ??
-                "Compare Male vs Female High-risk rates",
+                "Compare High-risk rates across genders",
             ],
             ...(analytics.byGenderVariable ?? []).map((item) => [
               `Most High — ${item.label}`,
@@ -404,9 +414,11 @@ export function GuidanceReportsPanel({
               "Institutional burnout index",
             ],
             [
-              "Weekly submissions",
+              period.mode === "week"
+                ? "Weekly submissions"
+                : "Students who submitted",
               `${analytics.submittedCount} (${analytics.completionPercent}%)`,
-              currentWeek != null ? `Week ${currentWeek}` : "Current week",
+              period.label,
             ],
             [
               "Departments covered",
@@ -449,7 +461,8 @@ export function GuidanceReportsPanel({
         };
         return {
           title: "Burnout & Factors by Gender",
-          tableTitle: "Who has the most High counts (Male vs Female)",
+          tableTitle:
+            "Who has the most High counts (Male, Female, Other Gender Identities)",
           filename: "burnout-factors-by-gender.csv",
           columns: GENDER_HIGHLIGHT_COLUMNS,
           csvHeader: ["Variable", "Most High count", "High count", "Notes"],
@@ -565,8 +578,9 @@ export function GuidanceReportsPanel({
     attentionStudents,
     departmentYearLevelGroups,
     interventionSectionGroups,
-    filteredRows.length,
-    currentWeek,
+    filteredRows,
+    period.mode,
+    period.label,
     departmentName,
   ]);
 
@@ -575,12 +589,17 @@ export function GuidanceReportsPanel({
       <div className="flex flex-wrap items-end justify-between gap-3 print:hidden">
         <ReportFilters
           type={reportType}
-          week={week}
+          period={period.mode}
+          week={period.week}
+          month={period.month}
+          from={period.from}
+          to={period.to}
           maxWeek={maxWeek}
           basePath="/guidance/reports"
           types={GUIDANCE_REPORT_TYPES}
           departments={departmentOptions}
           department={department}
+          yearLevel={yearLevel}
         />
         <ReportExportButtons title={report.title} />
       </div>

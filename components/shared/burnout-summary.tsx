@@ -82,6 +82,43 @@ export function getRiskTheme(level: string | null | undefined): RiskTheme {
   return (level && RISK_THEMES[level]) || DEFAULT_RISK_THEME;
 }
 
+/** Bands match classifyMfbiScore: Low < 40%, Moderate 40–69%, High ≥ 70%. */
+const MFBI_BAND_EDGES = [40, 70] as const;
+
+const MFBI_BANDS = [
+  { label: "Low", from: 0, to: 39, span: 40 },
+  { label: "Moderate", from: 40, to: 69, span: 30 },
+  { label: "High", from: 70, to: 100, span: 30 },
+] as const;
+
+const MFBI_RULER_TICKS = Array.from({ length: 21 }, (_, i) => i * 5);
+
+/** Same Low / Moderate / High colors as the Guidance and Instructor charts. */
+const MFBI_COLOR_STOPS: ReadonlyArray<readonly [number, string]> = [
+  [0, "oklch(0.72 0.15 160)"],
+  [20, "oklch(0.72 0.15 160)"],
+  [40, "oklch(0.8 0.15 85)"],
+  [55, "oklch(0.8 0.15 85)"],
+  [70, "oklch(0.68 0.19 40)"],
+  [100, "oklch(0.58 0.21 30)"],
+];
+
+const MFBI_GRADIENT = `linear-gradient(to right, ${MFBI_COLOR_STOPS.map(
+  ([at, color]) => `${color} ${at}%`
+).join(", ")})`;
+
+function mfbiColorAt(percent: number): string {
+  const p = Math.min(Math.max(percent, 0), 100);
+  for (let i = 1; i < MFBI_COLOR_STOPS.length; i++) {
+    const [endAt, endColor] = MFBI_COLOR_STOPS[i];
+    if (p > endAt) continue;
+    const [startAt, startColor] = MFBI_COLOR_STOPS[i - 1];
+    const t = endAt === startAt ? 0 : (p - startAt) / (endAt - startAt);
+    return `color-mix(in oklch, ${endColor} ${Math.round(t * 100)}%, ${startColor})`;
+  }
+  return MFBI_COLOR_STOPS[MFBI_COLOR_STOPS.length - 1][1];
+}
+
 export function BurnoutHero({
   level,
   mfbiScore,
@@ -150,7 +187,7 @@ export function BurnoutHero({
           </div>
         </div>
 
-        <div className="w-full max-w-sm space-y-2">
+        <div className="w-full space-y-2 lg:w-1/2 lg:shrink-0">
           <div className="flex items-baseline justify-between text-sm">
             <span className="text-muted-foreground">{scoreLabel}</span>
             <span className={cn("font-medium tabular-nums", theme.mfbi)}>
@@ -159,16 +196,98 @@ export function BurnoutHero({
                 : "—"}
             </span>
           </div>
-          <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
+          <div className="pt-1">
+            <div aria-hidden className="relative h-7">
+              {MFBI_RULER_TICKS.map((tick) => {
+                const major = tick % 10 === 0;
+                const edge = (MFBI_BAND_EDGES as readonly number[]).includes(
+                  tick
+                );
+                return (
+                  <span
+                    key={tick}
+                    className="absolute bottom-0"
+                    style={{ left: `${tick}%` }}
+                  >
+                    {major ? (
+                      <span
+                        className={cn(
+                          "absolute -translate-x-1/2 leading-none tabular-nums",
+                          edge
+                            ? "bottom-3.5 text-xs font-bold text-foreground"
+                            : "bottom-2.5 text-[10px] text-muted-foreground"
+                        )}
+                      >
+                        {tick}
+                      </span>
+                    ) : null}
+                    <span
+                      className={cn(
+                        "absolute bottom-0 w-px -translate-x-1/2 rounded-full",
+                        edge
+                          ? "h-3 w-0.5 bg-foreground/70"
+                          : major
+                            ? "h-1.5 bg-muted-foreground/60"
+                            : "h-1 bg-border"
+                      )}
+                    />
+                  </span>
+                );
+              })}
+            </div>
+            <div className="relative mt-1 py-0.5">
+              <div
+                className="h-2.5 w-full rounded-full"
+                style={{ background: MFBI_GRADIENT }}
+              />
+              {MFBI_BAND_EDGES.map((edge) => (
+                <span
+                  key={edge}
+                  aria-hidden
+                  className="absolute -top-1 -bottom-1 w-0.5 -translate-x-1/2 rounded-full bg-foreground/70"
+                  style={{ left: `${edge}%` }}
+                />
+              ))}
+              {mfbiPercent != null ? (
+                <span
+                  aria-hidden
+                  className="absolute top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background shadow-sm ring-1 ring-foreground/15 transition-all"
+                  style={{
+                    left: `${Math.min(Math.max(mfbiPercent, 0), 100)}%`,
+                    backgroundColor: mfbiColorAt(mfbiPercent),
+                  }}
+                />
+              ) : null}
+            </div>
             <div
-              className={cn("h-full rounded-full transition-all", theme.bar)}
-              style={{ width: `${Math.max(mfbiPercent ?? 0, 2)}%` }}
-            />
-          </div>
-          <div className="flex justify-between text-[10px] text-muted-foreground">
-            <span>Low</span>
-            <span>Moderate</span>
-            <span>High</span>
+              className="mt-2.5 grid gap-1"
+              style={{
+                gridTemplateColumns: MFBI_BANDS.map(
+                  (band) => `${band.span}fr`
+                ).join(" "),
+              }}
+            >
+              {MFBI_BANDS.map((band) => {
+                const active =
+                  mfbiPercent != null &&
+                  classifyMfbiScore(mfbiPercent / 100) === band.label;
+                return (
+                  <span
+                    key={band.label}
+                    className={cn(
+                      "flex flex-col items-center text-center text-[10px] leading-tight whitespace-nowrap transition-opacity",
+                      getRiskTheme(band.label).title,
+                      active ? "font-semibold" : "font-medium opacity-60"
+                    )}
+                  >
+                    {band.label}
+                    <span className="tabular-nums text-muted-foreground">
+                      {band.from}–{band.to}
+                    </span>
+                  </span>
+                );
+              })}
+            </div>
           </div>
           {children}
         </div>

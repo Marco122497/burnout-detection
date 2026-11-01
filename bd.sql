@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS profiles (
     suffix VARCHAR(20),
 
     sex VARCHAR(10)
-        CHECK (sex IN ('Male', 'Female')),
+        CHECK (sex IN ('Male', 'Female', 'Other')),
 
     birth_date DATE,
 

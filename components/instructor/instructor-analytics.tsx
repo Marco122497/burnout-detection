@@ -18,6 +18,7 @@ import {
 } from "@/components/shared/ai-early-warning-panel";
 import { WeeklyBurnoutRiskTrendChart } from "@/components/shared/weekly-burnout-risk-trend-chart";
 import { AiBurnoutTrendChart } from "@/components/shared/ai-burnout-trend-chart";
+import { StatCard } from "@/components/shared/stat-card";
 import { TablePagination } from "@/components/shared/table-pagination";
 import { BurnoutByGenderCard } from "@/components/reports/burnout-by-gender-card";
 import { Button } from "@/components/ui/button";
@@ -68,55 +69,6 @@ const riskConfig = {
   moderate: { label: "Moderate Risk", color: "oklch(0.8 0.15 85)" },
   high: { label: "High Risk", color: "oklch(0.68 0.19 40)" },
 } satisfies ChartConfig;
-
-function OverviewCard({
-  label,
-  value,
-  hint,
-  tone,
-  emphasize,
-}: {
-  label: string;
-  value: string | number;
-  hint?: string;
-  tone?: "low" | "moderate" | "high" | "neutral";
-  emphasize?: boolean;
-}) {
-  const toneClass =
-    tone === "low"
-      ? "text-emerald-700 dark:text-emerald-400"
-      : tone === "moderate"
-        ? "text-amber-800 dark:text-amber-400"
-        : tone === "high"
-          ? "text-orange-800 dark:text-orange-400"
-          : "";
-
-  return (
-    <Card
-      className={cn(
-        emphasize &&
-          "border-orange-300/80 bg-orange-50/60 dark:border-orange-900 dark:bg-orange-950/30"
-      )}
-    >
-      <CardHeader className="items-center gap-1 py-1 text-center">
-        <CardDescription className="text-xs font-medium uppercase tracking-wide">
-          {label}
-        </CardDescription>
-        <CardTitle
-          className={cn(
-            "font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl",
-            toneClass
-          )}
-        >
-          {value}
-        </CardTitle>
-        {hint ? (
-          <p className="text-xs text-muted-foreground">{hint}</p>
-        ) : null}
-      </CardHeader>
-    </Card>
-  );
-}
 
 function riskBadgeClass(risk: string) {
   if (risk === "High" || risk === "Severe") {
@@ -308,35 +260,33 @@ export function InstructorAnalyticsView({
       </div>
 
       <section className="min-w-0">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-          <OverviewCard label="Total Students" value={scoped.totalStudents} />
-          <OverviewCard
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+          <StatCard
+            label="Total Students"
+            value={scoped.totalStudents}
+          />
+          <StatCard
             label="Monitored"
             value={scoped.monitoredCount}
             hint="Completed this week"
           />
-          <OverviewCard
+          <StatCard
             label="Low Risk"
             value={scoped.lowRiskCount}
             tone="low"
           />
-          <OverviewCard
+          <StatCard
             label="Moderate Risk"
             value={scoped.moderateRiskCount}
             tone="moderate"
           />
-          <OverviewCard
+          <StatCard
             label="High Risk"
             value={scoped.highRiskCount}
             tone="high"
-            emphasize
           />
-        </div>
-        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
           <AiEarlyWarningOverviewCards
             earlyWarningCount={scoped.earlyWarningCount}
-            nextWeekHighCount={scoped.nextWeekHighCount}
-            week2HighCount={scoped.week2HighCount}
           />
         </div>
       </section>

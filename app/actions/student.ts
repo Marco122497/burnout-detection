@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { isRedirectError } from "next/dist/client/components/redirect-error";
 
 import { toAuditLogRow } from "@/lib/audit";
+import { parseSex } from "@/lib/auth/roles";
 import { requireRole, requireUser } from "@/lib/auth/session";
 import {
   finalizeWeeklyMonitoring,
@@ -326,12 +327,11 @@ export async function setStudentGender(
 ): Promise<StudentActionState> {
   const { supabase, user, profile } = await requireRole(["Student"]);
 
-  if (profile.sex === "Male" || profile.sex === "Female") {
+  if (parseSex(profile.sex)) {
     return { success: "Gender already saved." };
   }
 
-  const sexRaw = String(formData.get("sex") || "").trim();
-  const sex = sexRaw === "Male" || sexRaw === "Female" ? sexRaw : null;
+  const sex = parseSex(formData.get("sex"));
 
   if (!sex) {
     return { error: "Please select your gender." };

@@ -22,6 +22,7 @@ import {
   SUPERADMIN_FILL_ERROR,
   SUPERADMIN_MANAGE_ERROR,
 } from "@/lib/auth/protected-accounts";
+import { parseSex, type Sex } from "@/lib/auth/roles";
 import { getSessionUser, requireRole } from "@/lib/auth/session";
 import type { BulkStudentDraft } from "@/lib/guidance/bulk-students";
 import { fillDepartmentMonitoring } from "@/lib/guidance/fill-department-monitoring";
@@ -742,7 +743,7 @@ type StudentAccountInput = {
   middle_name: string | null;
   last_name: string;
   suffix: string | null;
-  sex?: "Male" | "Female" | null;
+  sex?: Sex | null;
   student_number: string;
   department_id: number;
   year_level: number;
@@ -819,8 +820,7 @@ export async function createStudent(
     const middle_name = String(formData.get("middle_name") || "").trim() || null;
     const last_name = String(formData.get("last_name") || "").trim();
     const suffix = String(formData.get("suffix") || "").trim() || null;
-    const sexRaw = String(formData.get("sex") || "").trim();
-    const sex = sexRaw === "Male" || sexRaw === "Female" ? sexRaw : null;
+    const sex = parseSex(formData.get("sex"));
     const student_number =
       String(formData.get("student_number") || "").trim() || null;
     const department_id = Number(formData.get("department_id"));
@@ -1428,8 +1428,7 @@ export async function updateUser(
       String(formData.get("student_number") || "").trim() || null;
     updates.section = String(formData.get("section") || "").trim() || null;
 
-    const sexRaw = String(formData.get("sex") || "").trim();
-    const sex = sexRaw === "Male" || sexRaw === "Female" ? sexRaw : null;
+    const sex = parseSex(formData.get("sex"));
     if (!sex) {
       return { error: "Gender is required." };
     }

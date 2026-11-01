@@ -1,7 +1,19 @@
+import { sexLabel, type Sex } from "@/lib/auth/roles";
 import { classifyMfbiScore, resolveMfbiBurnoutLevel } from "@/lib/student/mfbi";
 import { STUDY_TIME_SCORE_MAX } from "@/lib/student/scale-options";
 
-export type GenderLabel = "Male" | "Female" | "Unspecified";
+/** Report labels for students with a recorded gender. */
+export const GENDER_GROUPS = [
+  "Male",
+  "Female",
+  "Other Gender Identities",
+] as const;
+
+export type GenderGroup = (typeof GENDER_GROUPS)[number];
+
+export type GenderLabel = GenderGroup | "Unspecified";
+
+const GENDER_LABELS: readonly GenderLabel[] = [...GENDER_GROUPS, "Unspecified"];
 
 export type GenderRiskStats = {
   label: GenderLabel;
@@ -35,22 +47,22 @@ export type GenderVariableStats = {
   key: GenderVariableKey;
   label: string;
   byGender: GenderVariableGenderStats[];
-  /** Gender with the highest High count (Male vs Female). */
-  mostHighCountGender: "Male" | "Female" | null;
+  /** Gender with the highest High count; null when tied or none. */
+  mostHighCountGender: GenderGroup | null;
   mostHighCount: number;
   note: string | null;
 };
 
 export type GenderRiskSummary = {
   byGender: GenderRiskStats[];
-  mostProneToHigh: "Male" | "Female" | null;
+  mostProneToHigh: GenderGroup | null;
   mostProneNote: string | null;
   byVariable: GenderVariableStats[];
   variableNotes: string[];
 };
 
 type GenderRiskRow = {
-  sex?: "Male" | "Female" | null;
+  sex?: Sex | null;
   mfbi_score: number | null;
   burnout_level: string | null;
   stress_score?: number | null;
@@ -147,9 +159,63 @@ const VARIABLE_DEFS: {
   },
 ];
 
-function genderLabel(sex: "Male" | "Female" | null | undefined): GenderLabel {
-  if (sex === "Male" || sex === "Female") return sex;
-  return "Unspecified";
+function genderLabel(sex: Sex | null | undefined): GenderLabel {
+  return (sexLabel(sex) as GenderGroup | null) ?? "Unspecified";
+}
+
+function joinNames(names: string[]) {
+  if (names.length <= 1) return names.join("");
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+  return `${names.slice(0, -1).join(", ")}, and ${names[names.length - 1]}`;
+}
+
+/** Pick the recorded gender with the largest value; null when tied. */
+function pickLeader<T extends { label: GenderLabel; classified: number }>(
+  byGender: T[],
+  value: (item: T) => number,
+  format: (amount: number) => string,
+  describe: { most: string; same: string; only: string }
+): { leader: GenderGroup | null; amount: number; note: string | null } {
+  const groups = byGender.filter(
+    (item): item is T & { label: GenderGroup } =>
+      item.label !== "Unspecified" && item.classified > 0
+  );
+  const best = Math.max(0, ...groups.map(value));
+  if (groups.length === 0 || best <= 0) {
+    return { leader: null, amount: 0, note: null };
+  }
+
+  const leaders = groups.filter((item) => value(item) === best);
+  const others = groups.filter((item) => value(item) !== best);
+  const othersText = others.length
+    ? `, compared with ${joinNames(
+        others.map((item) => `${item.label} (${format(value(item))})`)
+      )}`
+    : "";
+
+  if (leaders.length > 1) {
+    return {
+      leader: null,
+      amount: best,
+      note: `${joinNames(leaders.map((item) => item.label))} students have the same ${describe.same} (${format(best)})${othersText}.`,
+    };
+  }
+
+  const leader = leaders[0].label;
+  return {
+    leader,
+    amount: best,
+    note:
+      groups.length === 1
+        ? `${leader} students account for the ${describe.only} (${format(best)}).`
+        : `${leader} students have the ${describe.most} (${format(best)})${othersText}.`,
+  };
+}
+
+function emptyGenderRecord<T>(make: () => T): Record<GenderLabel, T> {
+  return Object.fromEntries(
+    GENDER_LABELS.map((label) => [label, make()])
+  ) as Record<GenderLabel, T>;
 }
 
 function emptyLevelBucket() {
@@ -170,98 +236,38 @@ function emptyGenderTotals(label: GenderLabel) {
   };
 }
 
-function pickMostHighCount(
-  byGender: GenderVariableGenderStats[]
-): {
-  mostHighCountGender: "Male" | "Female" | null;
+function pickMostHighCount(byGender: GenderVariableGenderStats[]): {
+  mostHighCountGender: GenderGroup | null;
   mostHighCount: number;
   note: string | null;
 } {
-  const male = byGender.find((item) => item.label === "Male");
-  const female = byGender.find((item) => item.label === "Female");
-  const maleHigh = male?.high ?? 0;
-  const femaleHigh = female?.high ?? 0;
-
-  if (male && female && (male.classified > 0 || female.classified > 0)) {
-    if (maleHigh > femaleHigh) {
-      return {
-        mostHighCountGender: "Male",
-        mostHighCount: maleHigh,
-        note: `Male students have more High cases (${maleHigh}) than Female students (${femaleHigh}).`,
-      };
-    }
-    if (femaleHigh > maleHigh) {
-      return {
-        mostHighCountGender: "Female",
-        mostHighCount: femaleHigh,
-        note: `Female students have more High cases (${femaleHigh}) than Male students (${maleHigh}).`,
-      };
-    }
-    if (maleHigh > 0 || femaleHigh > 0) {
-      return {
-        mostHighCountGender: null,
-        mostHighCount: maleHigh,
-        note: `Male and Female students have the same High count (${maleHigh}).`,
-      };
-    }
-  } else if (male && maleHigh > 0) {
-    return {
-      mostHighCountGender: "Male",
-      mostHighCount: maleHigh,
-      note: `Male students account for the High cases (${maleHigh}).`,
-    };
-  } else if (female && femaleHigh > 0) {
-    return {
-      mostHighCountGender: "Female",
-      mostHighCount: femaleHigh,
-      note: `Female students account for the High cases (${femaleHigh}).`,
-    };
-  }
-
+  const pick = pickLeader(byGender, (item) => item.high, String, {
+    most: "most High cases",
+    same: "High count",
+    only: "High cases",
+  });
   return {
-    mostHighCountGender: null,
-    mostHighCount: 0,
-    note: null,
+    mostHighCountGender: pick.leader,
+    mostHighCount: pick.amount,
+    note: pick.note,
   };
 }
 
-/** Aggregate Low/Moderate/High by Male vs Female for burnout and factor scores. */
+/** Aggregate Low/Moderate/High by gender for burnout and factor scores. */
 export function buildGenderRiskSummary(rows: GenderRiskRow[]): GenderRiskSummary {
-  const totals = {
-    Male: emptyGenderTotals("Male"),
-    Female: emptyGenderTotals("Female"),
-    Unspecified: emptyGenderTotals("Unspecified"),
-  };
+  const totals = Object.fromEntries(
+    GENDER_LABELS.map((label) => [label, emptyGenderTotals(label)])
+  ) as Record<GenderLabel, ReturnType<typeof emptyGenderTotals>>;
 
   const variableBuckets: Record<
     GenderVariableKey,
     Record<GenderLabel, ReturnType<typeof emptyLevelBucket>>
   > = {
-    burnout: {
-      Male: emptyLevelBucket(),
-      Female: emptyLevelBucket(),
-      Unspecified: emptyLevelBucket(),
-    },
-    stress: {
-      Male: emptyLevelBucket(),
-      Female: emptyLevelBucket(),
-      Unspecified: emptyLevelBucket(),
-    },
-    workload: {
-      Male: emptyLevelBucket(),
-      Female: emptyLevelBucket(),
-      Unspecified: emptyLevelBucket(),
-    },
-    studyTime: {
-      Male: emptyLevelBucket(),
-      Female: emptyLevelBucket(),
-      Unspecified: emptyLevelBucket(),
-    },
-    sleep: {
-      Male: emptyLevelBucket(),
-      Female: emptyLevelBucket(),
-      Unspecified: emptyLevelBucket(),
-    },
+    burnout: emptyGenderRecord(emptyLevelBucket),
+    stress: emptyGenderRecord(emptyLevelBucket),
+    workload: emptyGenderRecord(emptyLevelBucket),
+    studyTime: emptyGenderRecord(emptyLevelBucket),
+    sleep: emptyGenderRecord(emptyLevelBucket),
   };
 
   for (const row of rows) {
@@ -291,7 +297,7 @@ export function buildGenderRiskSummary(rows: GenderRiskRow[]): GenderRiskSummary
     else entry.high += 1;
   }
 
-  const byGender: GenderRiskStats[] = (["Male", "Female", "Unspecified"] as const)
+  const byGender: GenderRiskStats[] = GENDER_LABELS
     .map((label) => {
       const entry = totals[label];
       const highRate =
@@ -312,12 +318,13 @@ export function buildGenderRiskSummary(rows: GenderRiskRow[]): GenderRiskSummary
         averageMfbi,
       };
     })
-    .filter((item) => item.total > 0 || item.classified > 0);
+    .filter(
+      (item) =>
+        item.label !== "Unspecified" || item.total > 0 || item.classified > 0
+    );
 
   const byVariable: GenderVariableStats[] = VARIABLE_DEFS.map((variable) => {
-    const byGenderForVariable: GenderVariableGenderStats[] = (
-      ["Male", "Female", "Unspecified"] as const
-    )
+    const byGenderForVariable: GenderVariableGenderStats[] = GENDER_LABELS
       .map((label) => {
         const entry = variableBuckets[variable.key][label];
         const highRate =
@@ -337,7 +344,7 @@ export function buildGenderRiskSummary(rows: GenderRiskRow[]): GenderRiskSummary
           average,
         };
       })
-      .filter((item) => item.classified > 0);
+      .filter((item) => item.label !== "Unspecified" || item.classified > 0);
 
     const pick = pickMostHighCount(byGenderForVariable);
     const note = pick.note
@@ -352,28 +359,23 @@ export function buildGenderRiskSummary(rows: GenderRiskRow[]): GenderRiskSummary
       mostHighCount: pick.mostHighCount,
       note,
     };
-  }).filter((item) => item.byGender.length > 0);
+  }).filter((item) => item.byGender.some((entry) => entry.classified > 0));
 
-  const male = byGender.find((item) => item.label === "Male");
-  const female = byGender.find((item) => item.label === "Female");
-
-  let mostProneToHigh: "Male" | "Female" | null = null;
+  let mostProneToHigh: GenderGroup | null = null;
   let mostProneNote: string | null = null;
 
   const burnoutVariable = byVariable.find((item) => item.key === "burnout");
   if (burnoutVariable?.note) {
     mostProneToHigh = burnoutVariable.mostHighCountGender;
     mostProneNote = burnoutVariable.note;
-  } else if (male && female && male.classified > 0 && female.classified > 0) {
-    if (male.highRate > female.highRate) {
-      mostProneToHigh = "Male";
-      mostProneNote = `Male students show a higher High-risk rate (${male.highRate}%) than Female students (${female.highRate}%).`;
-    } else if (female.highRate > male.highRate) {
-      mostProneToHigh = "Female";
-      mostProneNote = `Female students show a higher High-risk rate (${female.highRate}%) than Male students (${male.highRate}%).`;
-    } else {
-      mostProneNote = `Male and Female students have the same High-risk rate (${male.highRate}%).`;
-    }
+  } else {
+    const pick = pickLeader(byGender, (item) => item.highRate, (rate) => `${rate}%`, {
+      most: "highest High-risk rate",
+      same: "High-risk rate",
+      only: "High-risk rate",
+    });
+    mostProneToHigh = pick.leader;
+    mostProneNote = pick.note;
   }
 
   const variableNotes = byVariable
@@ -409,7 +411,7 @@ export function genderVariableHighlightRows(
     variable.label,
     variable.mostHighCountGender ?? "Tied / —",
     String(variable.mostHighCount),
-    variable.note ?? "Compare Male vs Female High counts",
+    variable.note ?? "Compare High counts across genders",
   ]);
 }
 

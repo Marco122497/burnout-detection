@@ -11,6 +11,26 @@ export const REGISTERABLE_ROLES = ["Student"] as const satisfies readonly UserRo
 
 export type RegisterableRole = (typeof REGISTERABLE_ROLES)[number];
 
+/** Stored values for profiles.sex (column is VARCHAR(10)). */
+export const SEX_OPTIONS = [
+  { value: "Male", label: "Male" },
+  { value: "Female", label: "Female" },
+  { value: "Other", label: "Other Gender Identities" },
+] as const;
+
+export type Sex = (typeof SEX_OPTIONS)[number]["value"];
+
+export function parseSex(value: unknown): Sex | null {
+  const raw = typeof value === "string" ? value.trim() : "";
+  return SEX_OPTIONS.some((option) => option.value === raw)
+    ? (raw as Sex)
+    : null;
+}
+
+export function sexLabel(value: string | null | undefined): string | null {
+  return SEX_OPTIONS.find((option) => option.value === value)?.label ?? null;
+}
+
 export type Department = {
   department_id: number;
   department_code: string;
@@ -32,7 +52,7 @@ export type Profile = {
   suffix: string | null;
   /** Computed client/server display name (not a DB column). */
   full_name: string;
-  sex: "Male" | "Female" | null;
+  sex: Sex | null;
   birth_date: string | null;
   age: number | null;
   civil_status: string | null;

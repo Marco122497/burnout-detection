@@ -14,6 +14,7 @@ import {
   calculateAge,
   formatDateTime,
   isStudentRole,
+  SEX_OPTIONS,
 } from "@/lib/auth/roles";
 import { formatYearLevel } from "@/lib/utils";
 import { useActionToast } from "@/hooks/use-action-toast";
@@ -418,8 +419,11 @@ export function ProfileForm({
                   className={selectClassName}
                 >
                   <option value="">Select</option>
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
+                  {SEX_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div className="space-y-2">

@@ -1,5 +1,5 @@
 import type { createClient } from "@/lib/supabase/server";
-import { buildFullName } from "@/lib/auth/roles";
+import { buildFullName, parseSex, type Sex } from "@/lib/auth/roles";
 import { STUDY_TIME_SCORE_MAX } from "@/lib/student/scale-options";
 import { reconcileMonitoringStudyDisplay } from "@/lib/student/monitoring-display";
 import { resolveMfbiBurnoutLevel } from "@/lib/student/mfbi";
@@ -7,6 +7,11 @@ import { getActiveTerm, getCurrentWeekNumber } from "@/lib/student/terms";
 import { fetchAllPages } from "@/lib/supabase/fetch-all";
 import { buildGenderRiskSummary } from "@/lib/reports/gender-risk";
 import { getCachedDepartmentWeeklySeries } from "@/lib/cache/monitoring";
+import {
+  isLaterSubmission,
+  monitoringRangeBounds,
+  type MonitoringDateRange,
+} from "@/lib/reports-range";
 import { cache } from "react";
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
@@ -19,7 +24,7 @@ export type StudentMonitorRow = {
   student_number: string | null;
   email?: string | null;
   profile_picture?: string | null;
-  sex?: "Male" | "Female" | null;
+  sex?: Sex | null;
   course: string | null;
   year_level: number | null;
   section: string | null;
@@ -277,12 +282,17 @@ export async function getInstructorDepartmentOptions(
 export const getInstructorStudentRows = cache(async function getInstructorStudentRows(
   supabase: SupabaseClient,
   departmentId: number | number[] | null,
-  week?: number
+  week?: number,
+  range?: MonitoringDateRange
 ): Promise<StudentMonitorRow[]> {
   const term = await getActiveTerm(supabase);
   const openWeek = term ? getCurrentWeekNumber(term) : null;
-  const currentWeek =
-    week != null && week >= 1 ? Math.floor(week) : openWeek;
+  const currentWeek = range
+    ? null
+    : week != null && week >= 1
+      ? Math.floor(week)
+      : openWeek;
+  const rangeBounds = range ? monitoringRangeBounds(range) : null;
 
   const departmentIds = normalizeDepartmentIds(departmentId);
   if (!departmentIds.length) return [];
@@ -353,12 +363,21 @@ export const getInstructorStudentRows = cache(async function getInstructorStuden
           .in("student_id", chunk)
           .order("created_at", { ascending: false });
 
-        if (term?.term_id) {
-          monitoringQuery = monitoringQuery.eq("term_id", term.term_id);
-        }
-        // Only current + prior week are needed for dashboard / previous_* fields.
-        if (weekFilter) {
-          monitoringQuery = monitoringQuery.in("week_number", weekFilter);
+        if (rangeBounds) {
+          if (rangeBounds.start) {
+            monitoringQuery = monitoringQuery.gte("submitted_at", rangeBounds.start);
+          }
+          if (rangeBounds.end) {
+            monitoringQuery = monitoringQuery.lte("submitted_at", rangeBounds.end);
+          }
+        } else {
+          if (term?.term_id) {
+            monitoringQuery = monitoringQuery.eq("term_id", term.term_id);
+          }
+          // Only current + prior week are needed for dashboard / previous_* fields.
+          if (weekFilter) {
+            monitoringQuery = monitoringQuery.in("week_number", weekFilter);
+          }
         }
 
         return monitoringQuery.range(from, to);
@@ -384,6 +403,15 @@ export const getInstructorStudentRows = cache(async function getInstructorStuden
       latestMonitoring.set(row.student_id, row);
     }
 
+    if (range) {
+      const chosen = currentWeekMonitoring.get(row.student_id);
+      if (!chosen || isLaterSubmission(row, chosen)) {
+        currentWeekMonitoring.set(row.student_id, row);
+      }
+      submittedThisWeek.add(row.student_id);
+      continue;
+    }
+
     if (
       term &&
       currentWeek &&
@@ -399,10 +427,18 @@ export const getInstructorStudentRows = cache(async function getInstructorStuden
   for (const row of monitoringList) {
     const weekNumber = Number(row.week_number);
     const current =
-      (currentWeek != null
+      (currentWeek != null || range
         ? currentWeekMonitoring.get(row.student_id)
         : undefined) ?? latestMonitoring.get(row.student_id);
     if (!current) continue;
+    if (range) {
+      if (!isLaterSubmission(current, row) || row === current) continue;
+      const existingPrev = previousMonitoring.get(row.student_id);
+      if (!existingPrev || isLaterSubmission(row, existingPrev)) {
+        previousMonitoring.set(row.student_id, row);
+      }
+      continue;
+    }
     const currentWeekNum = Number(current.week_number);
     if (weekNumber >= currentWeekNum) continue;
 
@@ -433,7 +469,7 @@ export const getInstructorStudentRows = cache(async function getInstructorStuden
   return students.map((student) => {
     // Dashboard / monitoring stats use the active monitoring week only.
     const monitoring =
-      currentWeek != null
+      currentWeek != null || range
         ? currentWeekMonitoring.get(student.id) ?? null
         : latestMonitoring.get(student.id) ?? null;
     const previous = previousMonitoring.get(student.id) ?? null;
@@ -459,8 +495,7 @@ export const getInstructorStudentRows = cache(async function getInstructorStuden
       last_name: student.last_name ?? null,
       student_number: student.student_number,
       profile_picture: student.profile_picture ?? null,
-      sex:
-        student.sex === "Male" || student.sex === "Female" ? student.sex : null,
+      sex: parseSex(student.sex),
       course: student.course,
       year_level: student.year_level,
       section: student.section,
@@ -607,8 +642,7 @@ export const getStudentAssessmentHistory = cache(async function getStudentAssess
       id: profile.id,
       full_name: buildFullName(profile),
       student_number: profile.student_number,
-      sex:
-        profile.sex === "Male" || profile.sex === "Female" ? profile.sex : null,
+      sex: parseSex(profile.sex),
       course: profile.course,
       year_level: profile.year_level,
       section: profile.section,

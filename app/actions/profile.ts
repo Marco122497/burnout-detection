@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 
-import { calculateAge, isStudentRole } from "@/lib/auth/roles";
+import { calculateAge, isStudentRole, parseSex } from "@/lib/auth/roles";
 import { toAuditLogRow } from "@/lib/audit";
 import { requireUser } from "@/lib/auth/session";
 
@@ -22,7 +22,6 @@ export async function updateProfile(
   const middle_name = String(formData.get("middle_name") || "").trim() || null;
   const last_name = String(formData.get("last_name") || "").trim();
   const suffix = String(formData.get("suffix") || "").trim() || null;
-  const sexRaw = String(formData.get("sex") || "").trim();
   const birth_date = String(formData.get("birth_date") || "").trim() || null;
   const contact_number =
     String(formData.get("contact_number") || "").trim() || null;
@@ -32,7 +31,7 @@ export async function updateProfile(
   const departmentRaw = String(formData.get("department_id") || "").trim();
   const yearLevelRaw = String(formData.get("year_level") || "").trim();
 
-  const sex = sexRaw === "Male" || sexRaw === "Female" ? sexRaw : null;
+  const sex = parseSex(formData.get("sex"));
   const age = calculateAge(birth_date);
 
   if (isStudentRole(profile.role)) {

@@ -1,8 +1,12 @@
 "use client";
 
 import { useEffect } from "react";
-import { AlertTriangleIcon, BrainCircuitIcon } from "lucide-react";
+import {
+  AlertTriangleIcon,
+  BrainCircuitIcon,
+} from "lucide-react";
 
+import { StatCard } from "@/components/shared/stat-card";
 import { TablePagination } from "@/components/shared/table-pagination";
 import {
   Card,
@@ -45,112 +49,20 @@ function riskTone(level: string | null | undefined) {
 
 export function AiEarlyWarningOverviewCards({
   earlyWarningCount,
-  nextWeekHighCount,
-  week2HighCount,
   mode = "default",
 }: {
   earlyWarningCount: number;
-  nextWeekHighCount: number;
-  week2HighCount: number;
-  /** hero = only AI Early Warnings (large). secondary = Next-week + Week-2 (compact). default = all three. */
-  mode?: "default" | "hero" | "secondary";
+  /** hero = large headline card. */
+  mode?: "default" | "hero";
 }) {
-  if (mode === "hero") {
-    return (
-      <Card className="border-amber-300/80 bg-amber-50/70 shadow-sm dark:border-amber-900 dark:bg-amber-950/30">
-        <CardHeader className="items-center gap-1 py-3 text-center">
-          <p className="text-[10px] font-semibold tracking-[0.14em] text-amber-900/80 uppercase dark:text-amber-300/80">
-            Watch closely
-          </p>
-          <CardDescription className="text-xs font-medium tracking-wide uppercase">
-            AI Early Warnings
-          </CardDescription>
-          <CardTitle className="font-[family-name:var(--font-display)] text-4xl font-semibold tracking-tight tabular-nums text-amber-900 sm:text-5xl dark:text-amber-300">
-            {earlyWarningCount}
-          </CardTitle>
-          <p className="text-xs text-muted-foreground sm:text-sm">
-            Rising / projected elevated risk this week
-          </p>
-        </CardHeader>
-      </Card>
-    );
-  }
-
-  if (mode === "secondary") {
-    return (
-      <>
-        <Card className="border-border/70 bg-muted/20 shadow-none">
-          <CardHeader className="items-center gap-1 py-2 text-center">
-            <CardDescription className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
-              Next-week High
-            </CardDescription>
-            <CardTitle className="font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight tabular-nums sm:text-2xl">
-              {nextWeekHighCount}
-            </CardTitle>
-            <p className="text-[11px] text-muted-foreground">
-              From this week&apos;s assessments
-            </p>
-          </CardHeader>
-        </Card>
-        <Card className="border-border/70 bg-muted/20 shadow-none">
-          <CardHeader className="items-center gap-1 py-2 text-center">
-            <CardDescription className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
-              Week-2 High
-            </CardDescription>
-            <CardTitle className="font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight tabular-nums sm:text-2xl">
-              {week2HighCount}
-            </CardTitle>
-            <p className="text-[11px] text-muted-foreground">
-              Trend projection this week
-            </p>
-          </CardHeader>
-        </Card>
-      </>
-    );
-  }
-
   return (
-    <>
-      <Card className="border-amber-300/70 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/20">
-        <CardHeader className="items-center gap-1 py-1 text-center">
-          <CardDescription className="text-xs font-medium tracking-wide uppercase">
-            AI Early Warnings
-          </CardDescription>
-          <CardTitle className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight tabular-nums text-amber-900 dark:text-amber-300">
-            {earlyWarningCount}
-          </CardTitle>
-          <p className="text-xs text-muted-foreground">
-            Rising / projected elevated risk this week
-          </p>
-        </CardHeader>
-      </Card>
-      <Card>
-        <CardHeader className="items-center gap-1 py-1 text-center">
-          <CardDescription className="text-xs font-medium tracking-wide uppercase">
-            Next-week High
-          </CardDescription>
-          <CardTitle className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight tabular-nums">
-            {nextWeekHighCount}
-          </CardTitle>
-          <p className="text-xs text-muted-foreground">
-            From this week&apos;s assessments
-          </p>
-        </CardHeader>
-      </Card>
-      <Card>
-        <CardHeader className="items-center gap-1 py-1 text-center">
-          <CardDescription className="text-xs font-medium tracking-wide uppercase">
-            Week-2 High
-          </CardDescription>
-          <CardTitle className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight tabular-nums">
-            {week2HighCount}
-          </CardTitle>
-          <p className="text-xs text-muted-foreground">
-            Trend projection this week
-          </p>
-        </CardHeader>
-      </Card>
-    </>
+    <StatCard
+      label="AI Early Warnings"
+      value={earlyWarningCount}
+      hint="Rising / projected elevated risk this week"
+      tone="warning"
+      size={mode === "hero" ? "lg" : "default"}
+    />
   );
 }
 

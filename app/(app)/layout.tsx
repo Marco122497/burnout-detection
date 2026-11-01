@@ -11,7 +11,7 @@ import {
   getOtherAdminCanEditQuestions,
   getReportSignatories,
 } from "@/lib/app-settings";
-import { isGuidanceRole } from "@/lib/auth/roles";
+import { isGuidanceRole, parseSex } from "@/lib/auth/roles";
 import { isSuperadminEmail } from "@/lib/auth/protected-accounts";
 import { requireUser } from "@/lib/auth/session";
 import { getDeveloperProfile } from "@/lib/developer-profile";
@@ -69,8 +69,7 @@ export default async function AppLayout({
   const needsGender =
     isStudent &&
     !needsConsent &&
-    profile.sex !== "Male" &&
-    profile.sex !== "Female";
+    !parseSex(profile.sex);
   const monitoringDue = isStudent
     ? await isWeeklyMonitoringDue(supabase, user.id)
     : false;

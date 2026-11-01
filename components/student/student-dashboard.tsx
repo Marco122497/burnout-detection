@@ -75,11 +75,6 @@ export function StudentDashboard({
         mfbiScore={data.mfbiScore}
         weekLabel={data.latestWeek != null ? `Week ${data.latestWeek}` : null}
       >
-        {data.predictionDate ? (
-          <div className="space-y-1 pt-1 text-xs text-muted-foreground">
-            <p>Submitted: {formatDateTime(data.predictionDate)}</p>
-          </div>
-        ) : null}
         {data.monitoringStatus === "Pending" ? (
           <div className="hidden md:block">
             <Link

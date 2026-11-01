@@ -21,6 +21,7 @@ import {
   AiModelStatusCard,
 } from "@/components/shared/ai-early-warning-panel";
 import { AiBurnoutTrendChart } from "@/components/shared/ai-burnout-trend-chart";
+import { StatCard } from "@/components/shared/stat-card";
 import { TablePagination } from "@/components/shared/table-pagination";
 import { BurnoutByGenderCard } from "@/components/reports/burnout-by-gender-card";
 import {
@@ -64,48 +65,6 @@ const yearConfig = {
 const courseConfig = {
   average: { label: "Avg MFBI", color: "var(--primary)" },
 } satisfies ChartConfig;
-
-function OverviewCard({
-  label,
-  value,
-  hint,
-  tone,
-}: {
-  label: string;
-  value: string | number;
-  hint?: string;
-  tone?: "low" | "moderate" | "high" | "neutral";
-}) {
-  const toneClass =
-    tone === "low"
-      ? "text-emerald-700"
-      : tone === "moderate"
-        ? "text-amber-800"
-        : tone === "high"
-          ? "text-orange-800"
-          : "";
-
-  return (
-    <Card>
-      <CardHeader className="items-center gap-1.5 py-1 text-center">
-        <CardDescription className="text-sm font-medium">
-          {label}
-        </CardDescription>
-        <CardTitle
-          className={cn(
-            "font-[family-name:var(--font-display)] text-4xl font-semibold tracking-tight tabular-nums",
-            toneClass
-          )}
-        >
-          {value}
-        </CardTitle>
-        {hint ? (
-          <p className="text-sm text-muted-foreground">{hint}</p>
-        ) : null}
-      </CardHeader>
-    </Card>
-  );
-}
 
 function SectionHeading({
   title,
@@ -286,34 +245,33 @@ export function GuidanceAnalyticsView({
           title="Burnout Overview"
           description="Summary of students monitored and risk distribution across the university."
         />
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
-          <OverviewCard
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-6">
+          <StatCard
             label="Students Monitored"
             value={data.totalStudents}
             hint={`${data.classifiedCount} with risk data`}
           />
-          {data.riskOverview.map((item) => (
-            <OverviewCard
-              key={item.label}
-              label={`${item.label} Risk`}
-              value={item.count}
-              hint={`${item.percent}% of classified`}
-              tone={item.label.toLowerCase() as "low" | "moderate" | "high"}
-            />
-          ))}
-          <OverviewCard
+          {data.riskOverview.map((item) => {
+            const tone = item.label.toLowerCase() as "low" | "moderate" | "high";
+            return (
+              <StatCard
+                key={item.label}
+                label={`${item.label} Risk`}
+                value={item.count}
+                hint={`${item.percent}% of classified`}
+                tone={tone}
+              />
+            );
+          })}
+          <StatCard
             label="Average Burnout Score"
             value={
               data.averageMfbi != null ? data.averageMfbi.toFixed(2) : "—"
             }
             hint="Mean MFBI"
           />
-        </div>
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
           <AiEarlyWarningOverviewCards
             earlyWarningCount={data.earlyWarningCount}
-            nextWeekHighCount={data.nextWeekHighCount}
-            week2HighCount={data.week2HighCount}
           />
         </div>
       </section>

@@ -16,6 +16,7 @@ import {
   INSTRUCTOR_REPORT_TYPES,
   type InstructorReportType,
 } from "@/lib/report-types";
+import type { ReportPeriod } from "@/lib/reports-range";
 import { formatYearLevel } from "@/lib/utils";
 import { formatMfbiScore } from "@/lib/student/mfbi";
 import {
@@ -140,12 +141,13 @@ function groupAttentionStudentsByYearLevel(
 export function InstructorReportsPanel({
   rows,
   weeklyTrends = [],
-  currentWeek,
+  period,
+  yearLevel = "all",
+  yearLevelLabel = null,
   departmentName,
   departmentOptions = [],
   department = "all",
   reportType,
-  week,
   maxWeek,
   preparedBy,
   preparedRole = "Instructor",
@@ -156,12 +158,13 @@ export function InstructorReportsPanel({
 }: {
   rows: StudentMonitorRow[];
   weeklyTrends?: WeeklyTrend[];
-  currentWeek: number | null;
+  period: ReportPeriod;
+  yearLevel?: string;
+  yearLevelLabel?: string | null;
   departmentName: string | null;
   departmentOptions?: readonly ReportDepartmentOption[];
   department?: string;
   reportType: InstructorReportType;
-  week: number;
   maxWeek: number;
   preparedBy?: string;
   preparedRole?: string;
@@ -172,10 +175,13 @@ export function InstructorReportsPanel({
 }) {
   const generatedAt = useMemo(() => new Date(), []);
   const deptLabel = departmentName || "Department";
-  const periodLabel =
-    department !== "all" && departmentName
-      ? `Week ${week} · ${departmentName}`
-      : `Week ${week}`;
+  const periodLabel = [
+    period.label,
+    yearLevelLabel,
+    department !== "all" ? departmentName : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
   const filteredRows = rows;
   const analytics = useMemo(
     () => getInstructorAnalytics(filteredRows, weeklyTrends),
@@ -266,7 +272,7 @@ export function InstructorReportsPanel({
               "Gender most prone to High burnout",
               analytics.mostProneGender ?? "—",
               analytics.mostProneGenderNote ??
-                "Compare Male vs Female High-risk rates",
+                "Compare High-risk rates across genders",
             ],
             ...(analytics.byGenderVariable ?? []).map((item) => [
               `Most High — ${item.label}`,
@@ -274,9 +280,11 @@ export function InstructorReportsPanel({
               item.note ?? `${item.mostHighCount} High cases`,
             ]),
             [
-              "Weekly submissions",
+              period.mode === "week"
+                ? "Weekly submissions"
+                : "Students who submitted",
               `${analytics.submittedCount} (${analytics.completionPercent}%)`,
-              currentWeek != null ? `Week ${currentWeek}` : "Current week",
+              period.label,
             ],
             ...(analytics.yearStats.length > 0
               ? [
@@ -311,7 +319,8 @@ export function InstructorReportsPanel({
         };
         return {
           title: `Burnout & Factors by Gender — ${deptLabel}`,
-          tableTitle: "Who has the most High counts (Male vs Female)",
+          tableTitle:
+            "Who has the most High counts (Male, Female, Other Gender Identities)",
           filename: "burnout-factors-by-gender.csv",
           columns: GENDER_HIGHLIGHT_COLUMNS,
           csvHeader: ["Variable", "Most High count", "High count", "Notes"],
@@ -435,7 +444,8 @@ export function InstructorReportsPanel({
     reportType,
     analytics,
     weeklyTrends,
-    currentWeek,
+    period.mode,
+    period.label,
     deptLabel,
   ]);
 
@@ -444,12 +454,17 @@ export function InstructorReportsPanel({
       <div className="flex flex-wrap items-end justify-between gap-3 print:hidden">
         <ReportFilters
           type={reportType}
-          week={week}
+          period={period.mode}
+          week={period.week}
+          month={period.month}
+          from={period.from}
+          to={period.to}
           maxWeek={maxWeek}
           basePath="/instructor/reports"
           types={INSTRUCTOR_REPORT_TYPES}
           departments={departmentOptions}
           department={department}
+          yearLevel={yearLevel}
         />
         <ReportExportButtons title={report.title} />
       </div>
