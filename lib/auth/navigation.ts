@@ -4,6 +4,7 @@ import {
   BellIcon,
   Building2Icon,
   GraduationCapIcon,
+  ChartBarIcon,
   ChartColumnIcon,
   ClipboardListIcon,
   DownloadIcon,
@@ -27,7 +28,7 @@ export type NavItem = {
 export function getNavItems(
   role: UserRole,
   home: string,
-  options?: { researchData?: boolean }
+  options?: { researchData?: boolean; charts?: boolean }
 ): NavItem[] {
   if (role === "Student") {
     return [
@@ -123,6 +124,15 @@ export function getNavItems(
       url: `${home}/analytics`,
       icon: ChartColumnIcon,
     },
+    ...(options?.charts
+      ? [
+          {
+            title: "Charts",
+            url: `${home}/charts`,
+            icon: ChartBarIcon,
+          },
+        ]
+      : []),
     {
       title: "Reports",
       url: `${home}/reports`,
@@ -141,7 +151,7 @@ export function getNavItems(
     ...(options?.researchData
       ? [
           {
-            title: "Research data",
+            title: "Research export",
             url: `${home}/research-data`,
             icon: DownloadIcon,
           },

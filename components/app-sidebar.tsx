@@ -57,6 +57,7 @@ export function AppSidebar({
   const home = getDashboardPath(profile.role);
   const navItems = getNavItems(profile.role, home, {
     researchData: isSuperadminEmail(email),
+    charts: isSuperadminEmail(email),
   });
   const isStudent = profile.role === "Student";
 
@@ -65,6 +66,7 @@ export function AppSidebar({
       home,
       getNavItems(profile.role, home, {
         researchData: isSuperadminEmail(email),
+        charts: isSuperadminEmail(email),
       }).map((item) => item.url)
     );
     for (const url of urls) {

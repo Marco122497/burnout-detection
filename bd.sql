@@ -1729,3 +1729,78 @@ ON audit_logs(record_id);
 
 CREATE INDEX IF NOT EXISTS idx_audit_logs_timestamp
 ON audit_logs(action_timestamp);
+
+
+-- ============================================================
+-- TABLE: FUNCTIONAL TEST RESULTS
+-- Actual system tests for Chapter 4. No sample rows.
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS functional_test_results (
+
+    test_id BIGSERIAL PRIMARY KEY,
+
+    feature VARCHAR(120) NOT NULL,
+
+    test_procedure TEXT NOT NULL,
+
+    expected_result TEXT NOT NULL,
+
+    actual_result TEXT NOT NULL,
+
+    status VARCHAR(20) NOT NULL
+        CHECK (status IN ('Passed', 'Failed')),
+
+    remarks TEXT,
+
+    tested_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+
+);
+
+CREATE INDEX IF NOT EXISTS idx_functional_tests_tested
+ON functional_test_results(tested_at);
+
+CREATE INDEX IF NOT EXISTS idx_functional_tests_feature
+ON functional_test_results(feature);
+
+
+-- ============================================================
+-- TABLE: USABILITY EVALUATION RESULTS
+-- Anonymized responses from real evaluators. No sample rows.
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS usability_evaluation_results (
+
+    evaluation_id BIGSERIAL PRIMARY KEY,
+
+    evaluator_id VARCHAR(40) NOT NULL,
+
+    evaluator_type VARCHAR(40) NOT NULL
+        CHECK (
+            evaluator_type IN (
+                'Student',
+                'Instructor',
+                'Guidance personnel',
+                'IT expert'
+            )
+        ),
+
+    questionnaire_item TEXT NOT NULL,
+
+    response_value NUMERIC(8,2),
+
+    total_score NUMERIC(8,2),
+
+    evaluation_date DATE,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+
+);
+
+CREATE INDEX IF NOT EXISTS idx_usability_eval_date
+ON usability_evaluation_results(evaluation_date);
+
+CREATE INDEX IF NOT EXISTS idx_usability_eval_evaluator
+ON usability_evaluation_results(evaluator_id);

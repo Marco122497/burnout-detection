@@ -21,6 +21,7 @@ const pageLabels: Record<string, string> = {
   recommendations: "Recommendations",
   notifications: "Notifications",
   analytics: "Burnout Analytics",
+  charts: "Charts",
   reports: "Reports",
   announcements: "Announcements",
   departments: "Departments",
@@ -29,7 +30,7 @@ const pageLabels: Record<string, string> = {
   students: "Students",
   admins: "Admins",
   settings: "Settings",
-  "research-data": "Research data",
+  "research-data": "Research Data Export",
 };
 
 export function AppBreadcrumb({ dashboardHref }: { dashboardHref: string }) {

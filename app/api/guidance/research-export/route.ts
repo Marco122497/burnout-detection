@@ -1,68 +1,87 @@
 import { NextResponse } from "next/server";
 
-import { RESEARCH_DOWNLOADS } from "@/lib/guidance/research-downloads";
-import { buildResearchFiles } from "@/lib/guidance/research-export";
 import { isSuperadminEmail } from "@/lib/auth/protected-accounts";
 import { getSessionUser } from "@/lib/auth/session";
+import {
+  RESEARCH_DATASETS,
+  isResearchDatasetKey,
+  parseResearchWeek,
+  type ResearchDatasetKey,
+} from "@/lib/guidance/research-downloads";
+import {
+  buildResearchExport,
+  researchExportReadme,
+} from "@/lib/guidance/research-export";
 import { zipTextFiles } from "@/lib/zip-store";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const FILE_BY_KEY = new Map<string, string>(
-  RESEARCH_DOWNLOADS.filter((item) => item.file !== "all").map((item) => [
-    item.file,
-    item.filename,
-  ])
-);
+function parseDatasets(value: string | null): ResearchDatasetKey[] | null {
+  if (!value || value === "all") {
+    return RESEARCH_DATASETS.map((item) => item.key);
+  }
+  const keys: ResearchDatasetKey[] = [];
+  for (const key of new Set(value.split(",").map((part) => part.trim()).filter(Boolean))) {
+    if (!isResearchDatasetKey(key)) return null;
+    keys.push(key);
+  }
+  return keys.length ? keys : null;
+}
 
 export async function GET(request: Request) {
   const { user, profile } = await getSessionUser();
   if (!user || !profile?.is_active) {
     return NextResponse.json({ error: "Sign in required." }, { status: 401 });
   }
-  if (
-    profile.role !== "Guidance Counselor" ||
-    !isSuperadminEmail(user.email)
-  ) {
+  if (profile.role !== "Guidance Counselor" || !isSuperadminEmail(user.email)) {
     return NextResponse.json({ error: "Not allowed." }, { status: 403 });
   }
 
-  const file = new URL(request.url).searchParams.get("file") ?? "all";
-  if (file !== "all" && !FILE_BY_KEY.has(file)) {
-    return NextResponse.json({ error: "Unknown file." }, { status: 400 });
+  const url = new URL(request.url);
+  const week = parseResearchWeek(url.searchParams.get("week"));
+  const datasets = parseDatasets(url.searchParams.get("datasets"));
+  if (!datasets) {
+    return NextResponse.json({ error: "Unknown dataset." }, { status: 400 });
   }
 
   try {
-    const files = await buildResearchFiles();
-    if (file === "all") {
-      const zip = zipTextFiles(files);
-      return new NextResponse(new Uint8Array(zip), {
+    const files = await buildResearchExport({ datasets, week });
+    const single =
+      datasets.length === 1
+        ? RESEARCH_DATASETS.find((item) => item.key === datasets[0])
+        : undefined;
+
+    if (single?.download === "csv") {
+      const match = files[0];
+      if (!match) {
+        return NextResponse.json({ error: "File missing." }, { status: 404 });
+      }
+      const filename = match.name;
+      return new NextResponse(match.text, {
         headers: {
-          "Content-Type": "application/zip",
-          "Content-Disposition":
-            'attachment; filename="chapter4-research-data.zip"',
+          "Content-Type": "text/csv; charset=utf-8",
+          "Content-Disposition": `attachment; filename="${filename}"`,
           "Cache-Control": "no-store",
         },
       });
     }
 
-    const filename = FILE_BY_KEY.get(file);
-    if (!filename) {
-      return NextResponse.json({ error: "Unknown file." }, { status: 400 });
-    }
-    const match = files.find((item) => item.name === filename);
-    if (!match) {
-      return NextResponse.json({ error: "File missing." }, { status: 404 });
-    }
-    const type = filename.endsWith(".txt")
-      ? "text/plain; charset=utf-8"
-      : "text/csv; charset=utf-8";
-    return new NextResponse(match.text, {
+    const zipName =
+      single?.key === "models"
+        ? "model_evaluation_files.zip"
+        : week === "all"
+          ? "research-data-export.zip"
+          : `research-data-export-week-${week}.zip`;
+    const zip = zipTextFiles([
+      ...files,
+      { name: "README.txt", text: researchExportReadme(week) },
+    ]);
+    return new NextResponse(new Uint8Array(zip), {
       headers: {
-        "Content-Type": type,
-        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Content-Type": "application/zip",
+        "Content-Disposition": `attachment; filename="${zipName}"`,
         "Cache-Control": "no-store",
       },
     });

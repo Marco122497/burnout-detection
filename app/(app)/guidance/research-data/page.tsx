@@ -8,7 +8,7 @@ import { requireRole } from "@/lib/auth/session";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Research data",
+  title: "Research Data Export",
 };
 
 export default async function ResearchDataPage() {
@@ -18,10 +18,15 @@ export default async function ResearchDataPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-6">
+    <div className="mx-auto w-full max-w-4xl space-y-6">
       <PageHeading
-        title="Research data"
-        description="Chapter 4 files for every monitoring week, including Week 3 and later weeks. Names, emails, and student numbers are left out. Screenshots are listed, not captured."
+        title="Research Data Export"
+        description="Anonymized datasets for statistical analysis and thesis documentation. Names, email addresses, and student numbers are left out."
+        actions={
+          <span className="rounded-full border px-2.5 py-1 text-xs font-medium">
+            Admin only
+          </span>
+        }
       />
       <ResearchDataDownloads />
     </div>
